@@ -4,18 +4,13 @@ using FastConsole;
 using Masks;
 using System.Diagnostics;
 using System.Text;
-using static System.Net.Mime.MediaTypeNames;
-using System.Windows.Documents;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Windows.Media;
-using static System.Formats.Asn1.AsnWriter;
-using System.Windows.Shapes;
 
 class Bot
 {
-
-    
-    const double THINKTIMEINSECONDS = 0.15,
+    const double THINKTIMEINSECONDS = 1,
                  MINTRESH = -1, MAXTRESH = -0.01, MOVEMUL = 1.05, MOVETARGET = 5,
                  DISCOUNT_FACTOR = 0.95;
 
@@ -104,7 +99,7 @@ class Bot
                 Game.TickAsync();
                 FConsole.ForceRender();
                 Game.WriteAt(1, 0, ConsoleColor.White, Math.Round(nodec.Average()).ToString().PadRight(9));
-                Game.WriteAt(1, 22, ConsoleColor.White, MaxDepth.ToString().PadRight(6));
+                Game.WriteAt(1, 22, ConsoleColor.White, MaxDepth.ToString().PadRight(10));
                 Game.WriteAt(1, 23, ConsoleColor.White, MoveTresh.ToString().PadRight(12));
                 for (int i = nodec.Length - 1; i > 0; i--)
                     nodec[i] = nodec[i - 1];
@@ -117,7 +112,7 @@ class Bot
         main.Start();
     }
 
-    public List<Moves> FindMoves()
+    public unsafe List<Moves> FindMoves()
     {
         // Remove excess cache
         //if (CachedValues.Count >= 200000) CachedValues.Clear();
@@ -133,8 +128,8 @@ class Bot
         Timer.Restart();
         TimesUp = false;
 
-        Matrix10x24 Matrix = Game.Matrix.Clone();
-        ///Matrix10x24* ptr = &Matrix;
+        Matrix10x24 Matrix = new Matrix10x24(Game.Matrix);
+        Matrix.Ptr = (int*)&Matrix.Item0;
         Piece Current = Game.Current, Hold = Game.Hold;
         Piece[] Next = (Piece[])Game.Next.Clone();
         int B2B = Game.B2B, Combo = Game.Combo;
@@ -154,12 +149,13 @@ class Bot
                 bool holding_piece = swap_int == 1;
                 // Get piece based on swap
                 int nexti = 0;
-                Piece piece = holding_piece ? Hold : Current;
+                Piece ori_piece = holding_piece ? Hold : Current;
                 Piece hold = holding_piece ? Current : Hold;
-                if (piece == Piece.EMPTY) piece = Next[nexti++];
+                if (ori_piece == Piece.EMPTY) ori_piece = Next[nexti++];
 
-                for ( ; !TimesUp && piece < Piece.ROTATION_CW * 4; piece += Piece.ROTATION_CW)
+                for (int R = 0; !TimesUp && R < Piece.ROTATION_CW * 4; R += Piece.ROTATION_CW)
                 {
+                    Piece piece = ori_piece + R;
                     List<Moves> temp_moves = new List<Moves>();
                     if ((piece & Piece.ROTATION_BITS) == Piece.ROTATION_CW) 
                         temp_moves.Add(Moves.RotateCW);
@@ -182,11 +178,12 @@ class Bot
                         // Hard drop
                         Matrix.MoveToGround(piece, x, ref y);
                         // Update screen
-                        Matrix10x24 matrix = Matrix.Clone();
+                        Matrix10x24 matrix = new Matrix10x24(Matrix);
+                        matrix.Ptr = (int*)&matrix.Item0;
                         double garbage;
-                        ReadOnlySpan<int> info = SearchScore(matrix, B2B, x, y, piece, Combo, false, out garbage);
+                        ReadOnlySpan<int> info = SearchScore(ref matrix, B2B, x, y, piece, Combo, false, out garbage);
                         // Check if better
-                        double newvalue = FindBestScore(matrix, depth, nexti + 1, Next[nexti], hold, false, info[2], info[0], out1, garbage);
+                        double newvalue = FindBestScore(new Matrix10x24(matrix), depth, nexti + 1, Next[nexti], hold, false, info[2], info[0], out1, garbage);
                         if (newvalue >= bestScore)
                         {
                             if (newvalue > bestScore || DistanceFromWall(piece, temp_moves) < DistanceFromWall(holding_piece ^ best_moves.Contains(Moves.Hold) ? piece : hold, best_moves))
@@ -196,9 +193,7 @@ class Bot
                                 if (holding_piece) best_moves.Insert(0, Moves.Hold);
                             }
                         }
-                        //Revert(vscreen, piece, rot, orix, oriy, info);
-                        // Only vertical pieces can be spun
-                        if ((piece & Piece.ROTATION_CW) == Piece.ROTATION_CW && (piece & Piece.PIECE_BITS) != Piece.O)
+                        if (piece.R == Piece.ROTATION_CW && piece.PieceType != Piece.O)
                         {
                             for (int cw_int = 0; cw_int < 2; cw_int++)
                             {
@@ -217,21 +212,20 @@ class Bot
                                     temp_moves.Add(cw ? Moves.RotateCW : Moves.RotateCCW);
 
                                     // Update screen
-                                    matrix = Matrix.Clone();
-                                    info = SearchScore(matrix, B2B, new_x, new_y, _piece, Combo, true, out garbage);
+                                    matrix = new Matrix10x24(Matrix);
+                                    matrix.Ptr = (int*)&matrix.Item0;
+                                    info = SearchScore(ref matrix, B2B, new_x, new_y, _piece, Combo, true, out garbage);
                                     // Check if better
-                                    newvalue = FindBestScore(matrix, depth, nexti + 1, Next[nexti], hold, false, info[2], info[0], out1, garbage);
+                                    newvalue = FindBestScore(new Matrix10x24(matrix), depth, nexti + 1, Next[nexti], hold, false, info[2], info[0], out1, garbage);
                                     if (newvalue > bestScore)
                                     {
                                         bestScore = newvalue;
                                         best_moves = new List<Moves>(temp_moves);
                                         if (holding_piece) best_moves.Insert(0, Moves.Hold);
                                     }
-                                    // Revert screen
-                                    //Revert(vscreen, piece, r, x, y, info);
 
                                     // Only try to spin T pieces twice (for TSTs)
-                                    if ((piece & Piece.PIECE_BITS) != Piece.T) break;
+                                    if (piece.PieceType != Piece.T) break;
                                 }
 
                                 while (temp_moves[temp_moves.Count - 1] == (cw ? Moves.RotateCW : Moves.RotateCCW)) temp_moves.RemoveAt(temp_moves.Count - 1);
@@ -240,7 +234,7 @@ class Bot
                         }
                     }
                     // o pieces can't be rotated
-                    if (piece == 7)
+                    if (piece.PieceType == 7)
                     {
                         MaxDepth += 1d / 2;
                         break;
@@ -268,7 +262,7 @@ class Bot
         return best_moves;
 
         
-        double FindBestScore(Matrix10x24 _matrix, int depth, int nexti, Piece _piece, Piece _hold, bool swapped, int comb, int b2b, double prevstate, double _trash)
+        double FindBestScore(Matrix10x24 _matrix, int depth, int nexti, Piece piece, Piece _hold, bool swapped, int comb, int b2b, double prevstate, double _trash)
         {
             //if (TimesUp || pc_found) return double.MinValue;
             if (TimesUp) return double.MinValue;
@@ -278,6 +272,7 @@ class Bot
                 return double.MinValue;
             }
 
+            _matrix.Ptr = (int*)&_matrix.Item0;
             if (depth == 0 || nexti == Next.Length)
             {
                 nodec[0]++;
@@ -296,7 +291,7 @@ class Bot
             {
                 double _value = double.MinValue;
                 // Have we seen this situation before?
-                ulong hash = HashBoard(_matrix, _piece, _hold, nexti, depth);
+                ulong hash = HashBoard(_matrix, piece, _hold, nexti, depth);
                 if (CachedValues.ContainsKey(hash)) return CachedValues[hash];
                 // Check if this move should be explored
                 double discount = Discounts[CurrentDepth - depth];
@@ -313,34 +308,34 @@ class Bot
                 if (!swapped)
                 {
                     if (Hold == 0)
-                        _value = Math.Max(_value, FindBestScore(_matrix, depth, nexti + 1, Next[nexti], _piece, true, comb, b2b, prevstate, _trash));
+                        _value = Math.Max(_value, FindBestScore(new Matrix10x24(_matrix), depth, nexti + 1, Next[nexti], piece, true, comb, b2b, prevstate, _trash));
                     else
-                        _value = Math.Max(_value, FindBestScore(_matrix, depth, nexti, _hold, _piece, true, comb, b2b, prevstate, _trash));
+                        _value = Math.Max(_value, FindBestScore(new Matrix10x24(_matrix), depth, nexti, _hold, piece, true, comb, b2b, prevstate, _trash));
                     if (CachedValues.ContainsKey(hash))
                         return CachedValues[hash];
                 }
                 // Check all landing spots
-                for ( ; _piece < Piece.ROTATION_CW * 4; _piece += Piece.ROTATION_CW)
+                for (int R = 0; !TimesUp && R < Piece.ROTATION_CW * 4; R += Piece.ROTATION_CW)
                 {
+                    Piece _piece = piece + R;   
                     for (int x = 0; x < _piece.MaxX; x++)
                     {
-                        int y = 18;
+                        int y = _piece.StartY;
                         // Hard drop
                         _matrix.MoveToGround(_piece, x, ref y);
-                        Matrix10x24 _matrix_clone = _matrix.Clone();
+                        Matrix10x24 _matrix_clone = new Matrix10x24(_matrix);
+                        _matrix_clone.Ptr = (int*)&_matrix_clone.Item0;
                         double garbage;
                         ReadOnlySpan<int> info;
-                        if ((_piece != Piece.S && _piece != Piece.Z) || (_piece & Piece.ROTATION_180) == 0)
+                        if ((_piece.PieceType != Piece.S && _piece.PieceType != Piece.Z) || (_piece.R & Piece.ROTATION_180) == 0)
                         {
                             // Update matrix
-                            info = SearchScore(_matrix_clone, b2b, x, y, _piece, comb, false, out garbage);
+                            info = SearchScore(ref _matrix_clone, b2b, x, y, _piece, comb, false, out garbage);
                             // Check if better
-                            _value = Math.Max(_value, FindBestScore(_matrix_clone, depth - 1, nexti + 1, Next[nexti], _hold, false, info[2], info[0], outs[0], discount * garbage + _trash));
-                            // Revert matrix
-                            //Revert(_matrix, _piece, rot, orix, oriy, info);
+                            _value = Math.Max(_value, FindBestScore(new Matrix10x24(_matrix_clone), depth - 1, nexti + 1, Next[nexti], _hold, false, info[2], info[0], outs[0], discount * garbage + _trash));
                         }
                         // Only vertical pieces can be spun
-                        if ((_piece & Piece.ROTATION_CW) == Piece.ROTATION_CW && (_piece & Piece.PIECE_BITS) != Piece.O)
+                        if ((_piece.R & Piece.ROTATION_CW) == Piece.ROTATION_CW && _piece.PieceType != Piece.O)
                         {
                             for (int cw_counter = 0; cw_counter < 2; cw_counter++)
                             {
@@ -355,12 +350,11 @@ class Bot
                                     
                                     if (!_matrix.OnGround(_piece, new_x, new_y)) break;
                                     // Update matrix
-                                    _matrix_clone = _matrix.Clone();
-                                    info = SearchScore(_matrix_clone, b2b, new_x, new_y, _piece, comb, true, out garbage);
+                                    _matrix_clone = new Matrix10x24(_matrix);
+                                    _matrix_clone.Ptr = (int*)&_matrix_clone.Item0;
+                                    info = SearchScore(ref _matrix_clone, b2b, new_x, new_y, _piece, comb, true, out garbage);
                                     // Check if better
-                                    _value = Math.Max(_value, FindBestScore(_matrix_clone, depth - 1, nexti + 1, Next[nexti], _hold, false, info[2], info[0], outs[0], discount * garbage + _trash));
-                                    // Revert matrix
-                                    //Revert(_matrix, _piece, r, x, y, info);
+                                    _value = Math.Max(_value, FindBestScore(new Matrix10x24(_matrix_clone), depth - 1, nexti + 1, Next[nexti], _hold, false, info[2], info[0], outs[0], discount * garbage + _trash));
 
                                     // Only try to spin T pieces twice(for TSTs)
                                     if (_piece.R == Piece.ROTATION_180 || _piece.PieceType != Piece.T) break;
@@ -369,7 +363,7 @@ class Bot
                         }
                     }
                     //o pieces can't be rotated
-                    if (_piece == 7) break;
+                    if (_piece.PieceType == 7) break;
                 }
 
                 CachedValues.Add(hash, _value);
@@ -377,7 +371,7 @@ class Bot
             }
         }
 
-        ReadOnlySpan<int> SearchScore(Matrix10x24 _matrix, int _b2b, int _x, int _y, Piece _piece, int comb, bool lastrot, out double _trash)
+        ReadOnlySpan<int> SearchScore(ref Matrix10x24 _matrix, int _b2b, int _x, int _y, Piece _piece, int comb, bool lastrot, out double _trash)
         {
             // { B2B, T-Spin, combo }
             // Check for t - spins
@@ -442,18 +436,6 @@ class Bot
             else if (move == Moves.SoftDrop) break;
         }
         return Math.Min(x, piece.MaxX - x);
-    }
-
-    bool MatrixToUlong(int[][] matrix, out ulong ulong_matrix)
-    {
-        //pc_moves = null;
-        ulong_matrix = 0;
-        for (int y = 17; y < matrix.Length - 4; y++) for (int x = 0; x < matrix[0].Length; x++) if (matrix[y][x] != 0) return false;
-        for (int i = 0; i < 40; i++)
-        {
-            if (matrix[(i / 10) + matrix.Length - 4][i % 10] != 0) ulong_matrix |= 1ul << (39 - i);
-        }
-        return true;
     }
 }
 

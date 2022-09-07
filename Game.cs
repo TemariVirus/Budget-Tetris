@@ -315,8 +315,6 @@ class Game : GameBase
             fixed (ulong* ptr = &_Matrix.Item0)
             {
                 _Matrix.Ptr = (int*)ptr;
-                IntPtr a = new IntPtr(ptr);
-                WriteAt(0, 23, ConsoleColor.White, a.ToString().PadRight(16));
 
                 // Timekeeping
                 double deltaT = GlobalTime.Elapsed.TotalSeconds - LastFrameT;
@@ -394,9 +392,6 @@ class Game : GameBase
 
                 IsTicking = false;
                 TickingCallback?.Invoke();
-                
-                WriteAt(0, 22, ConsoleColor.White, Matrix.H.ToString().PadRight(2));
-                FConsole.WriteAt(Matrix.ToString().Substring(88), 13, 3);
             }
         }).Start();
     }
@@ -839,17 +834,11 @@ class Game : GameBase
     {
         if (Games == null) return false;
 
-        bool allReady = true;
         foreach (Game g in Games)
-        {
             if (g.IsTicking)
-            {
-                allReady = false;
-                break;
-            }
-        }
+                return false;
 
-        return allReady;
+        return true;
     }
 }
 
@@ -874,8 +863,8 @@ class Program
         Game.SetGames(games);
         FConsole.SetRenderCallback(() =>
         {
-            Game g = Game.Games[1];
-                while (g.IsTicking) Thread.Sleep(0);
+            while (!Game.AllReady()) Thread.Sleep(0);
+            foreach (Game g in Game.Games)
                 g.TickAsync();
         });
 
@@ -898,7 +887,7 @@ class Program
         FConsole.AddOnPressListener(Key.C, () => main.Play(Moves.Hold));
         FConsole.AddOnPressListener(Key.R, () => main.Restart());
 
-        //new Bot(BaseDirectory + @"NNs\plan2.txt", games[0]).Start(0, 0);
+        new Bot(BaseDirectory + @"NNs\plan2.txt", games[0]).Start(0, 0);
 
 
         //while (true)

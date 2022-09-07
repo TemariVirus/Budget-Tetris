@@ -1,6 +1,7 @@
 ﻿namespace Masks;
 
 using FastConsole;
+using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -333,6 +334,52 @@ public class Piece
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static implicit operator int(Piece i) => i.Id;
+
+    public override string ToString()
+    {
+        string name = "";
+        switch (R)
+        {
+            case ROTATION_CW:
+                name = "CW ";
+                break;
+            case ROTATION_180:
+                name = "180 ";
+                break;
+            case ROTATION_CCW:
+                name = "CCW" ;
+                break;
+        }
+        switch (PieceType)
+        {
+            case EMPTY:
+                name += "Empty";
+                break;
+            case T:
+                name += "T";
+                break;
+            case I:
+                name += "I";
+                break;
+            case L:
+                name += "L";
+                break;
+            case J:
+                name += "J";
+                break;
+            case S:
+                name += "S";
+                break;
+            case Z:
+                name += "Z";
+                break;
+            case O:
+                name += "O";
+                break;
+        }
+        
+        return name;
+    }
 }
 
 // Optimised some corners so it only works with tetriminos and not all possible piece masks
@@ -375,6 +422,18 @@ public unsafe struct Matrix10x24
             Ptr = (int*)ptr;
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public Matrix10x24(in Matrix10x24 original)
+    {
+        fixed (ulong* ptr = &Item0)
+            Ptr = (int*)ptr;
+        H = original.H;
+        Item0 = original.Item0;
+        Item1 = original.Item1;
+        Item2 = original.Item2;
+        Item3 = original.Item3;
+    }
+
     public Matrix10x24(ConsoleColor[][] board, ConsoleColor empty) : this()
     {
         for (int i = 0; i < 240; i++)
@@ -388,7 +447,7 @@ public unsafe struct Matrix10x24
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool Collides(Piece piece, int x, int y)
+    public bool Collides(in Piece piece, int x, int y)
     {
         if (y > H) return false;
         
@@ -399,7 +458,7 @@ public unsafe struct Matrix10x24
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool OnGround(Piece piece, int x, int y)
+    public bool OnGround(in Piece piece, int x, int y)
     {
         if (y > H) return false;
         if (y == 0) return true;
@@ -407,7 +466,7 @@ public unsafe struct Matrix10x24
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void MoveToGround(Piece piece, int x, ref int y)
+    public void MoveToGround(in Piece piece, int x, ref int y)
     {
         if (y > H) y = H;
         while (!OnGround(piece, x, y)) y--;
@@ -560,8 +619,7 @@ public unsafe struct Matrix10x24
     }
 
     /// <summary>0 = No T-Spin; 2 = T-Spin Mini; 3 = T-Spin</summary>
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public int GetTSpinKind(bool rotatedLast, Piece piece, int x, int y)
+    public int GetTSpinKind(bool rotatedLast, in Piece piece, int x, int y)
     {
         const int ALL_CORNERS = (0b101 << 20) | 0b101;
         const int NO_BR = (0b101 << 20) | 0b100;
@@ -607,27 +665,19 @@ public unsafe struct Matrix10x24
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public int PopCount()
     {
-        return BitOperations.PopCount(Item0) + 
-               BitOperations.PopCount(Item1) + 
-               BitOperations.PopCount(Item2) + 
-               BitOperations.PopCount(Item3);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public Matrix10x24 Clone()
-    {
-        Matrix10x24 clone = new Matrix10x24();
-        Buffer.MemoryCopy(Ptr, &clone, 36, 36);
-        return clone;
+        return BitOperations.PopCount(this[0]) + 
+               BitOperations.PopCount(this[2]) + 
+               BitOperations.PopCount(this[4]) + 
+               BitOperations.PopCount(this[6]);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public ulong Hash()
     {
-        return (ulong)Item0.GetHashCode() ^ 
-               ((ulong)Item1.GetHashCode() << 11) ^ 
-               ((ulong)Item2.GetHashCode() << 22) ^ 
-               ((ulong)Item3.GetHashCode() << 33);
+        return (ulong)this[0].GetHashCode() ^ 
+               ((ulong)this[2].GetHashCode() << 11) ^ 
+               ((ulong)this[4].GetHashCode() << 22) ^ 
+               ((ulong)this[6].GetHashCode() << 33);
     }
     
     // For debugging
@@ -692,39 +742,6 @@ public unsafe struct Matrix10x24
 
 public static class TetrisHelper
 {
-    // Returns true if the piece was rotated; Otherwise, returns false
-    //    protected bool TryRotate(bool clockwise)
-    //    {
-    //        bool vertial = (R & 1) == 1;
-    //        int xmul = (!clockwise ^ (R > 1) ^ (vertial && clockwise)) ? -1 : 1;
-    //        int ymul = vertial ? -1 : 1;
-    //        if (Current == Pieces.I) ymul *= ((R > 1) ^ clockwise) ? -1 : 1;
-    //        R += clockwise ? 1 : -1;
-    //        int[] testorder = Current == Pieces.I && (vertial ^ !clockwise) ? new int[] { 0, 2, 1, 4, 3 } : new int[] { 0, 1, 2, 3, 4 };
-    //        foreach (int test in testorder)
-    //        {
-    //            bool pass = true;
-    //            int kickX = (Current == Pieces.I ? IKicksX[test] : KicksX[test]) * xmul;
-    //            int kickY = (Current == Pieces.I ? IKicksY[test] : KicksY[test]) * ymul;
-    //            for (int i = 0; i < 4 && pass; i++)
-    //            {
-    //                int x = BlockX(i) + kickX;
-    //                int y = BlockY(i) + kickY;
-    //                if (x < 0 || x > 9 || y > 39) pass = false;
-    //                else if (Matrix[y][x] != 0) pass = false;
-    //            }
-    //            if (pass)
-    //            {
-    //                X += kickX;
-    //                Y += kickY;
-    //                return true;
-    //            }
-    //        }
-
-    //        R -= clockwise ? 1 : -1;
-    //        return false;
-    //    }
-
     private static readonly int[] KicksX = { 0, -1, -1, 0, -1 }, IKicksX = { 0, -2, 1, -2, 1 };
     private static readonly int[] KicksY = { 0, 0, -1, 2, 2 }, IKicksY = { 0, 0, 0, 1, -2 };
 
@@ -746,15 +763,15 @@ public static class TetrisHelper
                                       new int[][] { new int[] { -1, -1, 0, 0 }, new int[] { -1, 0, 0, 1 }, new int[] { 0, 0, 1, 1 }, new int[] { -1, 0, 0, 1 } }, //Z
                                       new int[][] { new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 } } }; //O
 
-    public static double[] ExractFeat(Matrix10x24 matrix, double _trash)
+    public static double[] ExractFeat(in Matrix10x24 matrix, double _trash)
     {
         // Find heightest block in each column
         Span<double> heights = new double[10];
         for (int x = 0; x < 10; x++)
         {
-            double height = matrix.H;
-            int pos = matrix.H * 10 + x;
-            for ( ; height > 0; height--)
+            int height = matrix.H;
+            int pos = (matrix.H - 1) * 10 + x;
+            for ( ; pos >= 0; height--)
             {
                 int div = pos >> 5; // div 32
                 int rem = pos & 31; // mod 32
@@ -766,42 +783,94 @@ public static class TetrisHelper
         // Standard height
         double std_h = 0;
         //if (Network.Visited[0])
-        {
-            for (int i = 0; i < heights.Length; i++) std_h += heights[i] * heights[i];
-            std_h = Math.Sqrt(std_h);
-        }
+        //{
+        //    for (int i = 0; i < heights.Length; i++) std_h += heights[i] * heights[i];
+        //    std_h = Math.Sqrt(std_h);
+        //}
         // "caves"
         double caves = 0;
         //if (Network.Visited[1])
         {
-            for (int y = 39 - (int)heights[0]; y < 40; y++) 
-                if (matrix[y][0] == 0 && matrix[y - 1][0] != 0) 
-                    if (y < 39 - heights[1])
-                        caves += heights[0] + y - 39;
-            for (int x = 1; x < 9; x++) 
-                for (int y = 39 - (int)heights[x]; y < 40; y++) 
-                    if (matrix[y][x] == 0 && matrix[y][x] != 0) 
-                        if (y <= Math.Min(39 - heights[x - 1], 39 - heights[x + 1])) 
-                            caves += heights[x] + y - 39;
-            for (int y = 39 - (int)heights[9]; y < 40; y++) 
-                if (matrix[y][9] == 0 && matrix[y][9] != 0) 
-                    if (y <= 39 - heights[8])
-                        caves += heights[9] + y - 39;
+            int div = 0, rem = 0;
+            int div2 = 0, rem2 = 10;
+            for (int y = 0; y < heights[0] - 1; y++)
+            {
+                if ((matrix[div] >> rem & 1) == 0 && (matrix[div2] >> rem2 & 1) == 1)
+                    if (y >= heights[1]) 
+                        caves += heights[0] - y;
+                rem += 10;
+                if (rem >= 32)
+                {
+                    div++;
+                    rem -= 32;
+                }
+                rem2 += 10;
+                if (rem2 >= 32)
+                {
+                    div2++;
+                    rem2 -= 32;
+                }
+            }
+
+            for (int x = 1; x < 9; x++)
+            {
+                div = 0; rem = x;
+                div2 = 0; rem2 = 10 + x;
+                for (int y = 0; y < heights[x] - 1; y++)
+                {
+                    if ((matrix[div] >> rem & 1) == 0 && (matrix[div2] >> rem2 & 1) == 1)
+                        if (y >= Math.Max(heights[x - 1], heights[x + 1]))
+                            caves += heights[x] - y;
+                    rem += 10;
+                    if (rem >= 32)
+                    {
+                        div++;
+                        rem -= 32;
+                    }
+                    rem2 += 10;
+                    if (rem2 >= 32)
+                    {
+                        div2++;
+                        rem2 -= 32;
+                    }
+                }
+            }
+
+            div = 0; rem = 9;
+            div2 = 0; rem2 = 19;
+            for (int y = 0; y < heights[9] - 1; y++)
+            {
+                if ((matrix[div] >> rem & 1) == 0 && (matrix[div2] >> rem2 & 1) == 1)
+                    if (y >= heights[8])
+                        caves += heights[9] - y;
+                rem += 10;
+                if (rem >= 32)
+                {
+                    div++;
+                    rem -= 32;
+                }
+                rem2 += 10;
+                if (rem2 >= 32)
+                {
+                    div2++;
+                    rem2 -= 32;
+                }
+            }
         }
         // Pillars
         double pillars = 0;
         //if (Network.Visited[2])
-        {
-            for (int x = 0; x < 10; x++)
-            {
-                double diff;
-                // Don't punish for tall towers at the side
-                if (x != 0 && x != 9) diff = Math.Min(Math.Abs(heights[x - 1] - heights[x]), Math.Abs(heights[x + 1] - heights[x]));
-                else diff = x == 0 ? Math.Max(0, heights[1] - heights[0]) : Math.Min(0, heights[8] - heights[9]);
-                if (diff > 2) pillars += diff * diff;
-                else pillars += diff;
-            }
-        }
+        //{
+        //    for (int x = 0; x < 10; x++)
+        //    {
+        //        double diff;
+        //        // Don't punish for tall towers at the side
+        //        if (x != 0 && x != 9) diff = Math.Min(Math.Abs(heights[x - 1] - heights[x]), Math.Abs(heights[x + 1] - heights[x]));
+        //        else diff = x == 0 ? Math.Max(0, heights[1] - heights[0]) : Math.Min(0, heights[8] - heights[9]);
+        //        if (diff > 2) pillars += diff * diff;
+        //        else pillars += diff;
+        //    }
+        //}
         // Can use x & (x - 1) (set last set bit to 0) and other stuff to speed these up
         // Row trasitions
         double rowtrans = 0;
@@ -838,30 +907,30 @@ public static class TetrisHelper
         // Column trasitions
         double coltrans = 0;
         //if (Network.Visited[4])
-        {
-            for (int x = 0; x < 10; x++)
-            {
-                int div = 0, rem = x;
-                bool empty = (matrix[div] >> rem & 1) == 0;
-                rem += 10;
+        //{
+        //    for (int x = 0; x < 10; x++)
+        //    {
+        //        int div = 0, rem = x;
+        //        bool empty = (matrix[div] >> rem & 1) == 0;
+        //        rem += 10;
 
-                for (int y = 1; y < matrix.H; y++)
-                {
-                    bool isempty = (matrix[div] >> rem & 1) == 0;
-                    if (empty ^ isempty)
-                    {
-                        coltrans++;
-                        empty = isempty;
-                    }
-                    rem += 10;
-                    if (rem >= 32)
-                    {
-                        rem -= 32;
-                        div++;
-                    }
-                }
-            }
-        }
+        //        for (int y = 1; y < heights[x] + 1; y++)
+        //        {
+        //            bool isempty = (matrix[div] >> rem & 1) == 0;
+        //            if (empty ^ isempty)
+        //            {
+        //                coltrans++;
+        //                empty = isempty;
+        //            }
+        //            rem += 10;
+        //            if (rem >= 32)
+        //            {
+        //                rem -= 32;
+        //                div++;
+        //            }
+        //        }
+        //    }
+        //}
 
         return new double[] { std_h, caves, pillars, rowtrans, coltrans, _trash };
     }
