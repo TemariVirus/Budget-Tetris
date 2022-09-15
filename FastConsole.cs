@@ -1,10 +1,11 @@
-﻿using Microsoft.Win32.SafeHandles;
+﻿namespace FastConsole;
+
+using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows.Input;
 
-namespace FastConsole;
 static class FConsole
 {
     static SafeFileHandle ConoutHandle;
@@ -46,15 +47,15 @@ static class FConsole
     private const int StandardOutputHandle = -11;
 
     [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr GetStdHandle(int nStdHandle);
+    internal static extern IntPtr GetStdHandle(int nStdHandle);
 
     [return: MarshalAs(UnmanagedType.Bool)]
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern bool SetCurrentConsoleFontEx(IntPtr hConsoleOutput, bool MaximumWindow, ref FontInfo ConsoleCurrentFontEx);
+    internal static extern bool SetCurrentConsoleFontEx(IntPtr hConsoleOutput, bool MaximumWindow, ref FontInfo ConsoleCurrentFontEx);
 
     [return: MarshalAs(UnmanagedType.Bool)]
     [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    private static extern bool GetCurrentConsoleFontEx(IntPtr hConsoleOutput, bool MaximumWindow, ref FontInfo ConsoleCurrentFontEx);
+    internal static extern bool GetCurrentConsoleFontEx(IntPtr hConsoleOutput, bool MaximumWindow, ref FontInfo ConsoleCurrentFontEx);
 
     private static readonly IntPtr ConsoleOutputHandle = GetStdHandle(StandardOutputHandle);
 
@@ -129,7 +130,7 @@ static class FConsole
             if (_CursorVisible != value)
             {
                 _CursorVisible = value;
-                Console.CursorVisible = value;   
+                Console.CursorVisible = value;
             }
         }
     }
@@ -205,7 +206,6 @@ static class FConsole
             YOffset = (Console.WindowHeight - Height) / 2;
             if (old_xoffset != XOffset || old_yoffset != YOffset)
             {
-                Console.CursorVisible = CursorVisible;
                 // Fill the whole buffer with black
                 int width = Console.BufferWidth, height = Console.BufferHeight;
                 int[] the_void = new int[width * height];
@@ -220,14 +220,14 @@ static class FConsole
             long oldT;
             if (times.Count > Framerate) oldT = times.Dequeue();
             else oldT = times.Peek();
-            WriteAt($"{(float)times.Count / (newT - oldT) * Stopwatch.Frequency}fps".PadRight(12), 0, 0);
+            WriteAt($"{(float)(times.Count - 1) / (newT - oldT) * Stopwatch.Frequency}fps".PadRight(12), 0, 0);
 
             // Callback
             RenderCallback?.Invoke();
 
             // Wait until next render
-            //Thread.Sleep((int)Math.Max(0, 0.9 * (1000D / Framerate) - (1000D * (Time.ElapsedTicks - prevT) / Stopwatch.Frequency)));
-            while (Time.ElapsedTicks - prevT < Stopwatch.Frequency / Framerate * 0.95) Thread.Sleep(0);
+            Thread.Sleep((int)Math.Max(0, 0.9 * (1000D / Framerate) - (1000D * (Time.ElapsedTicks - prevT) / Stopwatch.Frequency)));
+            //while (Time.ElapsedTicks - prevT < Stopwatch.Frequency / Framerate * 0.95) Thread.Sleep(0);
             prevT = Time.ElapsedTicks;
         }
     }
@@ -255,21 +255,25 @@ static class FConsole
         try
         {
             if (window_width <= Console.BufferWidth) Console.WindowWidth = window_width;
-        } catch { }
+        }
+        catch { }
         if (buffer_width != Width) Console.BufferWidth = buffer_width;
         try
         {
             Console.WindowWidth = window_width;
-        } catch {}
+        }
+        catch { }
         try
         {
             if (window_height <= Console.BufferHeight) Console.WindowHeight = window_height;
-        } catch { }
+        }
+        catch { }
         if (buffer_height != Height) Console.BufferHeight = buffer_height;
         try
         {
             Console.WindowHeight = window_height;
-        } catch { }
+        }
+        catch { }
 
         if (buffer_width != Width || buffer_height != Height)
             ResizeBuffer(buffer_width, buffer_height);
@@ -293,11 +297,6 @@ static class FConsole
         WriteAt(text, CursorLeft, CursorTop);
     }
 
-    public static void Write(object o)
-    {
-        WriteAt(o.ToString(), CursorLeft, CursorTop);
-    }
-
     public static void WriteLine(string text)
     {
         WriteAt(text, CursorLeft, CursorTop);
@@ -305,47 +304,17 @@ static class FConsole
         CursorTop = Math.Min(CursorTop + 1, Width - 1);
     }
 
-    public static void WriteLine(object o)
-    {
-        WriteAt(o.ToString(), CursorLeft, CursorTop);
-        CursorLeft = 0;
-        CursorTop = Math.Min(CursorTop + 1, Width - 1);
-    }
-
     public static void WriteAt(string text, int x, int y, ConsoleColor foreground = ConsoleColor.White, ConsoleColor background = ConsoleColor.Black)
     {
-        int pos = y * Width + x;
-        for (int i = 0; i < text.Length && pos < Height * Width; i++, pos++)
+        int index = y * Width + x;
+        for (int i = 0; i < text.Length && index < Height * Width; i++, index++)
         {
             // might need to do checks for tab, return and newline?
-            if (text[i] == '\t')
-            {
-                int space_end = pos + 8 - (pos % Width % 8);
-                for ( ; pos < space_end && pos < Height * Width; pos++)
-                    ConsoleBuffer[pos] = ' ' | ((int)foreground << 16) | ((int)background << 20);
-            }
-            else if (text[i] == '\r')
-            {
-                pos -= pos % Width;
-            }
-            else if (text[i] == '\n')
-            {
-                pos -= pos % Width;
-                pos += Width - 1;
-            }
-            else
-            {
-                ConsoleBuffer[pos] = text[i] | ((int)foreground << 16) | ((int)background << 20);
-            }
+            ConsoleBuffer[index] = text[i] | ((int)foreground << 16) | ((int)background << 20);
         }
-        int cursor_pos = Math.Min(pos, ConsoleBuffer.Length - 1);
+        int cursor_pos = Math.Min(index, ConsoleBuffer.Length - 1);
         CursorLeft = cursor_pos % Width;
         CursorTop = cursor_pos / Width;
-    }
-
-    public static void WriteAt(object o, int x, int y, ConsoleColor foreground = ConsoleColor.White, ConsoleColor background = ConsoleColor.Black)
-    {
-        WriteAt(o.ToString(), x, y, foreground, background);
     }
 
     public static void Clear()

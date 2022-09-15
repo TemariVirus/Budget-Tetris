@@ -1,7 +1,6 @@
 ﻿namespace Tetris;
 
 using FastConsole;
-using Masks;
 using System.Diagnostics;
 using System.Windows.Input;
 
@@ -27,53 +26,225 @@ enum TargetModes
     Self
 }
 
+// TODO: change callbacks to events?
+class Piece
+{
+    private static readonly int[] KicksX = { 0, -1, -1, 0, -1 }, IKicksX = { 0, -2, 1, -2, 1 };
+    private static readonly int[] KicksY = { 0, 0, -1, 2, 2 }, IKicksY = { 0, 0, 0, 1, -2 };
+
+    // [piece][rot][layer]
+    private static readonly int[][][] PieceX = { new int[][] { new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 } }, //empty
+                                      new int[][] { new int[] { 0, 0, -1, 1}, new int[] { 0, 0, 1, 0 }, new int[] { 0, -1, 1, 0 }, new int[] { 0, 0, -1, 0 } }, //T
+                                      new int[][] { new int[] { 0, -1, 1, 2 }, new int[] { 1, 1, 1, 1 }, new int[] { -1, 0, 1, 2 }, new int[] { 0, 0, 0, 0 } }, //I
+                                      new int[][] { new int[] { 1, -1, 1, 0 }, new int[] { 0, 0, 0, 1 }, new int[] { 0, -1, 1, -1 }, new int[] { 0, -1, 0, 0 } }, //L
+                                      new int[][] { new int[] { -1, -1, 1, 0 }, new int[] { 0, 1, 0, 0 }, new int[] { 0, -1, 1, 1 }, new int[] { 0, 0, 0, -1 } }, //J
+                                      new int[][] { new int[] { 0, 1, 0, -1 }, new int[] { 0, 0, 1, 1 }, new int[] { 0, 1, 0, -1 }, new int[] { -1, 0, -1, 0 } }, //S
+                                      new int[][] { new int[] { -1, 0, 0, 1 }, new int[] { 1, 1, 0, 0 }, new int[] { 0, -1, 0, 1 }, new int[] { 0, 0, -1, -1 } }, //Z
+                                      new int[][] { new int[] { 0, 1, 0, 1 }, new int[] { 0, 1, 0, 1 }, new int[] { 0, 1, 0, 1 }, new int[] { 0, 1, 0, 1 } } }; //O
+    // Must be sorted in ascending order
+    private static readonly int[][][] PieceY = { new int[][] { new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 } }, //empty
+                                      new int[][] { new int[] { -1, 0, 0, 0 }, new int[] { -1, 0, 0, 1 }, new int[] { 0, 0, 0, 1 }, new int[] { -1, 0, 0, 1 } }, //T
+                                      new int[][] { new int[] { 0, 0, 0, 0 }, new int[] { -1, 0, 1, 2 }, new int[] { 1, 1, 1, 1 }, new int[] { -1, 0, 1, 2 } }, //I
+                                      new int[][] { new int[] { -1, 0, 0, 0 }, new int[] { -1, 0, 1, 1 }, new int[] { 0, 0, 0, 1 }, new int[] { -1, -1, 0, 1 } }, //L
+                                      new int[][] { new int[] { -1, 0, 0, 0 }, new int[] { -1, -1, 0, 1 }, new int[] { 0, 0, 0, 1 }, new int[] { -1, 0, 1, 1 } }, //J
+                                      new int[][] { new int[] { -1 ,-1, 0, 0 }, new int[] { -1, 0, 0, 1 }, new int[] { 0, 0, 1, 1 }, new int[] { -1, 0, 0, 1 } }, //S
+                                      new int[][] { new int[] { -1, -1, 0, 0 }, new int[] { -1, 0, 0, 1 }, new int[] { 0, 0, 1, 1 }, new int[] { -1, 0, 0, 1 } }, //Z
+                                      new int[][] { new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 } } }; //O
+
+    public const int PIECE_BITS = 0x7, ROTATION_BITS = 0x18;
+    public const int EMPTY = 0x0,
+                     T = 0x1,
+                     I = 0x2,
+                     L = 0x3,
+                     J = 0x4,
+                     S = 0x5,
+                     Z = 0x6,
+                     O = 0x7;
+    public const int ROTATION_NONE = 0x0,
+                     ROTATION_CW = 0x8,
+                     ROTATION_180 = 0x10,
+                     ROTATION_CCW = 0x18;
+    public const int Garbage = 8,
+                     Bedrock = 9; // Trash that can't get cleared
+
+    private static readonly Piece[] Pieces = GetPieces();
+
+    public readonly int Id;
+    public readonly int PieceType, R;
+    public readonly int[] X, Y;
+    public readonly int MinX, MaxX, MaxY;
+    internal readonly int[] KicksCWX, KicksCWY;
+    internal readonly int[] KicksCCWX, KicksCCWY;
+    internal readonly int Kick180X = 0, Kick180Y = 0;
+
+    private Piece(int id)
+    {
+        Id = id;
+        PieceType = id & PIECE_BITS;
+        R = id & ROTATION_BITS;
+
+        X = PieceX[PieceType][R >> 3];
+        Y = PieceY[PieceType][R >> 3];
+
+        MinX = -X.Min();
+        MaxX = 9 - X.Max();
+        MaxY = 39 - Y.Max();
+
+        GetKicksTable(true, this, out KicksCWX, out KicksCWY);
+        GetKicksTable(false, this, out KicksCCWX, out KicksCCWY);
+    }
+
+    private static Piece[] GetPieces()
+    {
+        int piece_count = (PIECE_BITS | ROTATION_BITS) + 1;
+        Piece[] pieces = new Piece[piece_count];
+        for (int i = 0; i < piece_count; i++)
+        {
+            pieces[i] = new Piece(i);
+        }
+        return pieces;
+    }
+
+    // Helper function to convert from old format
+    private static void GetKicksTable(bool clockwise, Piece piece, out int[] kicksx, out int[] kicksy)
+    {
+        bool vertial = (piece.R & ROTATION_CW) == ROTATION_CW;
+        int xmul = (!clockwise ^ (piece.R > ROTATION_CW) ^ (vertial && clockwise)) ? -1 : 1;
+        int ymul = vertial ? -1 : 1;
+        if (piece.PieceType == I) ymul *= ((piece.R > ROTATION_CW) ^ clockwise) ? -1 : 1;
+        int[] testorder = piece.PieceType == I && (vertial ^ !clockwise) ? new int[] { 0, 2, 1, 4, 3 } : new int[] { 0, 1, 2, 3, 4 };
+        kicksx = new int[5];
+        kicksy = new int[5];
+        for (int i = 0; i < 5; i++)
+        {
+            kicksx[i] = (piece.PieceType == I ? IKicksX[testorder[i]] : KicksX[testorder[i]]) * xmul;
+            kicksy[i] = (piece.PieceType == I ? IKicksY[testorder[i]] : KicksY[testorder[i]]) * ymul;
+        }
+    }
+
+    public static implicit operator Piece(int i) =>
+        Pieces[i & (PIECE_BITS | ROTATION_BITS)];
+
+    public static implicit operator int(Piece i) => i.Id;
+    
+    public override string ToString()
+    {
+        string name = "";
+        switch (R)
+        {
+            case ROTATION_CW:
+                name = "CW ";
+                break;
+            case ROTATION_180:
+                name = "180 ";
+                break;
+            case ROTATION_CCW:
+                name = "CCW";
+                break;
+        }
+        switch (PieceType)
+        {
+            case EMPTY:
+                name += "Empty";
+                break;
+            case T:
+                name += "T";
+                break;
+            case I:
+                name += "I";
+                break;
+            case L:
+                name += "L";
+                break;
+            case J:
+                name += "J";
+                break;
+            case S:
+                name += "S";
+                break;
+            case Z:
+                name += "Z";
+                break;
+            case O:
+                name += "O";
+                break;
+        }
+
+        return name;
+    }
+}
+
+struct GameBaseInfo
+{
+    public int[][] Matrix;
+    public int X, Y;
+
+    public Piece Current;
+    public Piece Hold;
+    public Piece[] Next;
+
+    public int B2B, Combo;
+}
+
 class GameBase
 {
-    protected Matrix10x24 _Matrix = new Matrix10x24();
-    public Matrix10x24 Matrix {
-        get => _Matrix;
-        protected set => _Matrix = value; 
-    }
+    protected static readonly int[] GarbageLine = { Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage };
+
+    protected readonly int[][] Matrix = new int[40][]; // [y][x]
     protected int X, Y;
-    protected int R
-    {
-        get => Current & Piece.ROTATION_BITS;
-        set => Current = (Current & Piece.PIECE_BITS) | (value & Piece.ROTATION_BITS);
-    }
 
-    protected Piece _Current;
-    public Piece Current { 
-        get => _Current; 
-        protected set => _Current = value; 
-    }
+    public Piece Current { get; protected set; }
+    public Piece Hold { get; protected set; } = Piece.EMPTY;
     public Piece[] Next { get; protected set; }
-    public int NextLength { get => Next.Length; }
 
-    private readonly Random PieceRand;
+    protected Random PieceRand;
     protected int BagIndex;
     protected Piece[] Bag = new Piece[] { Piece.T, Piece.I, Piece.L, Piece.J, Piece.S, Piece.Z, Piece.O };
 
-    public virtual long Score { get; set; } = 0;
-    public virtual long Lines { get; set; } = 0;
-    public virtual long Level
-    {
-        get => Lines / 10 + 1;
-        set { }
-    }
     public int B2B { get; protected set; } = -1;
     public int Combo { get; protected set; } = -1;
 
-    public double G = 0.02, SoftG = 40;
-    protected double Vel = 0;
-
-    public GameBase(int next_length, int seed)
+    protected GameBase()
     {
         BagIndex = Bag.Length;
+        for (int i = 0; i < 40; i++) Matrix[i] = new int[10];
+    }
+
+    public GameBase(int next_length, int seed) : this()
+    {
         Next = new Piece[next_length];
         PieceRand = new Random(seed);
 
         for (int i = 0; i < Next.Length; i++) Next[i] = NextPiece();
     }
+
+    public GameBaseInfo GetInfo()
+    {
+        return new GameBaseInfo()
+        {
+            Matrix = FullShallowCLone(this.Matrix),
+            X = this.X,
+            Y = this.Y,
+
+            Current = this.Current,
+            Hold = this.Hold,
+            Next = (Piece[])this.Next.Clone(),
+
+            B2B = this.B2B,
+            Combo = this.Combo
+        };
+
+        int[][] FullShallowCLone(int[][] arr)
+        {
+            int[][] clone = new int[arr.Length][];
+            for (int i = 0; i < arr.Length; i++) clone[i] = (int[])arr[i].Clone();
+            return clone;
+        }
+    }
+
+    protected int BlockX(int i) => X + Current.X[i];
+
+    protected int BlockY(int i) => Y + Current.Y[i];
 
     protected Piece NextPiece()
     {
@@ -84,7 +255,9 @@ class GameBase
             for (int i = 0; i < Bag.Length; i++)
             {
                 int swapIndex = PieceRand.Next(Bag.Length - i) + i;
-                (Bag[i], Bag[swapIndex]) = (Bag[swapIndex], Bag[i]);
+                Piece temp = Bag[swapIndex];
+                Bag[swapIndex] = Bag[i];
+                Bag[i] = temp;
             }
             BagIndex = 0;
         }
@@ -92,74 +265,276 @@ class GameBase
         return Bag[BagIndex++];
     }
 
-    protected bool TrySlide(int dx)
+    protected bool OnGround()
     {
-        bool right = dx > 0, moved = false;
-        while (dx != 0)
-        {
-            if (right)
-            {
-                if (X <= 0) return moved;
-                if (Matrix.Collides(Current, X - 1, Y)) return moved;
-                X--;
-            }
-            else
-            {
-                if (X >= Current.MaxX) return moved;
-                if (Matrix.Collides(Current, X + 1, Y)) return moved;
-                X++;
-            }
-            dx -= right ? 1 : -1;
-            moved = true;
-        }
+        if (Y >= Current.MaxY) return true;
+        for (int i = 0; i < 4; i++)
+            if (Matrix[BlockY(i) + 1][BlockX(i)] != Piece.EMPTY)
+                return true;
         
-        return moved;
+        return false;
     }
 
-    protected bool TryRotate(int dr)
+    protected int TSpin(bool rotatedLast)
     {
-        dr &= 3;
-        if (dr == 1)
-            return Matrix.TryRotateCW(ref _Current, ref X, ref Y);
-        else if (dr == 2)
-            return Matrix.TryRotate180(ref _Current, ref X, ref Y);
-        else if (dr == 3)
-            return Matrix.TryRotateCCW(ref _Current, ref X, ref Y);
+        if (rotatedLast && Current.PieceType == Piece.T)
+        {
+            // 3 corner rule
+            int count = 0;
+            // Top and bottom left
+            if (X - 1 < 0) count += 2;
+            else
+            {
+                // Top left
+                if (Matrix[Y - 1][X - 1] != Piece.EMPTY) count++;
+                // Bottom left
+                if (Y + 1 > 39) count++;
+                else if (Matrix[Y + 1][X - 1] != Piece.EMPTY) count++;
+            }
+            // Top and bottom right
+            if (X + 1 > 9) count += 2;
+            else
+            {
+                // Top right
+                if (Matrix[Y - 1][X + 1] != Piece.EMPTY) count++;
+                // Bottom right
+                if (Y + 1 > 39) count++;
+                else if (Matrix[Y + 1][X + 1] != Piece.EMPTY) count++;
+            }
+
+            if (count > 2)
+            {
+                // Check if mini
+                switch (Current.R)
+                {
+                    case Piece.ROTATION_NONE:
+                        if (Matrix[Y - 1][X - 1] == Piece.EMPTY || Matrix[Y - 1][X + 1] == Piece.EMPTY) return 2;
+                        break;
+                    case Piece.ROTATION_CW:
+                        if (Matrix[Y + 1][X + 1] == Piece.EMPTY || Matrix[Y - 1][X + 1] == Piece.EMPTY) return 2;
+                        break;
+                    case Piece.ROTATION_180:
+                        if (Matrix[Y + 1][X - 1] == Piece.EMPTY || Matrix[Y + 1][X + 1] == Piece.EMPTY) return 2;
+                        break;
+                    case Piece.ROTATION_CCW:
+                        if (Matrix[Y - 1][X - 1] == Piece.EMPTY || Matrix[Y + 1][X - 1] == Piece.EMPTY) return 2;
+                        break;
+                }
+                return 3;
+            }
+        }
+        return 0;
+    }
+
+    public bool TryRotateCW()
+    {
+        Piece rotated = Current + Piece.ROTATION_CW;
+        for (int i = 0; i < 5; i++)
+        {
+            bool pass = true;
+            int x = X + Current.KicksCWX[i];
+            int y = Y + Current.KicksCWY[i];
+
+            if (x < rotated.MinX || x > rotated.MaxX || y > rotated.MaxY)
+                continue;
+            for (int j = 0; j < 4 && pass; j++)
+                if (Matrix[y + rotated.Y[j]][x + rotated.X[j]] != Piece.EMPTY)
+                    pass = false;
+            if (!pass)
+                continue;
+            
+            X = x;
+            Y = y;
+            Current = rotated;
+            return true;
+        }
 
         return false;
     }
 
-    /// <returns>The actual number of cells moved down by.</returns>
-    protected int TryDrop(int dy)
+    public bool TryRotateCCW()
     {
-        int moved = 0;
-        for ( ; dy > 0 && !Matrix.OnGround(Current, X, Y); dy--, Y--) moved++;
+        Piece rotated = Current + Piece.ROTATION_CCW;
+        for (int i = 0; i < 5; i++)
+        {
+            bool pass = true;
+            int x = X + Current.KicksCCWX[i];
+            int y = Y + Current.KicksCCWY[i];
+
+            if (x < rotated.MinX || x > rotated.MaxX || y > rotated.MaxY)
+                continue;
+            for (int j = 0; j < 4 && pass; j++)
+                if (Matrix[y + rotated.Y[j]][x + rotated.X[j]] != Piece.EMPTY)
+                    pass = false;
+            if (!pass)
+                continue;
+
+            X = x;
+            Y = y;
+            Current = rotated;
+            return true;
+        }
+
+        return false;
+    }
+
+    public bool TryRotate180()
+    {
+        Piece rotated = Current + Piece.ROTATION_180;
+
+        if (X < rotated.MinX || X > rotated.MaxX || Y > rotated.MaxY)
+            return false;
+        for (int j = 0; j < 4; j++)
+            if (Matrix[Y + rotated.Y[j]][X + rotated.X[j]] != Piece.EMPTY)
+                return false;
+
+        Current = rotated;
+        return true;
+    }
+
+    // Returns true if the piece was rotated; Otherwise, returns false
+    // Currently no 180 kicks
+    public bool TryRotate(int dr)
+    {
+        dr &= 3;
+        if (dr == 1)
+            return TryRotateCW();
+        else if (dr == 2)
+            return TryRotate180();
+        else if (dr == 3)
+            return TryRotateCCW();
+
+        return false;
+    }
+
+    public bool TrySlide(bool right)
+    {
+        if (right)
+        {
+            if (X < Current.MaxX)
+            {
+                for (int i = 0; i < 4; i++)
+                    if (Matrix[BlockY(i)][BlockX(i) + 1] != Piece.EMPTY)
+                        return false;
+                X++;
+                return true;
+            }
+        }
+        else
+        {
+            if (X > Current.MinX)
+            {
+                for (int i = 0; i < 4; i++)
+                    if (Matrix[BlockY(i)][BlockX(i) - 1] != Piece.EMPTY)
+                        return false;
+                X--;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Returns true if the piece was moved; Otherwise, returns false
+    public bool TrySlide(int dx)
+    {
+        bool right = dx > 0, moved = false;
+        while (dx != 0)
+        {
+            if (!TrySlide(right)) break;
+            moved = true;
+            dx -= right ? 1 : -1;
+        }
+
         return moved;
     }
 
-    protected void ResetPiece()
+    // Returns true if the piece was moved; Otherwise, returns false
+    protected int TryDrop(int dy)
     {
-        // Move new piece to top
-        X = Current.StartX; Y = Current.StartY;
-        R = Piece.ROTATION_NONE;
-        // Drop immediately if possible
-        if (!Matrix.OnGround(Current, X, Y)) Y--;
+        int moved = 0;
+        for ( ; dy > 0 && !OnGround(); dy--, Y++) moved++;
+        return moved;
     }
 
-    /// <returns>The number of lines cleared</returns>
-    protected unsafe int PlaceAndClear()
+    public void ResetPiece()
     {
-        Matrix.MoveToGround(Current, X, ref Y);
-        return Matrix.PlaceAndClear(Current, X, Y);
+        // Move new piece to top
+        X = 4; Y = 19;
+        Current = Current.PieceType;
+        // Drop immediately if possible
+        if (!OnGround()) Y++;
+    }
+
+    public int[] Place(out int cleared)
+    {
+        // Put piece into matrix
+        for (int i = 0; i < 4; i++) Matrix[BlockY(i)][BlockX(i)] = Current.PieceType;
+
+        // Find cleared lines
+        cleared = 0;
+        int[] clears = new int[4];
+        for (int i = 0; i < 4; i++)
+        {
+            // Skip if this Y level has already been checked
+            if (i > 0)
+                if (Current.Y[i] == Current.Y[i - 1])
+                    continue;
+
+            int y = BlockY(i);
+            bool clear = true;
+            for (int x = 0; x < 10 && clear; x++)
+                if (Matrix[y][x] == Piece.EMPTY)
+                    clear = false;
+            if (clear) clears[cleared++] = y;
+        }
+
+        // Clear and move lines down
+        if (cleared != 0)
+        {
+            int movedown = 1;
+            for (int y = clears[cleared - 1] - 1; y >= 17; y--)
+            {
+                if (movedown == cleared) Matrix[y + movedown] = Matrix[y];
+                else if (clears[cleared - movedown - 1] == y) movedown++;
+                else Matrix[y + movedown] = Matrix[y];
+            }
+            // Add new empty rows
+            for (; movedown > 0; movedown--) Matrix[16 + movedown] = new int[10];
+        }
+
+        return clears;
+    }
+
+    public void Unplace(int[] clears, int cleared)
+    {
+        // Add back cleared lines
+        if (cleared != 0)
+        {
+            int moveup = cleared;
+            for (int y = 16; moveup != 0; y++)
+            {
+                if (y == clears[clears.Length - moveup])
+                {
+                    moveup--;
+                    Buffer.BlockCopy(GarbageLine, 0, Matrix[y], 0, 10 * sizeof(int));
+                }
+                else Matrix[y] = Matrix[y + moveup];
+            }
+        }
+
+        // Remove piece
+        for (int i = 0; i < 4; i++) Matrix[BlockY(i)][BlockX(i)] = Piece.EMPTY;
     }
 }
 
 class Game : GameBase
 {
     public const int GAMEWIDTH = 45, GAMEHEIGHT = 24;
-    const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
+    protected const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
     static readonly string[] ClearText = { "SINGLE", "DOUBLE", "TRIPLE", "TETRIS" };
-    static readonly ConsoleColor[] PieceColors = {
+    static readonly ConsoleColor[] PieceColors =
+    {
         ConsoleColor.Black,         // Empty
         ConsoleColor.Magenta,       // T
         ConsoleColor.Cyan,          // I
@@ -171,72 +546,78 @@ class Game : GameBase
         ConsoleColor.Gray,          // Garbage
         ConsoleColor.DarkGray       // Bedrock
     };
-    const ConsoleColor GARBAGE = ConsoleColor.Gray, BEDROCK = ConsoleColor.DarkGray;
-
-    long LockDelay = 1000, EraseDelay = 1000, GarbageDelay = 500; // In miliseconds
-    int AutoLockGrace = 15; // In moves
-
+    
+    // 0 for false, 1 for true
+    public static int GamesLock = 0;
+    public static Game[] Games { get; private set; }
+    public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
+    public static bool IsPausedGlobal { get; private set; } = false;
+    
     public int[] LinesTrash { get; private set; } = { 0, 0, 1, 2, 4 };
-    public  int[] TSpinsTrash { get; private set; } = { 0, 2, 4, 6 };
+    public int[] TSpinsTrash { get; private set; } = { 0, 2, 4, 6 };
     // Jstris combo table = { 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }
     public int[] ComboTrash { get; private set; } = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 };
     public int[] PCTrash { get; private set; } = { 0, 10, 10, 10, 10 };
 
-    public static Game[] Games { get; private set; }
-    public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
-    public static bool IsPausedGlobal { get; private set; } = false;
-
     #region // Fields and Properties
+    public Action TickingCallback;
+    public bool IsTicking { get; private set; } = false;
+    public bool IsMuted = false;
+    bool IsPlaying = false;
+
     protected int XOffset = 0;
     protected int YOffset = 0;
 
-    public Action TickingCallback;
-    public bool IsTicking { get; private set; } = false;
-
+    private string _Name = "";
+    public string Name
+    {
+        get => _Name;
+        private set
+        {
+            _Name = value;
+            //WriteAt(, , ConsoleColor.White, _Name);
+        }
+    }
     private bool _IsDead = true;
-    public virtual bool IsDead
+    public bool IsDead
     {
         get => _IsDead;
         private set
         {
-            if (_IsDead == value) return;
-
             _IsDead = value;
-            if (_IsDead)
-            {
-                EraseClearStats();
-                DrawTrashMeter();
-            }
+            if (_IsDead) EraseClearStats();
         }
     }
 
-    public Piece Hold { get; private set; } = Piece.EMPTY;
-    protected ConsoleColor[][] MatrixColors = new ConsoleColor[24][];
-
     private long _Score = 0;
-    public override long Score
+    public long Score
     {
         get => _Score;
-        set
+        private set
         {
             _Score = value;
             WriteAt(2, 9, ConsoleColor.White, _Score.ToString().PadRight(8));
         }
     }
-    private long _Lines = 0;
-    public override long Lines
+    private int _Lines = 0;
+    public int Lines
     {
         get => _Lines;
-        set
+        private set
         {
             _Lines = value;
             WriteAt(26, 0, ConsoleColor.White, _Lines.ToString().PadRight(45 - 26));
         }
     }
+    public int Level { get => Lines / 10 + 1; }
 
-    protected readonly Queue<Moves> MoveQueue = new Queue<Moves>();
+    public double G = 0.08, SoftG = 1;
+    double Vel = 0;
+    readonly Queue<Moves> MoveQueue = new Queue<Moves>();
 
     double LastFrameT;
+    public int LockDelay = 1000, EraseDelay = 3000, GarbageDelay = 2000; // In miliseconds
+    public int AutoLockGrace = 15;
     int MoveCount = 0;
     bool IsLastMoveRotate = false, AlreadyHeld = false;
     readonly Stopwatch LockT = new Stopwatch(),
@@ -249,19 +630,17 @@ class Game : GameBase
     int GameIndex;
     double TargetChangeInteval = 0.5, LastTargetChangeT;
     TargetModes TargetMode = TargetModes.Random;
-    readonly List<Game> Targets = new List<Game>();
+    List<Game> Targets = new List<Game>();
     #endregion
 
     public Game() : base(6, Guid.NewGuid().GetHashCode())
     {
         GarbageRand = new Random(Guid.NewGuid().GetHashCode());
-        for (int i = 0; i < MatrixColors.Length; i++) MatrixColors[i] = new ConsoleColor[10];
     }
 
     public Game(int next_length, int seed) : base(next_length, seed)
     {
         GarbageRand = new Random(seed.GetHashCode());
-        for (int i = 0; i < MatrixColors.Length; i++) MatrixColors[i] = new ConsoleColor[10];
     }
 
     public void Initialise()
@@ -275,8 +654,7 @@ class Game : GameBase
 
     public void Restart()
     {
-        Matrix = new Matrix10x24();
-        for (int i = 0; i < MatrixColors.Length; i++) MatrixColors[i] = new ConsoleColor[MatrixColors[i].Length];
+        for (int i = 0; i < Matrix.Length; i++) Matrix[i] = new int[Matrix[i].Length];
         BagIndex = Bag.Length;
         for (int i = 0; i < Next.Length; i++) Next[i] = NextPiece();
         Hold = Piece.EMPTY;
@@ -305,94 +683,84 @@ class Game : GameBase
         DrawAll();
     }
 
-    public unsafe void TickAsync()
+    public void TickAsync()
     {
         if (IsDead || IsPausedGlobal) return;
 
         IsTicking = true;
-        new Thread(() =>
-        {
-            fixed (ulong* ptr = &_Matrix.Item0)
+        new Thread(() => {
+            // Timekeeping
+            double deltaT = GlobalTime.Elapsed.TotalSeconds - LastFrameT;
+            LastFrameT = GlobalTime.Elapsed.TotalSeconds;
+
+            // Erase stats
+            if (EraseT.ElapsedMilliseconds > EraseDelay) EraseClearStats();
+
+            // Play queued moves (it's up to the input adapter to time the moves, the queue is a buffer jic)
+            bool softDrop = false;
+            while (MoveQueue.Count != 0 && !IsDead)
             {
-                _Matrix.Ptr = (int*)ptr;
-
-                // Timekeeping
-                double deltaT = GlobalTime.Elapsed.TotalSeconds - LastFrameT;
-                LastFrameT = GlobalTime.Elapsed.TotalSeconds;
-
-                // Erase stats
-                if (EraseT.ElapsedMilliseconds > EraseDelay) EraseClearStats();
-
-                // Play queued moves (it's up to the input adapter to time the moves, the queue is a buffer jic)
-                bool softDrop = false;
-                while (MoveQueue.Count != 0 && !IsDead)
+                switch (MoveQueue.Dequeue())
                 {
-                    switch (MoveQueue.Dequeue())
-                    {
-                        case Moves.Hold:
-                            HoldPiece();
-                            break;
-                        case Moves.Left:
-                            Slide(-1);
-                            break;
-                        case Moves.Right:
-                            Slide(1);
-                            break;
-                        case Moves.DASLeft:
-                            Slide(-10);
-                            break;
-                        case Moves.DASRight:
-                            Slide(10);
-                            break;
-                        case Moves.SoftDrop:
-                            softDrop = true;
-                            Drop((int)SoftG, 1);
-                            Vel += SoftG - Math.Floor(SoftG);
-                            break;
-                        case Moves.HardDrop:
-                            Drop(40, 2);
-                            PlacePiece();
-                            break;
-                        case Moves.RotateCW:
-                            Rotate(1);
-                            break;
-                        case Moves.RotateCCW:
-                            Rotate(-1);
-                            break;
-                        case Moves.Rotate180:
-                            Rotate(2);
-                            break;
-                    }
-                }
-
-                // Handle locking and gravity
-                Vel += G * deltaT * FConsole.Framerate;
-                if (Matrix.OnGround(Current, X, Y))
-                {
-                    Vel = 0;
-                    if (MoveCount > AutoLockGrace) PlacePiece(); // Lock piece
-                    LockT.Start();
-                }
-                else
-                {
-                    if (MoveCount < AutoLockGrace) LockT.Reset();
-                    Vel -= Drop((int)Vel, softDrop ? 1 : 0); // Round Vel down
-                }
-                if (LockT.ElapsedMilliseconds > LockDelay)
-                    if (Matrix.OnGround(Current, X, Y))
+                    case Moves.Hold:
+                        HoldPiece();
+                        break;
+                    case Moves.Left:
+                        Slide(-1);
+                        break;
+                    case Moves.Right:
+                        Slide(1);
+                        break;
+                    case Moves.DASLeft:
+                        Slide(-10);
+                        break;
+                    case Moves.DASRight:
+                        Slide(10);
+                        break;
+                    case Moves.SoftDrop:
+                        softDrop = true;
+                        Drop((int)SoftG, 1);
+                        Vel += SoftG - Math.Floor(SoftG);
+                        break;
+                    case Moves.HardDrop:
+                        Drop(40, 2);
                         PlacePiece();
-
-                DrawTrashMeter();
-
-                // Ded
-                //if (IsDead)
-                //{
-                //    Restart();
-                //}
-
-                IsTicking = false;
-                TickingCallback?.Invoke();
+                        break;
+                    case Moves.RotateCW:
+                        Rotate(1);
+                        break;
+                    case Moves.RotateCCW:
+                        Rotate(-1);
+                        break;
+                    case Moves.Rotate180:
+                        Rotate(2);
+                        break;
+                }
             }
+
+            // Handle locking and gravity
+            Vel += G * deltaT * FConsole.Framerate;
+            if (OnGround())
+            {
+                Vel = 0;
+                if (MoveCount > AutoLockGrace) PlacePiece(); // Lock piece
+                LockT.Start();
+            }
+            else
+            {
+                if (MoveCount < AutoLockGrace) LockT.Reset();
+                Vel -= Drop((int)Vel, softDrop ? 1 : 0); // Round Vel down
+            }
+            if (LockT.ElapsedMilliseconds > LockDelay && OnGround()) PlacePiece();
+
+            // Ded
+            //if (IsDead)
+            //{
+            //    Restart();
+            //}
+
+            IsTicking = false;
+            TickingCallback?.Invoke();
         }).Start();
     }
 
@@ -450,13 +818,10 @@ class Game : GameBase
                 }
                 break;
             case TargetModes.All:
-                Targets.Clear();
-                foreach (Game g in GetAliveGames())
-                    Targets.Add(g);
+                Targets = GetAliveGames();
                 break;
             case TargetModes.Self:
-                Targets.Clear();
-                Targets.Add(this);
+                Targets = new List<Game>() { this };
                 break;
         }
         // Send trash
@@ -464,6 +829,7 @@ class Game : GameBase
         {
             victim.Garbage.Add((trash, time));
             victim.DrawTrashMeter();
+            Task.Delay(GarbageDelay).ContinueWith(t => victim.DrawTrashMeter());
         }
     }
 
@@ -471,7 +837,7 @@ class Game : GameBase
     {
         // Undraw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 38, 3 + 3 * i, 0, true);
+            DrawPiece(Next[i], 38, 3 + 3 * i, true);
         // Update current and next
         Current = Next[0];
         for (int i = 1; i < Next.Length; i++) Next[i - 1] = Next[i];
@@ -484,27 +850,73 @@ class Game : GameBase
         MoveCount = 0;
         LockT.Restart();
         // Check for block out
-        if (Matrix.Collides(Current, X, Y)) IsDead = true;
+        for (int i = 0; i < 4; i++)
+            if (Matrix[BlockY(i)][BlockX(i)] != 0)
+                IsDead = true;
         // Check for lock out
-        if (Y >= 20) IsDead = true;
+        //bool isDead = true;
+        //for (int i = 0; i < 4; i++)
+        //    if (BlockY(i) > 19)
+        //        isDead = false;
+        //IsDead |= isDead;
         // Draw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 38, 3 + 3 * i, 0, false);
+            DrawPiece(Next[i], 38, 3 + 3 * i, false);
         // Draw current
         DrawCurrent(false);
     }
 
     #region // Player methods
-    public void Play(Moves move)
+    // Change this later
+    public void Play(ConsoleKey move)
     {
-        MoveQueue.Enqueue(move);
+        switch (move)
+        {
+            case ConsoleKey.C:
+                Play(Moves.Hold);
+                break;
+            case ConsoleKey.NumPad4: goto case ConsoleKey.LeftArrow;
+            case ConsoleKey.LeftArrow:
+                Play(Moves.Left);
+                break;
+            case ConsoleKey.NumPad6: goto case ConsoleKey.RightArrow;
+            case ConsoleKey.RightArrow:
+                Play(Moves.Right);
+                break;
+            case ConsoleKey.NumPad2: goto case ConsoleKey.DownArrow;
+            case ConsoleKey.DownArrow:
+                Play(Moves.SoftDrop);
+                break;
+            case ConsoleKey.NumPad8: goto case ConsoleKey.Spacebar;
+            case ConsoleKey.Spacebar:
+                Play(Moves.HardDrop);
+                break;
+            case ConsoleKey.NumPad1: goto case ConsoleKey.UpArrow;
+            case ConsoleKey.NumPad5: goto case ConsoleKey.UpArrow;
+            case ConsoleKey.NumPad9: goto case ConsoleKey.UpArrow;
+            case ConsoleKey.X: goto case ConsoleKey.UpArrow;
+            case ConsoleKey.UpArrow:
+                Play(Moves.RotateCW);
+                break;
+            case ConsoleKey.NumPad3: goto case ConsoleKey.Z;
+            case ConsoleKey.NumPad7: goto case ConsoleKey.Z;
+            case ConsoleKey.Z:
+                Play(Moves.RotateCCW);
+                break;
+            case ConsoleKey.A:
+                Play(Moves.Rotate180);
+                break;
+        }
     }
+
+    public void Play(Moves move) => MoveQueue.Enqueue(move);
 
     public void Slide(int dx)
     {
         DrawCurrent(true);
         if (TrySlide(dx))
         {
+            //Playsfx(Sounds.smth);
             IsLastMoveRotate = false;
             if (MoveCount++ < AutoLockGrace) LockT.Restart();
         }
@@ -516,7 +928,12 @@ class Game : GameBase
         DrawCurrent(true);
         int moved = TryDrop(dy);
         Score += moved * scorePerDrop;
-        if (moved != 0) IsLastMoveRotate = false;
+        if (moved != 0)
+        {
+            //Playsfx(Sounds.smth);
+            IsLastMoveRotate = false;
+            //if (MoveCount < AutoLockGrace) LockT.Restart(); // Kinda pointless tbh
+        }
         DrawCurrent(false);
 
         return moved;
@@ -524,13 +941,16 @@ class Game : GameBase
 
     public void Rotate(int dr)
     {
-        DrawCurrent(true);
-        if (TryRotate(dr))
+        if (Current.PieceType != Piece.O)
         {
-            IsLastMoveRotate = true;
-            if (MoveCount++ < AutoLockGrace) LockT.Restart();
+            DrawCurrent(true);
+            if (TryRotate(dr))
+            {
+                IsLastMoveRotate = true;
+                if (MoveCount++ < AutoLockGrace) LockT.Restart();
+            }
+            DrawCurrent(false);
         }
-        DrawCurrent(false);
     }
 
     public void HoldPiece()
@@ -542,12 +962,13 @@ class Game : GameBase
 
             // Undraw
             DrawCurrent(true);
-            DrawPiece(Hold, 4, 3, 0, true);
+            DrawPiece(Hold, 4, 3, true);
 
-            int oldhold = Hold & Piece.PIECE_BITS;
-            Hold = Current & Piece.PIECE_BITS;
+            Piece oldhold = Hold.PieceType;
+            Hold = Current.PieceType;
             MoveCount = 0;
-            if (oldhold == Piece.EMPTY) SpawnNextPiece();
+            if (oldhold.PieceType == Piece.EMPTY)
+                SpawnNextPiece();
             else
             {
                 Current = oldhold;
@@ -555,52 +976,29 @@ class Game : GameBase
             }
 
             // Redraw
-            DrawPiece(Hold, 4, 3, 0, false);
+            DrawPiece(Hold, 4, 3, false);
             DrawCurrent(false);
             LockT.Restart();
         }
     }
 
-    public unsafe void PlacePiece()
+    // Add sound later
+    public void PlacePiece()
     {
-        int tspin = Matrix.GetTSpinKind(IsLastMoveRotate, Current, X, Y); //0 = no spin, 2 = mini, 3 = t-spin
-        // Place piece
-        for (int x = 0; x < 10 - Current.MaxX; x++)
-            for (int y = 0; y < Current.H; y++)
-                if ((Current.Raw >> (10 * y + x) & 1) == 1)
-                    MatrixColors[y + Y][x + X] = PieceColors[Current & Piece.PIECE_BITS];
+        int tspin = TSpin(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
         // Clear lines
-        PlaceAndClear();
-        int cleared = 0;
-        for (int i = 0; i < Current.H; i++)
-        {
-            // Check if line is full
-            bool line_cleared = true;
-            for (int j = 0; j < 10 && line_cleared; j++)
-                if (MatrixColors[i + Y - cleared][j] == PieceColors[Piece.EMPTY])
-                    line_cleared = false;
-            if (!line_cleared) continue;
-
-            for (int j = i - cleared; j < Current.H; j++)
-                MatrixColors[j + Y] = MatrixColors[j + Y + 1];
-            cleared++;
-        }
-        for (int i = Y + Current.H - cleared; i < MatrixColors.Length; i++)
-        {
-            MatrixColors[i] = (i + cleared >= MatrixColors.Length) ?
-                            new ConsoleColor[MatrixColors[i].Length] :
-                            MatrixColors[i + cleared];
-        }
+        Place(out int cleared);
         // Line clears
         int scoreadd = 0;
         scoreadd += new int[] { 0, 100, 300, 500, 800 }[cleared];
         // T-spins
         if (tspin == 3) scoreadd += new int[] { 400, 700, 900, 1100 }[cleared];
-        else if (tspin == 2) scoreadd += 100;
+        if (tspin == 2) scoreadd += 100;
         // Perfect clear
-        bool pc = (Matrix[0] & 0b1111111111) == 0;
+        bool pc = true;
+        for (int x = 0; x < 10 && pc; x++) if (Matrix[^1][x] != 0) pc = false;
         if (pc) scoreadd += new int[] { 800, 1200, 1800, 2000 }[cleared - 1];
-        // B2B
+        // B2B 
         bool B2Bbonus = (tspin + cleared > 3) && B2B > -1;
         if (tspin == 0 && cleared != 4 && cleared != 0) B2B = -1; // Reset B2B
         else if (tspin + cleared > 3)
@@ -632,12 +1030,13 @@ class Game : GameBase
         if (pc) WriteAt(1, 18, ConsoleColor.White, "ALL CLEAR!");
 
         // Trash sent
-        int trash;
-        if (pc) trash = PCTrash[cleared];
-        else if (tspin == 3) trash = TSpinsTrash[cleared];
-        else trash = LinesTrash[cleared];
+        int trash = new int[] { 0, 0, 1, 2, 4 }[cleared];
+        if (tspin == 3) trash += new int[] { 0, 2, 3, 4 }[cleared];
         if (B2Bbonus) trash++;
-        if (Combo > 0) trash += ComboTrash[Math.Min(Combo, ComboTrash.Length - 1)];
+        //if (pc) trash += 4;
+        if (Combo > 0) trash += new int[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 9)];
+        //if (Combo > 0) _trash += new int[] { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 11)]; //jstris combo table
+        if (pc) trash = 10;
 
         // Garbage
         try
@@ -663,22 +1062,22 @@ class Game : GameBase
             {
                 while (Garbage.Count != 0)
                 {
-                    if (GlobalTime.ElapsedMilliseconds - Garbage[0].Item2 < GarbageDelay) break;
+                    if (GlobalTime.ElapsedMilliseconds - Garbage[0].Item2 <= GarbageDelay) break;
 
                     int linesToAdd = Garbage[0].Item1;
                     Garbage.RemoveAt(0);
                     int hole = GarbageRand.Next(10);
-                    for (int y = MatrixColors.Length - 1; y >= linesToAdd; y--) MatrixColors[y] = MatrixColors[y - linesToAdd]; // Move stuff up
-                    for (int y = 0; y < linesToAdd; y++)
+                    for (int y = 17; y < 40; y++) Matrix[y - linesToAdd] = Matrix[y]; // Move stuff up
+                    for (int y = 40 - linesToAdd; y < 40; y++)
                     {
-                        // Make new empty row
-                        MatrixColors[y] = new ConsoleColor[10];
-                        // Fill it with trash
-                        for (int x = 0; x < 10; x++)
-                            MatrixColors[y][x] = x == hole ? PieceColors[Piece.EMPTY] : GARBAGE;
+                        // Make row of trash
+                        Matrix[y] = new int[10];
+                        Buffer.BlockCopy(GarbageLine, 0, Matrix[y], 0, 10 * sizeof(int));
+                        // Add hole
+                        Matrix[y][hole] = Piece.EMPTY;
                     }
                 }
-                Matrix = new Matrix10x24(MatrixColors, PieceColors[Piece.EMPTY]);
+                DrawTrashMeter();
             }
         }
         finally
@@ -686,12 +1085,12 @@ class Game : GameBase
             // Release lock
             Interlocked.Exchange(ref GarbageLock, 0);
         }
-        SendTrash(trash);
+        if (trash > 0) SendTrash(trash);
 
-        // Redraw board
+        //redraw screen
         for (int x = 0; x < 10; x++)
-            for (int y = 0; y < 20; y++)
-                WriteAt(31 - (x * 2), 21 - y, MatrixColors[y][x], BLOCKSOLID);
+            for (int y = 39; y > 19; y--)
+                WriteAt(13 + x * 2, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);
 
         SpawnNextPiece();
     }
@@ -701,6 +1100,30 @@ class Game : GameBase
     public void WriteAt(int x, int y, ConsoleColor color, string text) =>
         FConsole.WriteAt(text, x + XOffset, y + YOffset, foreground: color);
 
+    void DrawCurrent(bool black)
+    {
+        //if (IsDead) return;
+
+        // Ghost
+        int movedown = TryDrop(40);
+        for (int i = 0; i < 4; i++)
+            if (BlockY(i) > 19) // If visible
+                WriteAt(BlockX(i) * 2 + 13, BlockY(i) - 18, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKGHOST);
+        Y -= movedown;
+        // Piece
+        for (int i = 0; i < 4; i++)
+            if (BlockY(i) > 19) // If visible
+                WriteAt(BlockX(i) * 2 + 13, BlockY(i) - 18, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKSOLID);
+    }
+
+    void DrawPiece(Piece piece, int x, int y, bool black)
+    {
+        //if (IsDead) return;
+
+        for (int i = 0; i < 4; i++)
+            WriteAt(piece.X[i] * 2 + x, piece.Y[i] + y, black ? ConsoleColor.Black : PieceColors[piece.PieceType], BLOCKSOLID);
+    }
+
     void DrawTrashMeter()
     {
         int y = 21;
@@ -708,9 +1131,7 @@ class Game : GameBase
         {
             for (int i = 0; i < Garbage.Count; i++)
             {
-                ConsoleColor color = (GlobalTime.ElapsedMilliseconds - Garbage[i].Item2 > GarbageDelay) ?
-                                     ConsoleColor.Red :
-                                     ConsoleColor.Gray;
+                ConsoleColor color = GlobalTime.ElapsedMilliseconds - Garbage[i].Item2 > GarbageDelay ? ConsoleColor.Red : ConsoleColor.Gray;
                 for (int j = y; y > j - Garbage[i].Item1 && y > 1; y--)
                 {
                     WriteAt(34, y, color, "█");
@@ -724,6 +1145,15 @@ class Game : GameBase
     {
         for (int i = 14; i < 19; i++) WriteAt(1, i, ConsoleColor.Black, "".PadLeft(11));
         EraseT.Restart();
+    }
+
+    protected void ClearScreen()
+    {
+        // if (IsDead) return;
+
+        // Clear console section
+        for (int i = 0; i < GAMEHEIGHT; i++)
+            WriteAt(1, i, ConsoleColor.White, "".PadLeft(GAMEWIDTH - 1));
     }
 
     void DrawAll()
@@ -774,72 +1204,234 @@ class Game : GameBase
 
         // Draw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 38, 3 + 3 * i, 0, false);
+            DrawPiece(Next[i], 38, 3 + 3 * i, false);
         // Draw hold
-        DrawPiece(Hold, 4, 3, 0, false);
+        DrawPiece(Hold, 4, 3, false);
         // Draw board
         for (int x = 0; x < 10; x++)
-            for (int y = 0; y < 20; y++)
-                WriteAt(31 - (x * 2), 21 - y, MatrixColors[y][x], BLOCKSOLID);
+            for (int y = 20; y < 40; y++)
+                WriteAt(x * 2 + 13, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);
         // Draw current piece
         DrawCurrent(false);
         // Draw trash meter
         DrawTrashMeter();
     }
-
-    protected void DrawCurrent(bool black)
-    {
-        //if (IsDead) return;
-
-        // Ghost
-        int old_y = Y;
-        Matrix.MoveToGround(Current, X, ref Y);
-        for (int x = 0; x < 10 - Current.MaxX; x++)
-            for (int y = 0; y < Current.H; y++)
-                if (y + Y < 20) // If visible
-                    if ((Current.Raw >> (10 * y + x) & 1) == 1)
-                        WriteAt(31 - ((x + X) * 2), 21 - (y + Y), black ? ConsoleColor.Black : PieceColors[Current & Piece.PIECE_BITS], BLOCKGHOST);
-        Y = old_y;
-        // Piece
-        for (int x = 0; x < 10 - Current.MaxX; x++)
-            for (int y = 0; y < Current.H; y++)
-                if (y + Y < 20) // If visible
-                    if ((Current.Raw >> (10 * y + x) & 1) == 1)
-                        WriteAt(31 - ((x + X) * 2), 21 - (y + Y), black ? ConsoleColor.Black : PieceColors[Current & Piece.PIECE_BITS], BLOCKSOLID);
-    }
-
-    protected void DrawPiece(Piece piece, int x, int y, int r, bool black)
-    {
-        //if (IsDead) return;
-
-        int width = 10 - piece.MaxX;
-        for (int i = 0; i < width; i++)
-            for (int j = 0; j < piece.H; j++)
-                if ((piece.Raw >> (10 * j + i) & 1) == 1)
-                    // Center piece
-                    WriteAt(x - (i * 2) + (width / 2 * 2), y - j, black ? ConsoleColor.Black : PieceColors[piece & Piece.PIECE_BITS], BLOCKSOLID);
-    }
-
-    protected void ClearScreen()
-    {
-        // if (IsDead) return;
-
-        // Clear console section
-        for (int i = 0; i < GAMEHEIGHT; i++)
-            WriteAt(1, i, ConsoleColor.White, "".PadLeft(GAMEWIDTH - 1));
-    }
     #endregion
-    
+
     public static bool AllReady()
     {
         if (Games == null) return false;
 
+        bool allReady = true;
         foreach (Game g in Games)
+        {
             if (g.IsTicking)
-                return false;
+            {
+                allReady = false;
+                break;
+            }
+        }
 
-        return true;
+        return allReady;
     }
+
+    // TODO: Replace with breadth-first search
+    //public bool PathFind(Piece piece, int start_x, int start_y, int start_r, int end_x, int end_y, int end_r, ref List<ConsoleKey> moves, Dictionary<int, bool> seen = null)
+    //{
+    //    if (moves == null || seen == null)
+    //    {
+    //        moves = new List<ConsoleKey>();
+    //        seen = new Dictionary<int, bool>(100);
+    //    }
+    //    // Check if seen
+    //    int state = Concantate(end_x, end_y, end_r);
+    //    if (seen.ContainsKey(state)) return false;
+    //    seen.Add(state, false);
+    //    // Check if piece can be hard dropped
+    //    int y = start_y;
+    //    while (!OnGround(Matrix, end_x, y, piece, end_r)) y++;
+    //    if (y == end_y)
+    //    {
+    //        if (moves.Count != 0) moves.Insert(0, ConsoleKey.DownArrow);
+    //        //x pos
+    //        for (int i = start_x; i < end_x; i++) moves.Insert(0, ConsoleKey.RightArrow);
+    //        for (int i = start_x; i > end_x; i--) moves.Insert(0, ConsoleKey.LeftArrow);
+    //        //rotation
+    //        int dr = (end_r - start_r + 4) % 4;
+    //        if (dr == 3) moves.Insert(0, ConsoleKey.Z);
+    //        else for (int i = 0; i < dr; i++) moves.Insert(0, ConsoleKey.UpArrow);
+    //        //swap
+    //        if (piece != Current) moves.Insert(0, ConsoleKey.C);
+    //        //hard drop
+    //        moves.Add(ConsoleKey.Spacebar);
+    //        return true;
+    //    }
+    //    // Check if piece can be soft dropped and moved sideways
+    //    Piece end_piece = piece.PieceType | (end_r << 3);
+    //    for (int i = 0; i < 2; i++)
+    //    {
+    //        bool right = i == 1;
+    //        //don't backtrack
+    //        if (moves.Count != 0)
+    //        {
+    //            if (moves[0] == ConsoleKey.DownArrow)
+    //            {
+    //                if (moves[1] == ConsoleKey.LeftArrow ^ right) continue;
+    //            }
+    //            else if (moves[0] == ConsoleKey.LeftArrow ^ right) continue;
+    //        }
+    //        //don't move outside of the matrix
+    //        if ((end_x == end_piece.MinX && !right) || (end_x == end_piece.MaxX && right)) continue;
+    //        //go up until we can move to the side
+    //        y = end_y;
+    //        while (!CanPut(end_x + (right ? 1 : -1), y, end_r))
+    //        {
+    //            y--;
+    //            if (!CanPut(end_x, y, end_r))
+    //            {
+    //                y++;
+    //                break;
+    //            }
+    //        }
+    //        if (CanPut(end_x + (right ? 1 : -1), y, end_r))
+    //        {
+    //            if (y != end_y && moves.Count != 0) moves.Insert(0, ConsoleKey.DownArrow);
+    //            moves.Insert(0, right ? ConsoleKey.LeftArrow : ConsoleKey.RightArrow);
+    //            return PathFind(piece, start_x, start_y, start_r, end_x + (right ? 1 : -1), y, end_r, ref moves, seen);
+    //        }
+    //    }
+    //    //for spins, check if kick moved center down or at the same y level
+    //    for (int i = 0; i < 2; i++)
+    //    {
+    //        bool clockwise = i == 1;
+    //        //go to top
+    //        y = end_y;
+    //        while (CanPut(end_x, y, end_r)) y--;
+    //        y++; //piece should not be intersecting at end pos, so we wil always add 1
+    //             //go down until we find a spin
+    //        while (y <= end_y)
+    //        {
+    //            int speen_x = end_x, speen_y = y, speen_r = end_r;
+    //            if (UnRotate(clockwise, ref speen_x, ref speen_y, ref speen_r))
+    //            {
+    //                if (y != end_y) moves.Insert(0, ConsoleKey.DownArrow);
+    //                moves.Insert(0, clockwise ? ConsoleKey.UpArrow : ConsoleKey.Z);
+    //                if (PathFind(piece, start_x, start_y, start_r, speen_x, speen_y, speen_r, ref moves, seen)) return true;
+    //            }
+    //            y++;
+    //        }
+    //    }
+
+    //    return false;
+
+    //    int Concantate(int _x, int _y, int _r)
+    //    {
+    //        return _r | (_x << 2) | (_y << 6);
+    //    }
+
+    //    bool CanPut(int _x, int _y, int _r)
+    //    {
+    //        if (_x < end_piece.MinX || _x > end_piece.MaxX) return false;
+
+    //        for (int i = 0; i < 4; i++)
+    //        {
+    //            int block_x = _x + ((Piece)(piece.PieceType | (_r << 3))).X[i], block_y = _y + PieceY[piece][_r][i];
+    //            if (block_y < 16 || block_y > 39) return false;
+    //            if (Matrix[block_y][block_x] != 0) return false;
+    //        }
+    //        return true;
+    //    }
+
+    //    //only change ref variables if it returns true
+    //    bool UnRotate(bool _clockwise, ref int _x, ref int _y, ref int post_r)
+    //    {
+    //        //reverse rotation
+    //        int pre_r = _clockwise ? (post_r + 3) % 4 : (post_r + 1) % 4;
+    //        //get x and y multipliers
+    //        int x_mul = !_clockwise ^ pre_r > 1 ^ (pre_r % 2 == 1 && _clockwise) ? -1 : 1;
+    //        int y_mul = pre_r % 2 == 1 ? -1 : 1;
+    //        if (piece == 2) y_mul *= pre_r > 1 ^ _clockwise ? -1 : 1;
+    //        int[] testorder = piece == 2 && (pre_r % 2 == 1 ^ !_clockwise) ? new int[] { 0, 2, 1, 4, 3 } : new int[] { 0, 1, 2, 3, 4 };
+    //        foreach (int test in testorder)
+    //        {
+    //            int spin_x, spin_y;
+    //            if (piece == 2)
+    //            {
+    //                spin_x = _x - (IKicksX[test] * x_mul);
+    //                spin_y = _y - (IKicksY[test] * y_mul);
+    //            }
+    //            else
+    //            {
+    //                spin_x = _x - (KicksX[test] * x_mul);
+    //                spin_y = _y - (KicksY[test] * y_mul);
+    //            }
+    //            if (CanPut(spin_x, spin_y, pre_r))
+    //            {
+    //                //only spin pieces when on ground
+    //                if (OnGround(Matrix, spin_x, spin_y, piece, pre_r))
+    //                {
+    //                    //check that kick no. is the same
+    //                    if (test == RotateTest(Matrix, spin_x, spin_y, piece, pre_r, _clockwise))
+    //                    {
+    //                        _x = spin_x;
+    //                        _y = spin_y;
+    //                        post_r = pre_r;
+    //                        return true;
+    //                    }
+    //                }
+    //            }
+    //        }
+
+    //        return false;
+    //    }
+
+    //    bool OnGround(int[][] matrix, int _x, int _y, int piece2, int rot)
+    //    {
+    //        try
+    //        {
+    //            for (int i = 0; i < 4; i++)
+    //            {
+    //                int y2 = _y + PieceY[piece2][rot][i] + 1;
+    //                if (y2 == 40) return true;
+    //                if (matrix[y2][_x + PieceX[piece2][rot][i]] != 0) return true;
+    //            }
+    //        }
+    //        catch { }
+    //        return false;
+    //    }
+
+    //    int RotateTest(int[][] matrix, int _x, int _y, int piece2, int rot, bool clockwise)
+    //    {
+    //        int xmul = !clockwise ^ rot > 1 ^ (rot % 2 == 1 && clockwise) ? -1 : 1;
+    //        int ymul = rot % 2 == 1 ? -1 : 1;
+    //        int testrotation = clockwise ? (rot + 1) % 4 : (rot + 3) % 4;
+    //        if (piece2 == 2) ymul *= rot > 1 ^ clockwise ? -1 : 1;
+    //        int[] testorder = piece == 2 && (rot % 2 == 1 ^ !clockwise) ? new int[] { 0, 2, 1, 4, 3 } : new int[] { 0, 1, 2, 3, 4 };
+    //        foreach (int test in testorder)
+    //        {
+    //            bool pass = true;
+    //            for (int i = 0; i < 4 && pass; i++)
+    //            {
+    //                int x2, y2;
+    //                if (piece == 2)
+    //                {
+    //                    x2 = _x + PieceX[piece2][testrotation][i] + (IKicksX[test] * xmul);
+    //                    y2 = _y + PieceY[piece2][testrotation][i] + (IKicksY[test] * ymul);
+    //                }
+    //                else
+    //                {
+    //                    x2 = _x + PieceX[piece2][testrotation][i] + (KicksX[test] * xmul);
+    //                    y2 = _y + PieceY[piece2][testrotation][i] + (KicksY[test] * ymul);
+    //                }
+    //                if (x2 < 0 || x2 > 9 || y2 > 39) pass = false;
+    //                else if (matrix[y2][x2] != 0) pass = false;
+    //            }
+    //            if (pass) return test;
+    //        }
+
+    //        return -1;
+    //    }
+    //}
 }
 
 class Program
@@ -849,33 +1441,34 @@ class Program
     static void Main()
     {
         // Set up console
-        Console.Title = "Budget Tetris AI";
+        Console.Title = "Console Tetris Clone With Bots";
         FConsole.Framerate = 30;
         FConsole.CursorVisible = false;
         FConsole.SetFont("Consolas", 18);
-        FConsole.Initialise();
+        FConsole.Initialise(FrameEndCallback);
 
         // Set up games
-        int seed = Guid.NewGuid().GetHashCode();
-        Game main = new Game(6, seed);
-        Game[] games = { new Game(5, seed), main };
+        int seed = new Random().Next();
+        Game[] games = { new Game(6, seed), new Game(5, seed) };
+
+        Game main = games[0];
+        main.SoftG = 40;
+        games[1].IsMuted = true;
+        games[1].SoftG = 40;
 
         Game.SetGames(games);
-        FConsole.SetRenderCallback(() =>
-        {
-            while (!Game.AllReady()) Thread.Sleep(0);
-            foreach (Game g in Game.Games)
-                g.TickAsync();
-        });
+
+        // Set up bots
+        //new Bot(BaseDirectory + @"NNs\plan2.txt", games[1]).Start(100, 50);
 
         // Set up input handler
         FConsole.AddOnPressListener(Key.Left, () => main.Play(Moves.Left));
         //FastConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.Left), 133, 0);
-        FConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.DASLeft), 133, 16);
+        FConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.DASLeft), 133, 15);
 
         FConsole.AddOnPressListener(Key.Right, () => main.Play(Moves.Right));
         //FastConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.Right), 133, 0);
-        FConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.DASRight), 133, 16);
+        FConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.DASRight), 133, 15);
 
         FConsole.AddOnPressListener(Key.Up, () => main.Play(Moves.RotateCW));
         FConsole.AddOnPressListener(Key.Z, () => main.Play(Moves.RotateCCW));
@@ -886,17 +1479,18 @@ class Program
 
         FConsole.AddOnPressListener(Key.C, () => main.Play(Moves.Hold));
         FConsole.AddOnPressListener(Key.R, () => main.Restart());
+    }
 
-        new Bot(BaseDirectory + @"NNs\plan2.txt", games[0]).Start(0, 0);
+    static void FrameEndCallback()
+    {
+        // Wait for games to be ready
+        while (!Game.AllReady()) Thread.Sleep(0);
+        // Aquire lock
+        while (Interlocked.Exchange(ref Game.GamesLock, 1) == 1) Thread.Sleep(0);
 
+        foreach (Game game in Game.Games) game.TickAsync();
 
-        //while (true)
-        //{
-        //    ConsoleKey key = Console.ReadKey(true).Key;
-        //    if (key >= ConsoleKey.D1 && key <= ConsoleKey.D7)
-        //    {
-        //        main.Current = key - ConsoleKey.D1 + 1;
-        //    }
-        //}
+        // Release lock
+        Interlocked.Exchange(ref Game.GamesLock, 0);
     }
 }
