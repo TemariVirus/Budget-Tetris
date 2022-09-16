@@ -27,7 +27,7 @@ enum TargetModes
 }
 
 // TODO: change callbacks to events?
-class Piece
+sealed class Piece
 {
     private static readonly int[] KicksX = { 0, -1, -1, 0, -1 }, IKicksX = { 0, -2, 1, -2, 1 };
     private static readonly int[] KicksY = { 0, 0, -1, 2, 2 }, IKicksY = { 0, 0, 0, 1, -2 };
@@ -174,35 +174,20 @@ class Piece
     }
 }
 
-struct GameBaseInfo
-{
-    public int[][] Matrix;
-    public int X, Y;
-
-    public Piece Current;
-    public Piece Hold;
-    public Piece[] Next;
-
-    public int B2B, Combo;
-}
-
 class GameBase
 {
     protected static readonly int[] GarbageLine = { Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage };
 
-    protected readonly int[][] Matrix = new int[40][]; // [y][x]
-    protected int X, Y;
+    public readonly int[][] Matrix = new int[40][]; // [y][x]
+    internal int X, Y;
 
-    public Piece Current { get; protected set; }
-    public Piece Hold { get; protected set; } = Piece.EMPTY;
+    public Piece Current { get; internal set; }
+    public Piece Hold { get; internal set; } = Piece.EMPTY;
     public Piece[] Next { get; protected set; }
 
     protected Random PieceRand;
     protected int BagIndex;
     protected Piece[] Bag = new Piece[] { Piece.T, Piece.I, Piece.L, Piece.J, Piece.S, Piece.Z, Piece.O };
-
-    public int B2B { get; protected set; } = -1;
-    public int Combo { get; protected set; } = -1;
 
     protected GameBase()
     {
@@ -216,30 +201,6 @@ class GameBase
         PieceRand = new Random(seed);
 
         for (int i = 0; i < Next.Length; i++) Next[i] = NextPiece();
-    }
-
-    public GameBaseInfo GetInfo()
-    {
-        return new GameBaseInfo()
-        {
-            Matrix = FullShallowCLone(this.Matrix),
-            X = this.X,
-            Y = this.Y,
-
-            Current = this.Current,
-            Hold = this.Hold,
-            Next = (Piece[])this.Next.Clone(),
-
-            B2B = this.B2B,
-            Combo = this.Combo
-        };
-
-        int[][] FullShallowCLone(int[][] arr)
-        {
-            int[][] clone = new int[arr.Length][];
-            for (int i = 0; i < arr.Length; i++) clone[i] = (int[])arr[i].Clone();
-            return clone;
-        }
     }
 
     protected int BlockX(int i) => X + Current.X[i];
@@ -265,7 +226,7 @@ class GameBase
         return Bag[BagIndex++];
     }
 
-    protected bool OnGround()
+    public bool OnGround()
     {
         if (Y >= Current.MaxY) return true;
         for (int i = 0; i < 4; i++)
@@ -274,8 +235,8 @@ class GameBase
         
         return false;
     }
-
-    protected int TSpin(bool rotatedLast)
+    
+    public int TSpin(bool rotatedLast)
     {
         if (rotatedLast && Current.PieceType == Piece.T)
         {
@@ -450,7 +411,7 @@ class GameBase
     }
 
     // Returns true if the piece was moved; Otherwise, returns false
-    protected int TryDrop(int dy)
+    public int TryDrop(int dy)
     {
         int moved = 0;
         for ( ; dy > 0 && !OnGround(); dy--, Y++) moved++;
@@ -514,9 +475,10 @@ class GameBase
             int moveup = cleared;
             for (int y = 16; moveup != 0; y++)
             {
-                if (y == clears[clears.Length - moveup])
+                if (y == clears[cleared - moveup])
                 {
                     moveup--;
+                    Matrix[y] = new int[10];
                     Buffer.BlockCopy(GarbageLine, 0, Matrix[y], 0, 10 * sizeof(int));
                 }
                 else Matrix[y] = Matrix[y + moveup];
@@ -526,12 +488,24 @@ class GameBase
         // Remove piece
         for (int i = 0; i < 4; i++) Matrix[BlockY(i)][BlockX(i)] = Piece.EMPTY;
     }
+
+    public GameBase Clone()
+    {
+        GameBase clone = new(Next.Length, 0);
+        for (int i = 0; i < 40; i++) clone.Matrix[i] = (int[])Matrix[i].Clone();
+        clone.X = X;
+        clone.Y = Y;
+        clone.Current = Current;
+        clone.Hold = Hold;
+        clone.Next = (Piece[])Next.Clone();
+        return clone;
+    }
 }
 
-class Game : GameBase
+sealed class Game : GameBase
 {
     public const int GAMEWIDTH = 45, GAMEHEIGHT = 24;
-    protected const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
+    const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
     static readonly string[] ClearText = { "SINGLE", "DOUBLE", "TRIPLE", "TETRIS" };
     static readonly ConsoleColor[] PieceColors =
     {
@@ -565,8 +539,8 @@ class Game : GameBase
     public bool IsMuted = false;
     bool IsPlaying = false;
 
-    protected int XOffset = 0;
-    protected int YOffset = 0;
+    int XOffset = 0;
+    int YOffset = 0;
 
     private string _Name = "";
     public string Name
@@ -611,7 +585,10 @@ class Game : GameBase
     }
     public int Level { get => Lines / 10 + 1; }
 
-    public double G = 0.08, SoftG = 1;
+    public int B2B { get; internal set; } = -1;
+    public int Combo { get; internal set; } = -1;
+
+    public double G = 0.0, SoftG = 1;
     double Vel = 0;
     readonly Queue<Moves> MoveQueue = new Queue<Moves>();
 
@@ -1030,7 +1007,7 @@ class Game : GameBase
         if (pc) WriteAt(1, 18, ConsoleColor.White, "ALL CLEAR!");
 
         // Trash sent
-        int trash = new int[] { 0, 0, 1, 2, 4 }[cleared];
+        int trash = LinesTrash[cleared];
         if (tspin == 3) trash += new int[] { 0, 2, 3, 4 }[cleared];
         if (B2Bbonus) trash++;
         //if (pc) trash += 4;
@@ -1077,8 +1054,8 @@ class Game : GameBase
                         Matrix[y][hole] = Piece.EMPTY;
                     }
                 }
-                DrawTrashMeter();
             }
+            DrawTrashMeter();
         }
         finally
         {
@@ -1147,7 +1124,7 @@ class Game : GameBase
         EraseT.Restart();
     }
 
-    protected void ClearScreen()
+    void ClearScreen()
     {
         // if (IsDead) return;
 
@@ -1459,7 +1436,7 @@ class Program
         Game.SetGames(games);
 
         // Set up bots
-        //new Bot(BaseDirectory + @"NNs\plan2.txt", games[1]).Start(100, 50);
+        new Bot(BaseDirectory + @"NNs\plan2.txt", games[1]).Start(0, 0);
 
         // Set up input handler
         FConsole.AddOnPressListener(Key.Left, () => main.Play(Moves.Left));
