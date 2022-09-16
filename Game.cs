@@ -844,48 +844,6 @@ sealed class Game : GameBase
     }
 
     #region // Player methods
-    // Change this later
-    public void Play(ConsoleKey move)
-    {
-        switch (move)
-        {
-            case ConsoleKey.C:
-                Play(Moves.Hold);
-                break;
-            case ConsoleKey.NumPad4: goto case ConsoleKey.LeftArrow;
-            case ConsoleKey.LeftArrow:
-                Play(Moves.Left);
-                break;
-            case ConsoleKey.NumPad6: goto case ConsoleKey.RightArrow;
-            case ConsoleKey.RightArrow:
-                Play(Moves.Right);
-                break;
-            case ConsoleKey.NumPad2: goto case ConsoleKey.DownArrow;
-            case ConsoleKey.DownArrow:
-                Play(Moves.SoftDrop);
-                break;
-            case ConsoleKey.NumPad8: goto case ConsoleKey.Spacebar;
-            case ConsoleKey.Spacebar:
-                Play(Moves.HardDrop);
-                break;
-            case ConsoleKey.NumPad1: goto case ConsoleKey.UpArrow;
-            case ConsoleKey.NumPad5: goto case ConsoleKey.UpArrow;
-            case ConsoleKey.NumPad9: goto case ConsoleKey.UpArrow;
-            case ConsoleKey.X: goto case ConsoleKey.UpArrow;
-            case ConsoleKey.UpArrow:
-                Play(Moves.RotateCW);
-                break;
-            case ConsoleKey.NumPad3: goto case ConsoleKey.Z;
-            case ConsoleKey.NumPad7: goto case ConsoleKey.Z;
-            case ConsoleKey.Z:
-                Play(Moves.RotateCCW);
-                break;
-            case ConsoleKey.A:
-                Play(Moves.Rotate180);
-                break;
-        }
-    }
-
     public void Play(Moves move) => MoveQueue.Enqueue(move);
 
     public void Slide(int dx)

@@ -5,7 +5,7 @@ using System.Text;
 
 class Bot
 {
-    const double THINKTIMEINSECONDS = 0.3,
+    const double THINKTIMEINSECONDS = 0.2,
                  MINTRESH = -1, MAXTRESH = -0.01, MOVEMUL = 1.05, MOVETARGET = 5,
                  DISCOUNT_FACTOR = 0.95;
 
