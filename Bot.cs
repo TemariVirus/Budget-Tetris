@@ -2,6 +2,8 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Windows.Input;
+using System.Windows.Documents;
 
 class Bot
 {
@@ -78,6 +80,7 @@ class Bot
             while (!Game.IsDead)
             {
                 List<Moves> moves = FindMoves();
+                
                 // Think Delay
                 Thread.Sleep(ThinkDelay);
                 while (moves.Count != 0)
@@ -140,6 +143,7 @@ class Bot
 
         // Get copy of attached game
         Sandbox = Game.Clone();
+        GameBase pathfind = Game.Clone();
         
         // Call the dedicated PC Finder
         //
@@ -175,19 +179,10 @@ class Bot
                     if (TimesUp) break;
 
                     Piece piece = current.PieceType | rot;
-                    List<Moves> tempMoves = new List<Moves>();
-                    if (rot == Piece.ROTATION_CCW) tempMoves.Add(Moves.RotateCCW);
-                    else for (int i = 0; i < rot; i += Piece.ROTATION_CW) tempMoves.Add(Moves.RotateCW);
-
-                    for (int i = 0; i < 5 - piece.MinX; i++) tempMoves.Add(Moves.Left);
 
                     for (int orix = piece.MinX; orix <= piece.MaxX; orix++)
                     {
                         if (TimesUp) break;
-
-                        if (tempMoves.Count == 0) tempMoves.Add(Moves.Right);
-                        else if (tempMoves[^1] == Moves.Left) tempMoves.RemoveAt(tempMoves.Count - 1);
-                        else tempMoves.Add(Moves.Right);
 
                         Sandbox.Current = piece;
                         Sandbox.X = orix;
@@ -202,11 +197,13 @@ class Bot
                         double newvalue = Search(depth, nexti + 1, Sandbox.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage);
                         if (newvalue >= bestScore)
                         {
-                            if (newvalue > bestScore || bestMoves.Contains(Moves.SoftDrop) || DistanceFromWall(piece, tempMoves) < DistanceFromWall(swap ^ bestMoves.Contains(Moves.Hold) ? piece : hold, bestMoves))
+                            if (pathfind.PathFind(piece, orix, oriy, out List<Moves> new_bestMoves))
                             {
-                                bestScore = newvalue;
-                                bestMoves = new List<Moves>(tempMoves);
-                                if (swap) bestMoves.Insert(0, Moves.Hold);
+                                if (newvalue > bestScore || bestMoves.Contains(Moves.SoftDrop) || new_bestMoves.Count < bestMoves.Count)
+                                {
+                                    bestScore = newvalue;
+                                    bestMoves = new_bestMoves;
+                                }
                             }
                         }
                         Sandbox.Current = piece;
@@ -223,10 +220,8 @@ class Bot
                                 Sandbox.Y = oriy;
                                 bool clockwise = rotate_cw == 0;
 
-                                tempMoves.Add(Moves.SoftDrop);
                                 for (int i = 0; i < 2; i++)
                                 {
-                                    tempMoves.Add(clockwise ? Moves.RotateCW : Moves.RotateCCW);
                                     if (!Sandbox.TryRotate(clockwise ? 1 : -1)) break;
                                     if (!Sandbox.OnGround()) break;
                                     // Update screen
@@ -239,9 +234,11 @@ class Bot
                                     newvalue = Search(depth, nexti + 1, Sandbox.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage);
                                     if (newvalue > bestScore)
                                     {
-                                        bestScore = newvalue;
-                                        bestMoves = new List<Moves>(tempMoves);
-                                        if (swap) bestMoves.Insert(0, Moves.Hold);
+                                        if (pathfind.PathFind(rotated, x, y, out List<Moves> new_bestMoves))
+                                        {
+                                            bestScore = newvalue;
+                                            bestMoves = new_bestMoves;
+                                        }
                                     }
                                     // Revert screen
                                     Sandbox.Current = rotated;
@@ -252,9 +249,6 @@ class Bot
                                     // Only try to spin T pieces twice (for TSTs)
                                     if (piece.PieceType != Piece.T) break;
                                 }
-
-                                while (tempMoves[^1] == (clockwise ? Moves.RotateCW : Moves.RotateCCW)) tempMoves.RemoveAt(tempMoves.Count - 1);
-                                tempMoves.Remove(Moves.SoftDrop);
                             }
                         }
                     }
@@ -275,8 +269,6 @@ class Bot
 
         // Check if pc found
         //
-        // Otherwise use ai's moves
-        bestMoves.Add(Moves.HardDrop);
         // Adjust movetresh
         double time_remaining = (double)(ThinkTicks - Timer.ElapsedTicks) / ThinkTicks;
         if (time_remaining > 0)

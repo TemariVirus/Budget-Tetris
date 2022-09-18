@@ -26,7 +26,7 @@ enum TargetModes
     Self
 }
 
-// TODO: change callbacks to events?
+// TODO: change callbacks to events or use tasks?
 sealed class Piece
 {
     private static readonly int[] KicksX = { 0, -1, -1, 0, -1 }, IKicksX = { 0, -2, 1, -2, 1 };
@@ -77,6 +77,8 @@ sealed class Piece
     internal readonly int[] KicksCCWX, KicksCCWY;
     internal readonly int Kick180X = 0, Kick180Y = 0;
 
+    public readonly ulong Mask;
+    
     private Piece(int id)
     {
         Id = id;
@@ -92,6 +94,11 @@ sealed class Piece
 
         GetKicksTable(true, this, out KicksCWX, out KicksCWY);
         GetKicksTable(false, this, out KicksCCWX, out KicksCCWY);
+
+        // Center at (7, 37); Mask shows a view of the last 4 rows
+        Mask = 0;
+        for (int i = 0; i < 4; i++)
+            Mask |= 1UL << ((2 - X[i]) + 10 * (2 - Y[i]));
     }
 
     private static Piece[] GetPieces()
@@ -410,7 +417,7 @@ class GameBase
         return moved;
     }
 
-    // Returns true if the piece was moved; Otherwise, returns false
+    // Returns number of blocks moved down by
     public int TryDrop(int dy)
     {
         int moved = 0;
@@ -500,6 +507,114 @@ class GameBase
         clone.Next = (Piece[])Next.Clone();
         return clone;
     }
+
+    public bool PathFind(Piece end_piece, int end_x, int end_y, out List<Moves> moves)
+    {
+        moves = null;
+        // No possible route if piece is out of bounds
+        if (end_x < end_piece.MinX || end_x > end_piece.MaxX || end_y < 0 || end_y > end_piece.MaxY)
+            return false;
+        
+        GameBase clone = Clone();
+        // Check if hold is needed
+        bool hold = false;
+        if (clone.Current.PieceType != end_piece.PieceType)
+        {
+            clone.Current = clone.Hold == Piece.EMPTY ? clone.Next[0] : clone.Hold;
+            // No possible route if holding doesn't give correct piece type
+            if (clone.Current.PieceType != end_piece.PieceType)
+                return false;
+            hold = true;
+            clone.ResetPiece();
+        }
+
+        // Queue of nodes to try
+        Queue<(Piece p, int x, int y, List<Moves> m)> nodes = new Queue<(Piece, int, int, List<Moves>)>();
+        // Set of seen nodes
+        HashSet<int> seen = new HashSet<int>();
+        // Breadth first search
+        nodes.Enqueue((clone.Current, clone.X, clone.Y, new List<Moves>()));
+        seen.Add((clone.Current, clone.X, clone.Y).GetHashCode());
+        while (nodes.Count != 0)
+        {
+            (Piece piece, int x, int y, List<Moves> m) = nodes.Dequeue();
+            clone.Current = piece;
+            clone.Y = y;
+            // Try all different moves
+            // Slide left/right
+            for (int i = 0; i < 2; i++)
+            {
+                clone.X = x;
+                bool right = i == 1;
+                if (clone.TrySlide(right))
+                    UpdateWith(m, right ? Moves.Right : Moves.Left);
+            }
+            // DAS left/right
+            for (int i = 0; i < 2; i++)
+            {
+                clone.X = x;
+                bool right = i == 1;
+                if (clone.TrySlide(right ? 10 : -10))
+                    UpdateWith(m, right ? Moves.DASRight : Moves.DASLeft);
+            }
+            // Rotate CW/CCW/180
+            for (int i = 1; i <= 3; i++)
+            {
+                clone.Current = piece;
+                clone.X = x;
+                clone.Y = y;
+                if (clone.TryRotate(i))
+                    UpdateWith(m, i == 1 ? Moves.RotateCW :
+                                  i == 2 ? Moves.Rotate180 :
+                                           Moves.RotateCCW);
+            }
+            // Hard/soft drop
+            clone.Current = piece;
+            clone.X = x;
+            clone.Y = y;
+            clone.TryDrop(40);
+            if (MaskMatch(piece, clone.X, clone.Y))
+            {
+                moves = m;
+                moves.Add(Moves.HardDrop);
+                if (hold) moves.Insert(0, Moves.Hold);
+                return true;
+            }
+            UpdateWith(m, Moves.SoftDrop);
+        }
+
+        return false;
+
+
+        void UpdateWith(List<Moves> m, Moves move)
+        {
+            int hash = (clone.Current, clone.X, clone.Y).GetHashCode();
+            if (!seen.Contains(hash))
+            {
+                seen.Add(hash);
+                List<Moves> new_m = new List<Moves>(m);
+                new_m.Add(move);
+                nodes.Enqueue((clone.Current, clone.X, clone.Y, new_m));
+            }
+        }
+
+        bool MaskMatch(Piece p, int x, int y)
+        {
+            ulong end_piece_mask = end_piece.Mask;
+            ulong p_mask = p.Mask;
+
+            int x_shift = Math.Abs(x - end_x);
+            if (x < end_x) p_mask <<= x_shift;
+            else end_piece_mask <<= x_shift;
+
+            int y_shift = Math.Abs(y - end_y) * 10;
+            if (y_shift >= 64) return false;
+            if (y < end_y) p_mask <<= y_shift;
+            else end_piece_mask <<= y_shift;
+
+            return end_piece_mask == p_mask;
+        }
+    }
 }
 
 sealed class Game : GameBase
@@ -536,8 +651,6 @@ sealed class Game : GameBase
     #region // Fields and Properties
     public Action TickingCallback;
     public bool IsTicking { get; private set; } = false;
-    public bool IsMuted = false;
-    bool IsPlaying = false;
 
     int XOffset = 0;
     int YOffset = 0;
@@ -593,7 +706,7 @@ sealed class Game : GameBase
     readonly Queue<Moves> MoveQueue = new Queue<Moves>();
 
     double LastFrameT;
-    public int LockDelay = 1000, EraseDelay = 3000, GarbageDelay = 2000; // In miliseconds
+    public int LockDelay = 700, EraseDelay = 2000, GarbageDelay = 500; // In miliseconds
     public int AutoLockGrace = 15;
     int MoveCount = 0;
     bool IsLastMoveRotate = false, AlreadyHeld = false;
@@ -1169,204 +1282,6 @@ sealed class Game : GameBase
 
         return allReady;
     }
-
-    // TODO: Replace with breadth-first search
-    //public bool PathFind(Piece piece, int start_x, int start_y, int start_r, int end_x, int end_y, int end_r, ref List<ConsoleKey> moves, Dictionary<int, bool> seen = null)
-    //{
-    //    if (moves == null || seen == null)
-    //    {
-    //        moves = new List<ConsoleKey>();
-    //        seen = new Dictionary<int, bool>(100);
-    //    }
-    //    // Check if seen
-    //    int state = Concantate(end_x, end_y, end_r);
-    //    if (seen.ContainsKey(state)) return false;
-    //    seen.Add(state, false);
-    //    // Check if piece can be hard dropped
-    //    int y = start_y;
-    //    while (!OnGround(Matrix, end_x, y, piece, end_r)) y++;
-    //    if (y == end_y)
-    //    {
-    //        if (moves.Count != 0) moves.Insert(0, ConsoleKey.DownArrow);
-    //        //x pos
-    //        for (int i = start_x; i < end_x; i++) moves.Insert(0, ConsoleKey.RightArrow);
-    //        for (int i = start_x; i > end_x; i--) moves.Insert(0, ConsoleKey.LeftArrow);
-    //        //rotation
-    //        int dr = (end_r - start_r + 4) % 4;
-    //        if (dr == 3) moves.Insert(0, ConsoleKey.Z);
-    //        else for (int i = 0; i < dr; i++) moves.Insert(0, ConsoleKey.UpArrow);
-    //        //swap
-    //        if (piece != Current) moves.Insert(0, ConsoleKey.C);
-    //        //hard drop
-    //        moves.Add(ConsoleKey.Spacebar);
-    //        return true;
-    //    }
-    //    // Check if piece can be soft dropped and moved sideways
-    //    Piece end_piece = piece.PieceType | (end_r << 3);
-    //    for (int i = 0; i < 2; i++)
-    //    {
-    //        bool right = i == 1;
-    //        //don't backtrack
-    //        if (moves.Count != 0)
-    //        {
-    //            if (moves[0] == ConsoleKey.DownArrow)
-    //            {
-    //                if (moves[1] == ConsoleKey.LeftArrow ^ right) continue;
-    //            }
-    //            else if (moves[0] == ConsoleKey.LeftArrow ^ right) continue;
-    //        }
-    //        //don't move outside of the matrix
-    //        if ((end_x == end_piece.MinX && !right) || (end_x == end_piece.MaxX && right)) continue;
-    //        //go up until we can move to the side
-    //        y = end_y;
-    //        while (!CanPut(end_x + (right ? 1 : -1), y, end_r))
-    //        {
-    //            y--;
-    //            if (!CanPut(end_x, y, end_r))
-    //            {
-    //                y++;
-    //                break;
-    //            }
-    //        }
-    //        if (CanPut(end_x + (right ? 1 : -1), y, end_r))
-    //        {
-    //            if (y != end_y && moves.Count != 0) moves.Insert(0, ConsoleKey.DownArrow);
-    //            moves.Insert(0, right ? ConsoleKey.LeftArrow : ConsoleKey.RightArrow);
-    //            return PathFind(piece, start_x, start_y, start_r, end_x + (right ? 1 : -1), y, end_r, ref moves, seen);
-    //        }
-    //    }
-    //    //for spins, check if kick moved center down or at the same y level
-    //    for (int i = 0; i < 2; i++)
-    //    {
-    //        bool clockwise = i == 1;
-    //        //go to top
-    //        y = end_y;
-    //        while (CanPut(end_x, y, end_r)) y--;
-    //        y++; //piece should not be intersecting at end pos, so we wil always add 1
-    //             //go down until we find a spin
-    //        while (y <= end_y)
-    //        {
-    //            int speen_x = end_x, speen_y = y, speen_r = end_r;
-    //            if (UnRotate(clockwise, ref speen_x, ref speen_y, ref speen_r))
-    //            {
-    //                if (y != end_y) moves.Insert(0, ConsoleKey.DownArrow);
-    //                moves.Insert(0, clockwise ? ConsoleKey.UpArrow : ConsoleKey.Z);
-    //                if (PathFind(piece, start_x, start_y, start_r, speen_x, speen_y, speen_r, ref moves, seen)) return true;
-    //            }
-    //            y++;
-    //        }
-    //    }
-
-    //    return false;
-
-    //    int Concantate(int _x, int _y, int _r)
-    //    {
-    //        return _r | (_x << 2) | (_y << 6);
-    //    }
-
-    //    bool CanPut(int _x, int _y, int _r)
-    //    {
-    //        if (_x < end_piece.MinX || _x > end_piece.MaxX) return false;
-
-    //        for (int i = 0; i < 4; i++)
-    //        {
-    //            int block_x = _x + ((Piece)(piece.PieceType | (_r << 3))).X[i], block_y = _y + PieceY[piece][_r][i];
-    //            if (block_y < 16 || block_y > 39) return false;
-    //            if (Matrix[block_y][block_x] != 0) return false;
-    //        }
-    //        return true;
-    //    }
-
-    //    //only change ref variables if it returns true
-    //    bool UnRotate(bool _clockwise, ref int _x, ref int _y, ref int post_r)
-    //    {
-    //        //reverse rotation
-    //        int pre_r = _clockwise ? (post_r + 3) % 4 : (post_r + 1) % 4;
-    //        //get x and y multipliers
-    //        int x_mul = !_clockwise ^ pre_r > 1 ^ (pre_r % 2 == 1 && _clockwise) ? -1 : 1;
-    //        int y_mul = pre_r % 2 == 1 ? -1 : 1;
-    //        if (piece == 2) y_mul *= pre_r > 1 ^ _clockwise ? -1 : 1;
-    //        int[] testorder = piece == 2 && (pre_r % 2 == 1 ^ !_clockwise) ? new int[] { 0, 2, 1, 4, 3 } : new int[] { 0, 1, 2, 3, 4 };
-    //        foreach (int test in testorder)
-    //        {
-    //            int spin_x, spin_y;
-    //            if (piece == 2)
-    //            {
-    //                spin_x = _x - (IKicksX[test] * x_mul);
-    //                spin_y = _y - (IKicksY[test] * y_mul);
-    //            }
-    //            else
-    //            {
-    //                spin_x = _x - (KicksX[test] * x_mul);
-    //                spin_y = _y - (KicksY[test] * y_mul);
-    //            }
-    //            if (CanPut(spin_x, spin_y, pre_r))
-    //            {
-    //                //only spin pieces when on ground
-    //                if (OnGround(Matrix, spin_x, spin_y, piece, pre_r))
-    //                {
-    //                    //check that kick no. is the same
-    //                    if (test == RotateTest(Matrix, spin_x, spin_y, piece, pre_r, _clockwise))
-    //                    {
-    //                        _x = spin_x;
-    //                        _y = spin_y;
-    //                        post_r = pre_r;
-    //                        return true;
-    //                    }
-    //                }
-    //            }
-    //        }
-
-    //        return false;
-    //    }
-
-    //    bool OnGround(int[][] matrix, int _x, int _y, int piece2, int rot)
-    //    {
-    //        try
-    //        {
-    //            for (int i = 0; i < 4; i++)
-    //            {
-    //                int y2 = _y + PieceY[piece2][rot][i] + 1;
-    //                if (y2 == 40) return true;
-    //                if (matrix[y2][_x + PieceX[piece2][rot][i]] != 0) return true;
-    //            }
-    //        }
-    //        catch { }
-    //        return false;
-    //    }
-
-    //    int RotateTest(int[][] matrix, int _x, int _y, int piece2, int rot, bool clockwise)
-    //    {
-    //        int xmul = !clockwise ^ rot > 1 ^ (rot % 2 == 1 && clockwise) ? -1 : 1;
-    //        int ymul = rot % 2 == 1 ? -1 : 1;
-    //        int testrotation = clockwise ? (rot + 1) % 4 : (rot + 3) % 4;
-    //        if (piece2 == 2) ymul *= rot > 1 ^ clockwise ? -1 : 1;
-    //        int[] testorder = piece == 2 && (rot % 2 == 1 ^ !clockwise) ? new int[] { 0, 2, 1, 4, 3 } : new int[] { 0, 1, 2, 3, 4 };
-    //        foreach (int test in testorder)
-    //        {
-    //            bool pass = true;
-    //            for (int i = 0; i < 4 && pass; i++)
-    //            {
-    //                int x2, y2;
-    //                if (piece == 2)
-    //                {
-    //                    x2 = _x + PieceX[piece2][testrotation][i] + (IKicksX[test] * xmul);
-    //                    y2 = _y + PieceY[piece2][testrotation][i] + (IKicksY[test] * ymul);
-    //                }
-    //                else
-    //                {
-    //                    x2 = _x + PieceX[piece2][testrotation][i] + (KicksX[test] * xmul);
-    //                    y2 = _y + PieceY[piece2][testrotation][i] + (KicksY[test] * ymul);
-    //                }
-    //                if (x2 < 0 || x2 > 9 || y2 > 39) pass = false;
-    //                else if (matrix[y2][x2] != 0) pass = false;
-    //            }
-    //            if (pass) return test;
-    //        }
-
-    //        return -1;
-    //    }
-    //}
 }
 
 class Program
@@ -1388,34 +1303,38 @@ class Program
 
         Game main = games[0];
         main.SoftG = 40;
-        games[1].IsMuted = true;
         games[1].SoftG = 40;
 
         Game.SetGames(games);
 
         // Set up bots
-        new Bot(BaseDirectory + @"NNs\plan2.txt", games[1]).Start(0, 0);
+        new Bot(BaseDirectory + @"NNs\plan2.txt", games[1]).Start(0, 200);
 
         // Set up input handler
-        FConsole.AddOnPressListener(Key.Left, () => main.Play(Moves.Left));
-        //FastConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.Left), 133, 0);
-        FConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.DASLeft), 133, 15);
-
-        FConsole.AddOnPressListener(Key.Right, () => main.Play(Moves.Right));
-        //FastConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.Right), 133, 0);
-        FConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.DASRight), 133, 15);
-
-        FConsole.AddOnPressListener(Key.Up, () => main.Play(Moves.RotateCW));
-        FConsole.AddOnPressListener(Key.Z, () => main.Play(Moves.RotateCCW));
-        FConsole.AddOnPressListener(Key.A, () => main.Play(Moves.Rotate180));
-
-        FConsole.AddOnHoldListener(Key.Down, () => main.Play(Moves.SoftDrop), 0, 16);
-        FConsole.AddOnPressListener(Key.Space, () => main.Play(Moves.HardDrop));
-
-        FConsole.AddOnPressListener(Key.C, () => main.Play(Moves.Hold));
-        FConsole.AddOnPressListener(Key.R, () => main.Restart());
+        SetupPlayerInput(main);
     }
 
+    static void SetupPlayerInput(Game player_game)
+    {
+        FConsole.AddOnPressListener(Key.Left, () => player_game.Play(Moves.Left));
+        //FastConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.Left), 133, 0);
+        FConsole.AddOnHoldListener(Key.Left, () => player_game.Play(Moves.DASLeft), 133, 15);
+
+        FConsole.AddOnPressListener(Key.Right, () => player_game.Play(Moves.Right));
+        //FastConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.Right), 133, 0);
+        FConsole.AddOnHoldListener(Key.Right, () => player_game.Play(Moves.DASRight), 133, 15);
+
+        FConsole.AddOnPressListener(Key.Up, () => player_game.Play(Moves.RotateCW));
+        FConsole.AddOnPressListener(Key.Z, () => player_game.Play(Moves.RotateCCW));
+        FConsole.AddOnPressListener(Key.A, () => player_game.Play(Moves.Rotate180));
+
+        FConsole.AddOnHoldListener(Key.Down, () => player_game.Play(Moves.SoftDrop), 0, 16);
+        FConsole.AddOnPressListener(Key.Space, () => player_game.Play(Moves.HardDrop));
+
+        FConsole.AddOnPressListener(Key.C, () => player_game.Play(Moves.Hold));
+        FConsole.AddOnPressListener(Key.R, () => player_game.Restart());
+    }
+    
     static void FrameEndCallback()
     {
         // Wait for games to be ready
