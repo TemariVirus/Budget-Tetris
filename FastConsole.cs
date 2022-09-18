@@ -220,8 +220,8 @@ static class FConsole
             long oldT;
             if (times.Count > Framerate) oldT = times.Dequeue();
             else oldT = times.Peek();
-            WriteAt($"{(float)(times.Count - 1) / (newT - oldT) * Stopwatch.Frequency}fps".PadRight(12), 0, 0);
-
+            WriteAt($"{Math.Round((double)(times.Count - 1) / (newT - oldT) * Stopwatch.Frequency, 1)}fps".PadRight(10), 1, 0);
+            
             // Callback
             RenderCallback?.Invoke();
 

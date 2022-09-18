@@ -2,23 +2,29 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Windows.Input;
-using System.Windows.Documents;
 
 class Bot
 {
-    const double THINKTIMEINSECONDS = 0.2,
-                 MINTRESH = -1, MAXTRESH = -0.01, MOVEMUL = 1.05, MOVETARGET = 5,
+    const double MINTRESH = -1, MAXTRESH = -0.01, MOVEMUL = 1.05, MOVETARGET = 5,
                  DISCOUNT_FACTOR = 0.95;
 
-    public Game Game;
+    private Game _Game;
+    public Game Game
+    {
+        get => _Game;
+        set
+        {
+            _Game = value;
+            _Game.SoftG = 40;
+        }
+    }
     private GameBase Sandbox;
     bool Done;
 
     private readonly NN Network;
     bool UsePCFinder = true;
-    long ThinkTicks = (long)(THINKTIMEINSECONDS * Stopwatch.Frequency);
-    double MoveTresh = -0.1;
+    long ThinkTicks = Stopwatch.Frequency;
+    double MoveTresh = -0.05;
 
     int CurrentDepth;
     double MaxDepth;
@@ -71,6 +77,7 @@ class Bot
 
     public void Start(int ThinkDelay, int MoveDelay)
     {
+        ThinkTicks = ThinkDelay * Stopwatch.Frequency / 1000;
         Game.TickingCallback = () =>
         {
             Done = true;
@@ -80,7 +87,8 @@ class Bot
             while (!Game.IsDead)
             {
                 List<Moves> moves = FindMoves();
-                
+                Timer.Start();
+                while (Timer.ElapsedTicks < ThinkTicks) Thread.Sleep(0);
                 // Think Delay
                 Thread.Sleep(ThinkDelay);
                 while (moves.Count != 0)
@@ -92,9 +100,9 @@ class Bot
                 }
                 Done = false;
                 while (!Done) Thread.Sleep(0);
-                Game.WriteAt(1, 0, ConsoleColor.White, Math.Round(NCount.Average()).ToString().PadRight(9));
-                Game.WriteAt(1, 22, ConsoleColor.White, MaxDepth.ToString().PadRight(6));
-                Game.WriteAt(1, 23, ConsoleColor.White, MoveTresh.ToString().PadRight(12));
+                Game.WriteAt(0, 23, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(Game.GAMEWIDTH));
+                Game.WriteAt(0, 24, ConsoleColor.White, $"Nodes: {Math.Round(NCount.Average())}".PadRight(Game.GAMEWIDTH));
+                Game.WriteAt(0, 25, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(Game.GAMEWIDTH));
                 for (int i = NCount.Length - 1; i > 0; i--)
                     NCount[i] = NCount[i - 1];
                 NCount[0] = 0;
