@@ -618,7 +618,7 @@ public class GameBase
 
 public sealed class Game : GameBase
 {
-    public const int GAMEWIDTH = 44, GAMEHEIGHT = 27;
+    public const int GAMEWIDTH = 44, GAMEHEIGHT = 24;
     const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
     static readonly string[] ClearText = { "SINGLE", "DOUBLE", "TRIPLE", "TETRIS" };
     static readonly ConsoleColor[] PieceColors =
@@ -639,7 +639,34 @@ public sealed class Game : GameBase
     public static int GamesLock = 0;
     public static Game[] Games { get; private set; }
     public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
-    public static bool IsPausedGlobal { get; private set; } = false;
+    private static bool _IsPaused = false;
+    public static bool IsPaused 
+    {
+        get => _IsPaused;
+        set
+        {
+            _IsPaused = value;
+            if (_IsPaused)
+            {
+                GlobalTime.Stop();
+                foreach (Game g in Games)
+                {
+                    g.LockT.Stop();
+                    g.EraseT.Stop();
+                }
+            }
+            else
+            {
+                GlobalTime.Start();
+                foreach (Game g in Games)
+                {
+                    if (g.OnGround()) g.LockT.Start();
+                    g.EraseT.Start();
+                    Task.Delay(g.GarbageDelay).ContinueWith(t => g.DrawTrashMeter());
+                }
+            }
+        }
+    }
 
     public int[] LinesTrash { get; private set; } = { 0, 0, 1, 2, 4 };
     public int[] TSpinsTrash { get; private set; } = { 0, 2, 4, 6 };
@@ -701,6 +728,7 @@ public sealed class Game : GameBase
             WriteAt(25, 0, ConsoleColor.White, _Lines.ToString().PadRight(45 - 26));
         }
     }
+    public int Sent = 0;
     public int Level { get => Lines / 10 + 1; }
 
     public int B2B { get; internal set; } = -1;
@@ -723,7 +751,7 @@ public sealed class Game : GameBase
     readonly List<(int, long)> Garbage = new List<(int, long)>();
 
     int GameIndex;
-    double TargetChangeInteval = 0.5, LastTargetChangeT;
+    long TargetChangeInteval = 500, LastTargetChangeT; // In miliseconds
     TargetModes TargetMode = TargetModes.Random;
     List<Game> Targets = new List<Game>();
     #endregion
@@ -744,7 +772,7 @@ public sealed class Game : GameBase
         SpawnNextPiece();
         // Timekeeping
         LastFrameT = GlobalTime.Elapsed.TotalSeconds;
-        LastTargetChangeT = GlobalTime.Elapsed.TotalSeconds;
+        LastTargetChangeT = GlobalTime.ElapsedMilliseconds;
     }
 
     public void Restart()
@@ -759,7 +787,7 @@ public sealed class Game : GameBase
         IsDead = false;
         Score = 0;
         Lines = 0;
-        sent = 0;
+        Sent = 0;
 
         Vel = 0;
         IsLastMoveRotate = false;
@@ -768,7 +796,7 @@ public sealed class Game : GameBase
         MoveQueue.Clear();
 
         LastFrameT = GlobalTime.Elapsed.TotalSeconds;
-        LastTargetChangeT = GlobalTime.Elapsed.TotalSeconds;
+        LastTargetChangeT = GlobalTime.ElapsedMilliseconds;
         LockT.Reset();
         EraseT.Reset();
         Garbage.Clear();
@@ -781,7 +809,7 @@ public sealed class Game : GameBase
 
     public void TickAsync()
     {
-        if (IsDead || IsPausedGlobal) return;
+        if (IsDead || IsPaused) return;
 
         IsTicking = true;
         new Thread(() => {
@@ -865,12 +893,12 @@ public sealed class Game : GameBase
         Games = games;
         GlobalTime.Restart();
 
-        // Find width and height (2:1 ratio)
+        // Find width and height (~2:1 ratio)
         int width = (int)Math.Sqrt(Games.Length / 2) * 2, height = width / 2;
         if (width * height < Games.Length) width++;
         if (width * height < Games.Length) height++;
 
-        FConsole.Set(width * (GAMEWIDTH + 1) + 1, height * GAMEHEIGHT + 1, width * (GAMEWIDTH + 1) + 1, height * GAMEHEIGHT + 1);
+        FConsole.Set(width * (GAMEWIDTH + 1) + 1, height * GAMEHEIGHT + 1);
 
         foreach (Game g in Games) g.ClearScreen();
 
@@ -894,7 +922,7 @@ public sealed class Game : GameBase
         return games;
     }
 
-    public void SendTrash(int trash)
+    void SendTrash(int trash)
     {
         long time = GlobalTime.ElapsedMilliseconds;
         // Select targets
@@ -926,6 +954,7 @@ public sealed class Game : GameBase
             victim.Garbage.Add((trash, time));
             victim.DrawTrashMeter();
             Task.Delay(GarbageDelay + 1).ContinueWith(t => victim.DrawTrashMeter());
+
         }
     }
 
@@ -963,9 +992,14 @@ public sealed class Game : GameBase
     }
 
     #region // Player methods
-    public void Play(Moves move) => MoveQueue.Enqueue(move);
+    public void Play(Moves move)
+    {
+        if (IsDead || IsPaused) return;
+        
+        MoveQueue.Enqueue(move);
+    }
 
-    public void Slide(int dx)
+    void Slide(int dx)
     {
         DrawCurrent(true);
         if (TrySlide(dx))
@@ -977,7 +1011,7 @@ public sealed class Game : GameBase
         DrawCurrent(false);
     }
 
-    public int Drop(int dy, int scorePerDrop)
+    int Drop(int dy, int scorePerDrop)
     {
         DrawCurrent(true);
         int moved = TryDrop(dy);
@@ -993,7 +1027,7 @@ public sealed class Game : GameBase
         return moved;
     }
 
-    public void Rotate(int dr)
+    void Rotate(int dr)
     {
         if (Current.PieceType != Piece.O)
         {
@@ -1007,7 +1041,7 @@ public sealed class Game : GameBase
         }
     }
 
-    public void HoldPiece()
+    void HoldPiece()
     {
         if (!AlreadyHeld)
         {
@@ -1036,8 +1070,8 @@ public sealed class Game : GameBase
         }
     }
 
-    int sent = 0;
-    public void PlacePiece()
+    // Update to use static trash arrays
+    void PlacePiece()
     {
         int tspin = TSpin(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
         // Clear lines
@@ -1091,10 +1125,7 @@ public sealed class Game : GameBase
         if (Combo > 0) trash += new int[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 9)];
         //if (Combo > 0) _trash += new int[] { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 11)]; //jstris combo table
         if (pc) trash = 10;
-
-        sent += trash;
-        WriteAt(0, 6, ConsoleColor.White, $"Sent: {sent}".PadRight(11));
-        WriteAt(0, 26, ConsoleColor.White, $"APL: {Math.Round((double)sent / Lines, 3)}".PadRight(GAMEWIDTH));
+        Sent += trash;
 
         // Garbage
         try

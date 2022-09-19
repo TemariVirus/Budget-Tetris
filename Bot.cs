@@ -41,8 +41,10 @@ public class Bot
     readonly Stopwatch Sw = new Stopwatch();
     bool TimesUp;
 
+    private bool ToStop;
+    public Thread BotThread { get; private set; }
     const int RunAvgCount = 20;
-    long[] NodeCounts = new long[RunAvgCount];
+    long[] NodeCounts;
 
     private Bot(Game game)
     {
@@ -91,12 +93,18 @@ public class Bot
 
     public void Start(int think_time, int move_delay)
     {
+        if (BotThread != null)
+            if (BotThread.IsAlive)
+                return;
+
         ThinkTicks = think_time * Stopwatch.Frequency / 1000;
+        NodeCounts = new long[RunAvgCount];
+        ToStop = false;
         Game.TickingCallback = () =>
         {
             Done = true;
         };
-        Thread main = new Thread(() =>
+        BotThread = new Thread(() =>
         {
             while (!Game.IsDead)
             {
@@ -109,7 +117,7 @@ public class Bot
                     Thread.Sleep(move_delay);
                 }
                 Done = false;
-                while (!Done) Thread.Sleep(0);
+                while (!Done && !ToStop) Thread.Sleep(0);
                 Game.WriteAt(0, 23, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(Game.GAMEWIDTH));
                 long count = NodeCounts.Aggregate(0, (aggregate, next) => (next == 0) ? aggregate : aggregate + 1);
                 if (count == 0) count++;
@@ -118,11 +126,18 @@ public class Bot
                 for (int i = NodeCounts.Length - 1; i > 0; i--)
                     NodeCounts[i] = NodeCounts[i - 1];
                 NodeCounts[0] = 0;
+
+                if (ToStop) break;
             }
+
+            ToStop = false;
+            return;
         });
-        main.Priority = ThreadPriority.Highest;
-        main.Start();
+        BotThread.Priority = ThreadPriority.Highest;
+        BotThread.Start();
     }
+
+    public void Stop() => ToStop = true;
 
     int[] SearchScore(bool lastrot, ref int comb, ref int _b2b, out double _trash, out int cleared)
     {
@@ -155,7 +170,7 @@ public class Bot
         return clears;
     }
 
-    public List<Moves> FindMoves()
+    List<Moves> FindMoves()
     {
         // Get copy of attached game
         Sim = Game.Clone();
@@ -1029,7 +1044,7 @@ public class NN
         return NNs;
     }
 
-    static List<List<NN>> Speciate(NN[] networks, double compat_tresh)
+    public static List<List<NN>> Speciate(NN[] networks, double compat_tresh)
     {
         List<List<NN>> species = new List<List<NN>>();
         species.Add(new List<NN> { networks[0] });

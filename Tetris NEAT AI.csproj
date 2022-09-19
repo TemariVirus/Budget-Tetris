@@ -14,6 +14,7 @@
     <None Remove="NNs\PC.txt" />
     <None Remove="NNs\plan2.txt" />
     <None Remove="NNs\plan3.txt" />
+    <None Remove="Pops\plan.txt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -30,6 +31,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="NNs\plan3.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Pops\plan.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

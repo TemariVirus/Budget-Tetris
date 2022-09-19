@@ -5,3 +5,4 @@
 /.vs/Tetris NEAT AI
 /bin/Release/net6.0-windows
 /obj
+/bin/Debug/net6.0-windows

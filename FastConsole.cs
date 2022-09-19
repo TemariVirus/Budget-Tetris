@@ -119,7 +119,8 @@ static class FConsole
     #endregion
 
     #region // Rendering
-    private static int Width, Height;
+    public static int Width { get; private set; }
+    public static int Height { get; private set; }
     private static int XOffset, YOffset;
     private static bool _CursorVisible = true;
     public static bool CursorVisible
@@ -248,6 +249,8 @@ static class FConsole
         if (height != Height) Console.BufferHeight = height;
         if (width != Width || height != Height) ResizeBuffer(width, height);
     }
+
+    public static void Set(int width, int height) => Set(width, height, width, height);
 
     public static void Set(int window_width, int window_height, int buffer_width, int buffer_height)
     {
