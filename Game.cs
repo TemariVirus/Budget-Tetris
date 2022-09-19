@@ -2,9 +2,8 @@
 
 using FastConsole;
 using System.Diagnostics;
-using System.Windows.Input;
 
-enum Moves
+public enum Moves
 {
     None,
     Hold,
@@ -19,7 +18,7 @@ enum Moves
     HardDrop
 }
 
-enum TargetModes
+public enum TargetModes
 {
     Random,
     All,
@@ -27,7 +26,7 @@ enum TargetModes
 }
 
 // TODO: change callbacks to events or use tasks?
-sealed class Piece
+public sealed class Piece
 {
     private static readonly int[] KicksX = { 0, -1, -1, 0, -1 }, IKicksX = { 0, -2, 1, -2, 1 };
     private static readonly int[] KicksY = { 0, 0, -1, 2, 2 }, IKicksY = { 0, 0, 0, 1, -2 };
@@ -78,7 +77,7 @@ sealed class Piece
     internal readonly int Kick180X = 0, Kick180Y = 0;
 
     public readonly ulong Mask;
-    
+
     private Piece(int id)
     {
         Id = id;
@@ -133,7 +132,7 @@ sealed class Piece
         Pieces[i & (PIECE_BITS | ROTATION_BITS)];
 
     public static implicit operator int(Piece i) => i.Id;
-    
+
     public override string ToString()
     {
         string name = "";
@@ -181,7 +180,7 @@ sealed class Piece
     }
 }
 
-class GameBase
+public class GameBase
 {
     protected static readonly int[] GarbageLine = { Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage };
 
@@ -239,10 +238,10 @@ class GameBase
         for (int i = 0; i < 4; i++)
             if (Matrix[BlockY(i) + 1][BlockX(i)] != Piece.EMPTY)
                 return true;
-        
+
         return false;
     }
-    
+
     public int TSpin(bool rotatedLast)
     {
         if (rotatedLast && Current.PieceType == Piece.T)
@@ -310,7 +309,7 @@ class GameBase
                     pass = false;
             if (!pass)
                 continue;
-            
+
             X = x;
             Y = y;
             Current = rotated;
@@ -421,7 +420,7 @@ class GameBase
     public int TryDrop(int dy)
     {
         int moved = 0;
-        for ( ; dy > 0 && !OnGround(); dy--, Y++) moved++;
+        for (; dy > 0 && !OnGround(); dy--, Y++) moved++;
         return moved;
     }
 
@@ -514,7 +513,7 @@ class GameBase
         // No possible route if piece is out of bounds
         if (end_x < end_piece.MinX || end_x > end_piece.MaxX || end_y < 0 || end_y > end_piece.MaxY)
             return false;
-        
+
         GameBase clone = Clone();
         // Check if hold is needed
         bool hold = false;
@@ -617,9 +616,9 @@ class GameBase
     }
 }
 
-sealed class Game : GameBase
+public sealed class Game : GameBase
 {
-    public const int GAMEWIDTH = 45, GAMEHEIGHT = 24;
+    public const int GAMEWIDTH = 44, GAMEHEIGHT = 27;
     const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
     static readonly string[] ClearText = { "SINGLE", "DOUBLE", "TRIPLE", "TETRIS" };
     static readonly ConsoleColor[] PieceColors =
@@ -635,13 +634,13 @@ sealed class Game : GameBase
         ConsoleColor.Gray,          // Garbage
         ConsoleColor.DarkGray       // Bedrock
     };
-    
+
     // 0 for false, 1 for true
     public static int GamesLock = 0;
     public static Game[] Games { get; private set; }
     public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
     public static bool IsPausedGlobal { get; private set; } = false;
-    
+
     public int[] LinesTrash { get; private set; } = { 0, 0, 1, 2, 4 };
     public int[] TSpinsTrash { get; private set; } = { 0, 2, 4, 6 };
     // Jstris combo table = { 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }
@@ -659,10 +658,16 @@ sealed class Game : GameBase
     public string Name
     {
         get => _Name;
-        private set
+        set
         {
             _Name = value;
-            //WriteAt(, , ConsoleColor.White, _Name);
+            // Center text
+            int space = GAMEWIDTH - value.Length;
+            int right_space = space / 2;
+            if (space < 0)
+                WriteAt(0, -1, ConsoleColor.White, value.Substring(-right_space, 44));
+            else
+                WriteAt(0, -1, ConsoleColor.White, value.PadRight(right_space + value.Length).PadLeft(GAMEWIDTH));
         }
     }
     private bool _IsDead = true;
@@ -683,7 +688,7 @@ sealed class Game : GameBase
         private set
         {
             _Score = value;
-            WriteAt(2, 9, ConsoleColor.White, _Score.ToString().PadRight(8));
+            WriteAt(1, 9, ConsoleColor.White, _Score.ToString().PadRight(8));
         }
     }
     private int _Lines = 0;
@@ -693,7 +698,7 @@ sealed class Game : GameBase
         private set
         {
             _Lines = value;
-            WriteAt(26, 0, ConsoleColor.White, _Lines.ToString().PadRight(45 - 26));
+            WriteAt(25, 0, ConsoleColor.White, _Lines.ToString().PadRight(45 - 26));
         }
     }
     public int Level { get => Lines / 10 + 1; }
@@ -701,12 +706,12 @@ sealed class Game : GameBase
     public int B2B { get; internal set; } = -1;
     public int Combo { get; internal set; } = -1;
 
-    public double G = 0.0, SoftG = 1;
+    public double G = 0.03, SoftG = 1;
     double Vel = 0;
     readonly Queue<Moves> MoveQueue = new Queue<Moves>();
 
     double LastFrameT;
-    public int LockDelay = 700, EraseDelay = 2000, GarbageDelay = 500; // In miliseconds
+    public int LockDelay = 1000, EraseDelay = 1500, GarbageDelay = 1000; // In miliseconds
     public int AutoLockGrace = 15;
     int MoveCount = 0;
     bool IsLastMoveRotate = false, AlreadyHeld = false;
@@ -754,6 +759,7 @@ sealed class Game : GameBase
         IsDead = false;
         Score = 0;
         Lines = 0;
+        sent = 0;
 
         Vel = 0;
         IsLastMoveRotate = false;
@@ -864,14 +870,14 @@ sealed class Game : GameBase
         if (width * height < Games.Length) width++;
         if (width * height < Games.Length) height++;
 
-        FConsole.Set(width * GAMEWIDTH + 1, height * GAMEHEIGHT + 1, width * GAMEWIDTH + 1, height * GAMEHEIGHT + 1);
+        FConsole.Set(width * (GAMEWIDTH + 1) + 1, height * GAMEHEIGHT + 1, width * (GAMEWIDTH + 1) + 1, height * GAMEHEIGHT + 1);
 
         foreach (Game g in Games) g.ClearScreen();
 
         // Set up and re-draw games
         for (int i = 0; i < Games.Length; i++)
         {
-            Games[i].XOffset = (i % width) * GAMEWIDTH;
+            Games[i].XOffset = (i % width) * (GAMEWIDTH + 1) + 1;
             Games[i].YOffset = (i / width) * GAMEHEIGHT + 1;
             Games[i].GameIndex = i;
             if (Games[i].IsDead) Games[i].Initialise();
@@ -919,7 +925,7 @@ sealed class Game : GameBase
         {
             victim.Garbage.Add((trash, time));
             victim.DrawTrashMeter();
-            Task.Delay(GarbageDelay).ContinueWith(t => victim.DrawTrashMeter());
+            Task.Delay(GarbageDelay + 1).ContinueWith(t => victim.DrawTrashMeter());
         }
     }
 
@@ -927,7 +933,7 @@ sealed class Game : GameBase
     {
         // Undraw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 38, 3 + 3 * i, true);
+            DrawPiece(Next[i], 37, 3 + 3 * i, true);
         // Update current and next
         Current = Next[0];
         for (int i = 1; i < Next.Length; i++) Next[i - 1] = Next[i];
@@ -951,7 +957,7 @@ sealed class Game : GameBase
         //IsDead |= isDead;
         // Draw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 38, 3 + 3 * i, false);
+            DrawPiece(Next[i], 37, 3 + 3 * i, false);
         // Draw current
         DrawCurrent(false);
     }
@@ -1010,7 +1016,7 @@ sealed class Game : GameBase
 
             // Undraw
             DrawCurrent(true);
-            DrawPiece(Hold, 4, 3, true);
+            DrawPiece(Hold, 3, 3, true);
 
             Piece oldhold = Hold.PieceType;
             Hold = Current.PieceType;
@@ -1024,13 +1030,13 @@ sealed class Game : GameBase
             }
 
             // Redraw
-            DrawPiece(Hold, 4, 3, false);
+            DrawPiece(Hold, 3, 3, false);
             DrawCurrent(false);
             LockT.Restart();
         }
     }
 
-    // Add sound later
+    int sent = 0;
     public void PlacePiece()
     {
         int tspin = TSpin(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
@@ -1067,15 +1073,15 @@ sealed class Game : GameBase
         }
 
         // Write stats to console
-        WriteAt(2, 11, ConsoleColor.White, Level.ToString());
+        WriteAt(1, 11, ConsoleColor.White, Level.ToString());
         // Write clear stats and play sound
         if (tspin > 0 || cleared > 0 || Combo > 0 || pc) EraseClearStats();
-        if (B2Bbonus) WriteAt(5, 14, ConsoleColor.White, "B2B");
-        if (tspin == 2) WriteAt(1, 15, ConsoleColor.White, "T-SPIN MINI");
-        else if (tspin == 3) WriteAt(3, 15, ConsoleColor.White, "T-SPIN");
-        if (cleared > 0) WriteAt(3, 16, ConsoleColor.White, ClearText[cleared - 1]);
-        if (Combo > 0) WriteAt(2, 17, ConsoleColor.White, Combo + " COMBO!");
-        if (pc) WriteAt(1, 18, ConsoleColor.White, "ALL CLEAR!");
+        if (B2Bbonus) WriteAt(4, 14, ConsoleColor.White, "B2B");
+        if (tspin == 2) WriteAt(0, 15, ConsoleColor.White, "T-SPIN MINI");
+        else if (tspin == 3) WriteAt(2, 15, ConsoleColor.White, "T-SPIN");
+        if (cleared > 0) WriteAt(2, 16, ConsoleColor.White, ClearText[cleared - 1]);
+        if (Combo > 0) WriteAt(1, 17, ConsoleColor.White, Combo + " COMBO!");
+        if (pc) WriteAt(0, 18, ConsoleColor.White, "ALL CLEAR!");
 
         // Trash sent
         int trash = LinesTrash[cleared];
@@ -1085,6 +1091,10 @@ sealed class Game : GameBase
         if (Combo > 0) trash += new int[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 9)];
         //if (Combo > 0) _trash += new int[] { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 11)]; //jstris combo table
         if (pc) trash = 10;
+
+        sent += trash;
+        WriteAt(0, 6, ConsoleColor.White, $"Sent: {sent}".PadRight(11));
+        WriteAt(0, 26, ConsoleColor.White, $"APL: {Math.Round((double)sent / Lines, 3)}".PadRight(GAMEWIDTH));
 
         // Garbage
         try
@@ -1138,7 +1148,7 @@ sealed class Game : GameBase
         //redraw screen
         for (int x = 0; x < 10; x++)
             for (int y = 39; y > 19; y--)
-                WriteAt(13 + x * 2, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);
+                WriteAt(12 + x * 2, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);
 
         SpawnNextPiece();
     }
@@ -1150,24 +1160,20 @@ sealed class Game : GameBase
 
     void DrawCurrent(bool black)
     {
-        //if (IsDead) return;
-
         // Ghost
         int movedown = TryDrop(40);
         for (int i = 0; i < 4; i++)
             if (BlockY(i) > 19) // If visible
-                WriteAt(BlockX(i) * 2 + 13, BlockY(i) - 18, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKGHOST);
+                WriteAt(BlockX(i) * 2 + 12, BlockY(i) - 18, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKGHOST);
         Y -= movedown;
         // Piece
         for (int i = 0; i < 4; i++)
             if (BlockY(i) > 19) // If visible
-                WriteAt(BlockX(i) * 2 + 13, BlockY(i) - 18, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKSOLID);
+                WriteAt(BlockX(i) * 2 + 12, BlockY(i) - 18, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKSOLID);
     }
 
     void DrawPiece(Piece piece, int x, int y, bool black)
     {
-        //if (IsDead) return;
-
         for (int i = 0; i < 4; i++)
             WriteAt(piece.X[i] * 2 + x, piece.Y[i] + y, black ? ConsoleColor.Black : PieceColors[piece.PieceType], BLOCKSOLID);
     }
@@ -1182,83 +1188,79 @@ sealed class Game : GameBase
                 ConsoleColor color = GlobalTime.ElapsedMilliseconds - Garbage[i].Item2 > GarbageDelay ? ConsoleColor.Red : ConsoleColor.Gray;
                 for (int j = y; y > j - Garbage[i].Item1 && y > 1; y--)
                 {
-                    WriteAt(34, y, color, "█");
+                    WriteAt(33, y, color, "█");
                 }
             }
         }
-        for (; y >= 0; y--) WriteAt(34, y, ConsoleColor.Black, " ");
+        for (; y >= 0; y--) WriteAt(33, y, ConsoleColor.Black, " ");
     }
 
     void EraseClearStats()
     {
-        for (int i = 14; i < 19; i++) WriteAt(1, i, ConsoleColor.Black, "".PadLeft(11));
+        for (int i = 14; i < 19; i++) WriteAt(0, i, ConsoleColor.Black, "".PadLeft(11));
         EraseT.Restart();
     }
 
     void ClearScreen()
     {
-        // if (IsDead) return;
-
         // Clear console section
         for (int i = 0; i < GAMEHEIGHT; i++)
-            WriteAt(1, i, ConsoleColor.White, "".PadLeft(GAMEWIDTH - 1));
+            WriteAt(0, i, ConsoleColor.White, "".PadLeft(GAMEWIDTH));
     }
 
     void DrawAll()
     {
         ClearScreen();
-        if (IsDead) return;
-
         #region // Draw outlines
-        WriteAt(18, 0, ConsoleColor.White, "LINES - ");
-        WriteAt(26, 0, ConsoleColor.White, Lines.ToString().PadRight(45 - 26));
+        WriteAt(17, 0, ConsoleColor.White, "LINES - ");
+        WriteAt(25, 0, ConsoleColor.White, Lines.ToString().PadRight(45 - 26));
 
-        WriteAt(1, 1, ConsoleColor.White, "╔══HOLD══╗");
+        WriteAt(0, 1, ConsoleColor.White, "╔══HOLD══╗");
         for (int i = 2; i < 5; i++)
         {
-            WriteAt(1, i, ConsoleColor.White, "║");
-            WriteAt(10, i, ConsoleColor.White, "║");
+            WriteAt(0, i, ConsoleColor.White, "║");
+            WriteAt(9, i, ConsoleColor.White, "║");
         }
-        WriteAt(1, 5, ConsoleColor.White, "╚════════╝");
+        WriteAt(0, 5, ConsoleColor.White, "╚════════╝");
 
-        WriteAt(12, 1, ConsoleColor.White, "╔════════════════════╗");
+        WriteAt(11, 1, ConsoleColor.White, "╔════════════════════╗");
         for (int i = 2; i < 2 + 20; i++)
         {
-            WriteAt(12, i, ConsoleColor.White, "║");
-            WriteAt(33, i, ConsoleColor.White, "║");
+            WriteAt(11, i, ConsoleColor.White, "║");
+            WriteAt(32, i, ConsoleColor.White, "║");
         }
-        WriteAt(12, 22, ConsoleColor.White, "╚════════════════════╝");
+        WriteAt(11, 22, ConsoleColor.White, "╚════════════════════╝");
 
-        WriteAt(35, 1, ConsoleColor.White, "╔══NEXT══╗");
+        WriteAt(34, 1, ConsoleColor.White, "╔══NEXT══╗");
         for (int i = 2; i < 2 + 17; i++)
         {
-            WriteAt(35, i, ConsoleColor.White, "║");
-            WriteAt(44, i, ConsoleColor.White, "║");
+            WriteAt(34, i, ConsoleColor.White, "║");
+            WriteAt(43, i, ConsoleColor.White, "║");
         }
-        WriteAt(35, 19, ConsoleColor.White, "╚════════╝");
+        WriteAt(34, 19, ConsoleColor.White, "╚════════╝");
 
-        WriteAt(1, 7, ConsoleColor.White, "╔════════╗");
+        WriteAt(0, 7, ConsoleColor.White, "╔════════╗");
         for (int i = 8; i < 12; i++)
         {
-            WriteAt(1, i, ConsoleColor.White, "║");
-            WriteAt(10, i, ConsoleColor.White, "║");
+            WriteAt(0, i, ConsoleColor.White, "║");
+            WriteAt(9, i, ConsoleColor.White, "║");
         }
-        WriteAt(1, 12, ConsoleColor.White, "╚════════╝");
-        WriteAt(2, 8, ConsoleColor.White, "SCORE");
-        WriteAt(2, 9, ConsoleColor.White, Score.ToString().PadRight(8));
-        WriteAt(2, 10, ConsoleColor.White, "LEVEL");
-        WriteAt(2, 11, ConsoleColor.White, Level.ToString().PadRight(8));
+        WriteAt(0, 12, ConsoleColor.White, "╚════════╝");
+        WriteAt(1, 8, ConsoleColor.White, "SCORE");
+        WriteAt(1, 9, ConsoleColor.White, Score.ToString().PadRight(8));
+        WriteAt(1, 10, ConsoleColor.White, "LEVEL");
+        WriteAt(1, 11, ConsoleColor.White, Level.ToString().PadRight(8));
         #endregion
 
         // Draw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 38, 3 + 3 * i, false);
+            DrawPiece(Next[i], 37, 3 + 3 * i, false);
         // Draw hold
-        DrawPiece(Hold, 4, 3, false);
+        DrawPiece(Hold, 3, 3, false);
         // Draw board
         for (int x = 0; x < 10; x++)
             for (int y = 20; y < 40; y++)
-                WriteAt(x * 2 + 13, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);
+                WriteAt(x * 2 + 12, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);
         // Draw current piece
         DrawCurrent(false);
         // Draw trash meter
@@ -1281,70 +1283,5 @@ sealed class Game : GameBase
         }
 
         return allReady;
-    }
-}
-
-class Program
-{
-    static readonly string BaseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-
-    static void Main()
-    {
-        // Set up console
-        Console.Title = "Console Tetris Clone With Bots";
-        FConsole.Framerate = 30;
-        FConsole.CursorVisible = false;
-        FConsole.SetFont("Consolas", 18);
-        FConsole.Initialise(FrameEndCallback);
-
-        // Set up games
-        int seed = new Random().Next();
-        Game[] games = { new Game(6, seed), new Game(5, seed) };
-
-        Game main = games[0];
-        main.SoftG = 40;
-        games[1].SoftG = 40;
-
-        Game.SetGames(games);
-
-        // Set up bots
-        new Bot(BaseDirectory + @"NNs\plan2.txt", games[1]).Start(0, 200);
-
-        // Set up input handler
-        SetupPlayerInput(main);
-    }
-
-    static void SetupPlayerInput(Game player_game)
-    {
-        FConsole.AddOnPressListener(Key.Left, () => player_game.Play(Moves.Left));
-        //FastConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.Left), 133, 0);
-        FConsole.AddOnHoldListener(Key.Left, () => player_game.Play(Moves.DASLeft), 133, 15);
-
-        FConsole.AddOnPressListener(Key.Right, () => player_game.Play(Moves.Right));
-        //FastConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.Right), 133, 0);
-        FConsole.AddOnHoldListener(Key.Right, () => player_game.Play(Moves.DASRight), 133, 15);
-
-        FConsole.AddOnPressListener(Key.Up, () => player_game.Play(Moves.RotateCW));
-        FConsole.AddOnPressListener(Key.Z, () => player_game.Play(Moves.RotateCCW));
-        FConsole.AddOnPressListener(Key.A, () => player_game.Play(Moves.Rotate180));
-
-        FConsole.AddOnHoldListener(Key.Down, () => player_game.Play(Moves.SoftDrop), 0, 16);
-        FConsole.AddOnPressListener(Key.Space, () => player_game.Play(Moves.HardDrop));
-
-        FConsole.AddOnPressListener(Key.C, () => player_game.Play(Moves.Hold));
-        FConsole.AddOnPressListener(Key.R, () => player_game.Restart());
-    }
-    
-    static void FrameEndCallback()
-    {
-        // Wait for games to be ready
-        while (!Game.AllReady()) Thread.Sleep(0);
-        // Aquire lock
-        while (Interlocked.Exchange(ref Game.GamesLock, 1) == 1) Thread.Sleep(0);
-
-        foreach (Game game in Game.Games) game.TickAsync();
-
-        // Release lock
-        Interlocked.Exchange(ref Game.GamesLock, 0);
     }
 }

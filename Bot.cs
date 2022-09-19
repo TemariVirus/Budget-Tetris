@@ -1,44 +1,51 @@
-﻿using Tetris;
+﻿namespace TetrisAI;
+
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
-using System.Windows.Input;
-using System.Windows.Documents;
+using Tetris;
 
-class Bot
+public class Bot
 {
-    const double THINKTIMEINSECONDS = 0.2,
-                 MINTRESH = -1, MAXTRESH = -0.01, MOVEMUL = 1.05, MOVETARGET = 5,
+    const double MINTRESH = -1, MAXTRESH = -0.01, MOVEMUL = 1.05, MOVETARGET = 5,
                  DISCOUNT_FACTOR = 0.95;
 
-    public Game Game;
-    private GameBase Sandbox;
+    private Game _Game;
+    public Game Game
+    {
+        get => _Game;
+        set
+        {
+            _Game = value;
+            _Game.SoftG = 40;
+        }
+    }
+    private GameBase Sim;
     bool Done;
 
     private readonly NN Network;
-    bool UsePCFinder = true;
-    long ThinkTicks = (long)(THINKTIMEINSECONDS * Stopwatch.Frequency);
-    double MoveTresh = -0.1;
+    public bool UsePCFinder = true;
+    long ThinkTicks = Stopwatch.Frequency;
+    double MoveTresh = -0.05;
 
     int CurrentDepth;
     double MaxDepth;
-    
+
     readonly Dictionary<ulong, double> CachedValues = new Dictionary<ulong, double>();
     readonly Dictionary<ulong, double> CachedStateValues = new Dictionary<ulong, double>();
     readonly ulong[][] MatrixHashTable = RandomArray(10, 40), NextHashTable;
     readonly ulong[] PieceHashTable = RandomArray(8), HoldHashTable = RandomArray(8);
     readonly double[] Discounts;
 
-    readonly Stopwatch Timer = new Stopwatch();
+    readonly Stopwatch Sw = new Stopwatch();
     bool TimesUp;
 
-
     const int RunAvgCount = 20;
-    long[] NCount = new long[RunAvgCount];
+    long[] NodeCounts = new long[RunAvgCount];
 
-    public Bot(string filePath, Game game)
+    private Bot(Game game)
     {
-        Network = NN.LoadNN(filePath);
         Game = game;
 
         NextHashTable = RandomArray(game.Next.Length, 8);
@@ -48,6 +55,19 @@ class Bot
 
         CachedValues.EnsureCapacity(200000);
         CachedStateValues.EnsureCapacity(5000000);
+    }
+
+    public Bot(NN network, Game game) : this(game)
+    {
+        Network = network;
+        game.Name = "Bot";
+    }
+
+    public Bot(string filePath, Game game) : this(NN.LoadNN(filePath), game)
+    {
+        string name = filePath.Substring(Math.Max(0, filePath.LastIndexOf('\\')));
+        name = name.Substring(1, name.LastIndexOf('.') - 1);
+        game.Name = name;
     }
 
     static ulong[] RandomArray(int size)
@@ -69,8 +89,9 @@ class Bot
         return arr;
     }
 
-    public void Start(int ThinkDelay, int MoveDelay)
+    public void Start(int think_time, int move_delay)
     {
+        ThinkTicks = think_time * Stopwatch.Frequency / 1000;
         Game.TickingCallback = () =>
         {
             Done = true;
@@ -80,24 +101,23 @@ class Bot
             while (!Game.IsDead)
             {
                 List<Moves> moves = FindMoves();
-                
-                // Think Delay
-                Thread.Sleep(ThinkDelay);
-                while (moves.Count != 0)
+                while (Sw.ElapsedTicks < ThinkTicks) Thread.Sleep(0);
+                foreach (Moves move in moves)
                 {
-                    Game.Play(moves[0]);
-                    moves.RemoveAt(0);
+                    Game.Play(move);
                     // Move delay
-                    Thread.Sleep(MoveDelay);
+                    Thread.Sleep(move_delay);
                 }
                 Done = false;
                 while (!Done) Thread.Sleep(0);
-                Game.WriteAt(1, 0, ConsoleColor.White, Math.Round(NCount.Average()).ToString().PadRight(9));
-                Game.WriteAt(1, 22, ConsoleColor.White, MaxDepth.ToString().PadRight(6));
-                Game.WriteAt(1, 23, ConsoleColor.White, MoveTresh.ToString().PadRight(12));
-                for (int i = NCount.Length - 1; i > 0; i--)
-                    NCount[i] = NCount[i - 1];
-                NCount[0] = 0;
+                Game.WriteAt(0, 23, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(Game.GAMEWIDTH));
+                long count = NodeCounts.Aggregate(0, (aggregate, next) => (next == 0) ? aggregate : aggregate + 1);
+                if (count == 0) count++;
+                Game.WriteAt(0, 24, ConsoleColor.White, $"Nodes: {NodeCounts.Sum() / count}".PadRight(Game.GAMEWIDTH));
+                Game.WriteAt(0, 25, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(Game.GAMEWIDTH));
+                for (int i = NodeCounts.Length - 1; i > 0; i--)
+                    NodeCounts[i] = NodeCounts[i - 1];
+                NodeCounts[0] = 0;
             }
         });
         main.Priority = ThreadPriority.Highest;
@@ -108,14 +128,14 @@ class Bot
     {
         // { scoreadd, B2B, T - spin, combo, clears } //first bit of B2B = B2B chain status
         // Check for t - spins
-        int tspin = Sandbox.TSpin(lastrot);
+        int tspin = Sim.TSpin(lastrot);
         // Clear lines
-        int[] clears = Sandbox.Place(out cleared);
+        int[] clears = Sim.Place(out cleared);
         // Combo
         comb = cleared == 0 ? -1 : comb + 1;
         // Perfect clear
         bool pc = true;
-        for (int x = 0; x < 10; x++) if (Sandbox.Matrix[39][x] != 0) pc = false;
+        for (int x = 0; x < 10; x++) if (Sim.Matrix[39][x] != 0) pc = false;
         // Compute score
         if (tspin == 0 && cleared != 4 && cleared != 0) _b2b = -1;
         else if (tspin + cleared > 3) _b2b++;
@@ -137,18 +157,14 @@ class Bot
 
     public List<Moves> FindMoves()
     {
-        // Remove excess cache
-        if (CachedValues.Count < 200000) CachedValues.Clear();
-        if (CachedStateValues.Count < 5000000) CachedStateValues.Clear();
-
         // Get copy of attached game
-        Sandbox = Game.Clone();
+        Sim = Game.Clone();
         GameBase pathfind = Game.Clone();
-        
+
         // Call the dedicated PC Finder
         //
 
-        Timer.Restart();
+        Sw.Restart();
         TimesUp = false;
 
         List<Moves> bestMoves = new List<Moves>();
@@ -158,7 +174,7 @@ class Bot
         MaxDepth = 0;
         int combo = Game.Combo, b2b = Game.B2B;
         double out1 = Network.FeedFoward(ExtrFeat(0))[0];
-        for (int depth = 0; !TimesUp && depth < Sandbox.Next.Length; depth++)
+        for (int depth = 0; !TimesUp && depth < Sim.Next.Length; depth++)
         {
             CurrentDepth = depth;
             bool swap;
@@ -166,11 +182,11 @@ class Bot
             {
                 swap = s == 1;
                 // Get piece based on swap
-                Piece current = swap ? Sandbox.Hold : Sandbox.Current, hold = swap ? Sandbox.Current : Sandbox.Hold;
+                Piece current = swap ? Sim.Hold : Sim.Current, hold = swap ? Sim.Current : Sim.Hold;
                 int nexti = 0;
-                if (swap && Sandbox.Hold == Piece.EMPTY)
+                if (swap && Sim.Hold == Piece.EMPTY)
                 {
-                    current = Sandbox.Next[0];
+                    current = Sim.Next[0];
                     nexti++;
                 }
 
@@ -184,17 +200,17 @@ class Bot
                     {
                         if (TimesUp) break;
 
-                        Sandbox.Current = piece;
-                        Sandbox.X = orix;
-                        Sandbox.Y = 19;
+                        Sim.Current = piece;
+                        Sim.X = orix;
+                        Sim.Y = 19;
                         // Hard drop
-                        Sandbox.TryDrop(40);
-                        int oriy = Sandbox.Y;
+                        Sim.TryDrop(40);
+                        int oriy = Sim.Y;
                         // Update screen
                         int new_combo = combo, new_b2b = b2b;
                         int[] clears = SearchScore(false, ref new_combo, ref new_b2b, out double garbage, out int cleared);
                         // Check if better
-                        double newvalue = Search(depth, nexti + 1, Sandbox.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage);
+                        double newvalue = Search(depth, nexti + 1, Sim.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage);
                         if (newvalue >= bestScore)
                         {
                             if (pathfind.PathFind(piece, orix, oriy, out List<Moves> new_bestMoves))
@@ -206,32 +222,32 @@ class Bot
                                 }
                             }
                         }
-                        Sandbox.Current = piece;
-                        Sandbox.X = orix;
-                        Sandbox.Y = oriy;
-                        Sandbox.Unplace(clears, cleared);
+                        Sim.Current = piece;
+                        Sim.X = orix;
+                        Sim.Y = oriy;
+                        Sim.Unplace(clears, cleared);
                         // Only vertical pieces can be spun
                         if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
                         {
                             for (int rotate_cw = 0; rotate_cw < 2; rotate_cw++)
                             {
-                                Sandbox.Current = piece;
-                                Sandbox.X = orix;
-                                Sandbox.Y = oriy;
+                                Sim.Current = piece;
+                                Sim.X = orix;
+                                Sim.Y = oriy;
                                 bool clockwise = rotate_cw == 0;
 
                                 for (int i = 0; i < 2; i++)
                                 {
-                                    if (!Sandbox.TryRotate(clockwise ? 1 : -1)) break;
-                                    if (!Sandbox.OnGround()) break;
+                                    if (!Sim.TryRotate(clockwise ? 1 : -1)) break;
+                                    if (!Sim.OnGround()) break;
                                     // Update screen
-                                    Piece rotated = Sandbox.Current;
-                                    int x = Sandbox.X, y = Sandbox.Y;
+                                    Piece rotated = Sim.Current;
+                                    int x = Sim.X, y = Sim.Y;
                                     new_combo = combo;
                                     new_b2b = b2b;
                                     clears = SearchScore(true, ref new_combo, ref new_b2b, out garbage, out cleared);
                                     // Check if better
-                                    newvalue = Search(depth, nexti + 1, Sandbox.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage);
+                                    newvalue = Search(depth, nexti + 1, Sim.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage);
                                     if (newvalue > bestScore)
                                     {
                                         if (pathfind.PathFind(rotated, x, y, out List<Moves> new_bestMoves))
@@ -241,10 +257,10 @@ class Bot
                                         }
                                     }
                                     // Revert screen
-                                    Sandbox.Current = rotated;
-                                    Sandbox.X = x;
-                                    Sandbox.Y = y;
-                                    Sandbox.Unplace(clears, cleared);
+                                    Sim.Current = rotated;
+                                    Sim.X = x;
+                                    Sim.Y = y;
+                                    Sim.Unplace(clears, cleared);
 
                                     // Only try to spin T pieces twice (for TSTs)
                                     if (piece.PieceType != Piece.T) break;
@@ -261,16 +277,18 @@ class Bot
                     else MaxDepth += (1d / 2) / 4;
                 }
 
-                Sandbox.Current = swap ? hold : current;
+                Sim.Current = swap ? hold : current;
             }
         }
-        CachedValues.Clear();
-        Timer.Stop();
+        //CachedValues.Clear();
+        // Remove excess cache
+        if (CachedValues.Count < 200000) CachedValues.Clear();
+        if (CachedStateValues.Count < 5000000) CachedStateValues.Clear();
 
-        // Check if pc found
+        // Check if PC found
         //
         // Adjust movetresh
-        double time_remaining = (double)(ThinkTicks - Timer.ElapsedTicks) / ThinkTicks;
+        double time_remaining = (double)(ThinkTicks - Sw.ElapsedTicks) / ThinkTicks;
         if (time_remaining > 0)
             MoveTresh *= Math.Pow(MOVEMUL, time_remaining / ((1 + Math.E) / Math.E - time_remaining));
         else
@@ -284,7 +302,7 @@ class Bot
     {
         //if (TimesUp || pc_found) return double.MinValue;
         if (TimesUp) return double.MinValue;
-        if (Timer.ElapsedTicks > ThinkTicks)
+        if (Sw.ElapsedTicks > ThinkTicks)
         {
             TimesUp = true;
             return double.MinValue;
@@ -292,12 +310,12 @@ class Bot
 
         if (depth == 0 || nexti == NextHashTable.Length)
         {
-            NCount[0]++;
+            NodeCounts[0]++;
 
             ulong hash = BitConverter.DoubleToUInt64Bits(_trash);
             for (int x = 0; x < 10; x++)
                 for (int y = 20; y < 40; y++)
-                    if (Sandbox.Matrix[y][x] != Piece.EMPTY)
+                    if (Sim.Matrix[y][x] != Piece.EMPTY)
                         hash ^= MatrixHashTable[x][y];
             if (CachedStateValues.ContainsKey(hash))
                 return CachedStateValues[hash];
@@ -321,7 +339,7 @@ class Bot
                 ulong statehash = BitConverter.DoubleToUInt64Bits(_trash);
                 for (int x = 0; x < 10; x++)
                     for (int y = 20; y < 40; y++)
-                        if (Sandbox.Matrix[y][x] != Piece.EMPTY)
+                        if (Sim.Matrix[y][x] != Piece.EMPTY)
                             statehash ^= MatrixHashTable[x][y];
                 if (!CachedStateValues.ContainsKey(statehash))
                     CachedStateValues.Add(statehash, outs[0]);
@@ -331,7 +349,7 @@ class Bot
             if (!swapped)
             {
                 if (_hold.PieceType == Piece.EMPTY)
-                    _value = Math.Max(_value, Search(depth, nexti + 1, Sandbox.Next[nexti], current, true, comb, b2b, prevstate, _trash));
+                    _value = Math.Max(_value, Search(depth, nexti + 1, Sim.Next[nexti], current, true, comb, b2b, prevstate, _trash));
                 else
                     _value = Math.Max(_value, Search(depth, nexti, _hold, current, true, comb, b2b, prevstate, _trash));
                 if (CachedValues.ContainsKey(hash))
@@ -345,11 +363,11 @@ class Bot
                 {
                     if (TimesUp) break;
 
-                    Sandbox.X = orix;
-                    Sandbox.Y = 19;
-                    Sandbox.Current = piece;
-                    Sandbox.TryDrop(40);
-                    int oriy = Sandbox.Y;
+                    Sim.X = orix;
+                    Sim.Y = 19;
+                    Sim.Current = piece;
+                    Sim.TryDrop(40);
+                    int oriy = Sim.Y;
                     int[] clears;
                     if ((piece.PieceType != Piece.S && piece.PieceType != Piece.Z) || rot < Piece.ROTATION_180)
                     {
@@ -357,12 +375,12 @@ class Bot
                         int new_comb = comb, new_b2b = b2b;
                         clears = SearchScore(false, ref new_comb, ref new_b2b, out double garbage, out int cleared);
                         // Check if better
-                        _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sandbox.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], discount * garbage + _trash));
+                        _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sim.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], discount * garbage + _trash));
                         // Revert matrix
-                        Sandbox.X = orix;
-                        Sandbox.Y = oriy;
-                        Sandbox.Current = piece;
-                        Sandbox.Unplace(clears, cleared);
+                        Sim.X = orix;
+                        Sim.Y = oriy;
+                        Sim.Current = piece;
+                        Sim.Unplace(clears, cleared);
                     }
                     // Only vertical pieces can be spun
                     if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
@@ -370,26 +388,26 @@ class Bot
                         for (int rotate_cw = 0; rotate_cw < 2; rotate_cw++)
                         {
                             bool clockwise = rotate_cw == 0;
-                            Sandbox.X = orix;
-                            Sandbox.Y = oriy;
-                            Sandbox.Current = piece;
+                            Sim.X = orix;
+                            Sim.Y = oriy;
+                            Sim.Current = piece;
                             // Try spin
                             for (int i = 0; i < 2; i++)
                             {
-                                if (!Sandbox.TryRotate(clockwise ? 1 : -1)) break;
-                                if (!Sandbox.OnGround()) break;
-                                int x = Sandbox.X, y = Sandbox.Y;
-                                Piece rotated = Sandbox.Current;
+                                if (!Sim.TryRotate(clockwise ? 1 : -1)) break;
+                                if (!Sim.OnGround()) break;
+                                int x = Sim.X, y = Sim.Y;
+                                Piece rotated = Sim.Current;
                                 // Update matrix
                                 int new_comb = comb, new_b2b = b2b;
                                 clears = SearchScore(true, ref new_comb, ref new_b2b, out double garbage, out int cleared);
                                 // Check if better
-                                _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sandbox.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], discount * garbage + _trash));
+                                _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sim.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], discount * garbage + _trash));
                                 // Revert matrix
-                                Sandbox.X = x;
-                                Sandbox.Y = y;
-                                Sandbox.Current = rotated;
-                                Sandbox.Unplace(clears, cleared);
+                                Sim.X = x;
+                                Sim.Y = y;
+                                Sim.Current = rotated;
+                                Sim.Unplace(clears, cleared);
 
                                 // Only try to spin T pieces twice(for TSTs)
                                 if (current.PieceType != Piece.T) break;
@@ -406,20 +424,6 @@ class Bot
         }
     }
 
-    int DistanceFromWall(Piece piece, List<Moves> _moves)
-    {
-        int _x = 4;
-        foreach (Moves move in _moves)
-        {
-            if (move == Moves.Left) _x--;
-            else if (move == Moves.Right) _x++;
-            else if (move == Moves.RotateCW) piece += Piece.ROTATION_CW;
-            else if (move == Moves.RotateCCW) piece += Piece.ROTATION_CCW;
-            else if (move == Moves.SoftDrop) break;
-        }
-        return Math.Min(_x - piece.MinX, piece.MaxX - _x);
-    }
-
     double[] ExtrFeat(double _trash)
     {
         // Find heightest block in each column
@@ -427,7 +431,7 @@ class Bot
         for (int x = 0; x < 10; x++)
         {
             double height = 20;
-            for (int y = 20; Sandbox.Matrix[y][x] == 0; y++)
+            for (int y = 20; Sim.Matrix[y][x] == 0; y++)
             {
                 height--;
                 if (y == 39) break;
@@ -446,16 +450,16 @@ class Bot
         if (Network.Visited[1])
         {
             for (int y = 39 - (int)heights[0]; y < 40; y++)
-                if (Sandbox.Matrix[y][0] == 0 && Sandbox.Matrix[y - 1][0] != 0)
+                if (Sim.Matrix[y][0] == 0 && Sim.Matrix[y - 1][0] != 0)
                     if (y < 39 - heights[1])
                         caves += heights[0] + y - 39;
             for (int x = 1; x < 9; x++)
                 for (int y = 39 - (int)heights[x]; y < 40; y++)
-                    if (Sandbox.Matrix[y][x] == 0 && Sandbox.Matrix[y - 1][x] != 0)
+                    if (Sim.Matrix[y][x] == 0 && Sim.Matrix[y - 1][x] != 0)
                         if (y <= Math.Min(39 - heights[x - 1], 39 - heights[x + 1]))
                             caves += heights[x] + y - 39;
             for (int y = 39 - (int)heights[9]; y < 40; y++)
-                if (Sandbox.Matrix[y][9] == 0 && Sandbox.Matrix[y - 1][9] != 0) if (y <= 39 - heights[8])
+                if (Sim.Matrix[y][9] == 0 && Sim.Matrix[y - 1][9] != 0) if (y <= 39 - heights[8])
                         caves += heights[9] + y - 39;
         }
         // Pillars
@@ -478,10 +482,10 @@ class Bot
         {
             for (int y = 19; y < 40; y++)
             {
-                bool empty = Sandbox.Matrix[y][0] == 0;
+                bool empty = Sim.Matrix[y][0] == 0;
                 for (int x = 1; x < 10; x++)
                 {
-                    bool isempty = Sandbox.Matrix[y][x] == 0;
+                    bool isempty = Sim.Matrix[y][x] == 0;
                     if (empty ^ isempty)
                     {
                         rowtrans++;
@@ -496,10 +500,10 @@ class Bot
         {
             for (int x = 0; x < 10; x++)
             {
-                bool empty = Sandbox.Matrix[19][x] == 0;
+                bool empty = Sim.Matrix[19][x] == 0;
                 for (int y = 20; y < 40; y++)
                 {
-                    bool isempty = Sandbox.Matrix[y][x] == 0;
+                    bool isempty = Sim.Matrix[y][x] == 0;
                     if (empty ^ isempty)
                     {
                         coltrans++;
@@ -515,8 +519,8 @@ class Bot
     ulong HashBoard(Piece piece, Piece _hold, int nexti, int depth)
     {
         ulong hash = PieceHashTable[piece.PieceType] ^ HoldHashTable[_hold.PieceType];
-        for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++) hash ^= NextHashTable[i][Sandbox.Next[nexti + i]];
-        for (int x = 0; x < 10; x++) for (int y = 20; y < 40; y++) if (Sandbox.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
+        for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++) hash ^= NextHashTable[i][Sim.Next[nexti + i]];
+        for (int x = 0; x < 10; x++) for (int y = 20; y < 40; y++) if (Sim.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
         return hash;
     }
 
@@ -533,9 +537,9 @@ class Bot
     }
 }
 
-class NN
+public class NN
 {
-    internal class Node
+    private class Node
     {
         public List<Node> Network;
         public double Value = 0;
@@ -565,7 +569,7 @@ class NN
         }
     }
 
-    internal class Connection
+    private class Connection
     {
         public bool Enabled;
         public int Input, Output, Id;
@@ -598,17 +602,68 @@ class NN
         }
     }
 
+    #region // Hyperparameters
+    // Activation
+    public static readonly Func<double, double> DEFAULT_ACTIVATION = ReLU;
+    // Crossover & speciation
+    public const int SPECIES_TARGET = 5, SPECIES_TRY_TIMES = 10;
+    public const double COMPAT_MOD = 1.1;
+    public const double WEIGHT_DIFF_COE = 1, EXCESS_COE = 2;
+    public const double ELITE_PERCENT = 0.4; //0.3
+    // Population
+    public const double FITNESS_TARGET = 2500;
+    public const int MAX_GENERATIONS = -1; // Leave maxgen as -1 for unlimited
+    // Mutation
+    public const bool BOUND_WEIGHTS = false, ALLOW_RECURSIVE_CON = false;
+    public const double MUTATE_POW = 2; //MUTATE_POW = 3
+    public const double CON_PURTURB_CHANCE = 0.8, CON_ENABLE_CHANCE = 0.1, CON_ADD_CHANCE = 0.1, NODE_ADD_CHANCE = 0.02;
+    public const int TRY_ADD_CON_TIMES = 5;
+    #endregion
+
+    static readonly Random Rand = new();
+    private static readonly List<int> InNodes = new List<int>(), OutNodes = new List<int>();
+
+    public bool Played = false;
     public int InputCount { get; private set; }
     public int OutputCount { get; private set; }
-    private static readonly List<int> InNodes = new List<int>(), OutNodes = new List<int>();
-    readonly List<Node> Nodes = new List<Node>();
-    public bool[] Visited = Array.Empty<bool>();
-    readonly List<int> ConnectionIds = new List<int>();
-    readonly Dictionary<int, Connection> Connections = new Dictionary<int, Connection>();
+    public double Fitness = 0;
+    private readonly List<Node> Nodes = new List<Node>();
+    public bool[] Visited { get; private set; } = Array.Empty<bool>();
+    private readonly List<int> ConnectionIds = new List<int>();
+    private readonly Dictionary<int, Connection> Connections = new Dictionary<int, Connection>();
 
-    NN(int inputs, int outputs, List<Connection> connections)
+    private NN(int inputs, int outputs)
     {
-        InputCount = inputs + 1; // Add 1 for bias
+        InputCount = inputs;
+        OutputCount = outputs;
+        // Make input nodes
+        for (int i = 0; i < InputCount + 1; i++)
+        {
+            // Connect every input to every output
+            List<Connection> outs = new();
+            for (int j = 0; j < OutputCount; j++)
+            {
+                outs.Add(new(i, InputCount + j + 1, GaussRand()));
+                Connections.Add(outs[j].Id, outs[j]);
+                ConnectionIds.Add(outs[j].Id);
+            }
+            Nodes.Add(new(i, Nodes, DEFAULT_ACTIVATION, outputs: new(outs)));
+        }
+        // Make output nodes
+        for (int i = 0; i < OutputCount; i++)
+        {
+            List<Connection> ins = new();
+            for (int j = 0; j < InputCount + 1; j++)
+                ins.Add(Connections[ConnectionIds[OutputCount * j + i]]);
+            Nodes.Add(new(InputCount + i + 1, Nodes, DEFAULT_ACTIVATION, inputs: new List<Connection>(ins)));
+        }
+        // Find all connected nodes
+        FindConnectedNodes();
+    }
+
+    private NN(int inputs, int outputs, List<Connection> connections)
+    {
+        InputCount = inputs; // Add 1 for bias
         OutputCount = outputs;
         foreach (Connection c in connections)
         {
@@ -618,37 +673,37 @@ class NN
             Connections.Add(newc.Id, newc);
             // Add nodes as nescessary
             while (Nodes.Count <= newc.Input || Nodes.Count <= newc.Output)
-                Nodes.Add(new Node(Nodes.Count, Nodes, ReLU));
+                Nodes.Add(new Node(Nodes.Count, Nodes, DEFAULT_ACTIVATION));
             // Add connection to coresponding nodes
             Nodes[c.Input].Outputs.Add(newc);
             Nodes[c.Output].Inputs.Add(newc);
         }
         // Find all connected nodes
         FindConnectedNodes();
+
     }
 
     public double[] FeedFoward(double[] input)
     {
         // Set input nodes
-        for (int i = 0; i < InputCount - 1; i++)
+        for (int i = 0; i < InputCount; i++)
             if (Visited[i])
                 Nodes[i].Value = input[i];
-        Nodes[InputCount - 1].Value = 1; // Bias node
+        Nodes[InputCount].Value = 1; // Bias node
         // Update hidden all nodes
-        for (int i = InputCount + OutputCount; i < Nodes.Count; i++)
-            if (Visited[i])
-                Nodes[i].UpdateValue();
+        for (int i = InputCount + OutputCount + 1; i < Nodes.Count; i++)
+            if (Visited[i]) Nodes[i].UpdateValue();
         // Update ouput nodes and get output
         double[] output = new double[OutputCount];
-        for (int i = 0; i < OutputCount; i++) output[i] = Nodes[i + InputCount].UpdateValue();
+        for (int i = 0; i < OutputCount; i++) output[i] = Nodes[i + InputCount + 1].UpdateValue();
 
         return output;
     }
 
-    void FindConnectedNodes()
+    private void FindConnectedNodes()
     {
         Visited = new bool[Nodes.Count];
-        for (int i = InputCount; i < InputCount + OutputCount; i++)
+        for (int i = InputCount + 1; i < InputCount + OutputCount + 1; i++)
             if (!Visited[i])
                 VisitDownstream(i);
 
@@ -659,6 +714,131 @@ class NN
                 if (!Visited[c.Input] && c.Enabled)
                     VisitDownstream(c.Input);
         }
+    }
+
+    public NN MateWith(NN other)
+    {
+        // Other NN should be fitter
+        if (this.Fitness > other.Fitness)
+            return other.MateWith(this);
+
+        // Clone
+        NN child = other.Clone();
+        // Corss
+        foreach (int c in child.Connections.Keys)
+        {
+            if (Connections.ContainsKey(c))
+            {
+                // 50% of the time change weights
+                if (Rand.NextDouble() < 0.5) child.Connections[c].Weight = Connections[c].Weight;
+                // 10% of the time make enabled same as less fit one
+                if (Rand.NextDouble() < 0.1) child.Connections[c].Enabled = Connections[c].Enabled;
+            }
+        }
+        // Mutate
+        child.Mutate();
+        return child;
+    }
+
+    public NN Mutate()
+    {
+        // Mutate connections
+        foreach (Connection c in Connections.Values)
+        {
+            // Mutate the weight
+            if (Rand.NextDouble() < CON_PURTURB_CHANCE)
+            {
+                if (Rand.NextDouble() < 0.1) c.Weight = GaussRand();                           // 10% chance to completely change weight
+                else if (Rand.NextDouble() < 0.5) c.Weight += UniformRand() / 25 * MUTATE_POW; // 45% chance to slightly change weight
+                else c.Weight *= 1 + (UniformRand() / 40 * MUTATE_POW);                        // 45% chance to slightly scale weight
+            }
+            // Enable/disable connection
+            if (Rand.NextDouble() < CON_ENABLE_CHANCE) c.Enabled = !c.Enabled;
+            // Keep weight within bounds
+            if (BOUND_WEIGHTS) c.Weight = c.Weight < 0 ? Math.Max(c.Weight, -MUTATE_POW * 2) : Math.Min(c.Weight, MUTATE_POW * 2);
+        }
+
+        // Add connection between existing nodes
+        if (Rand.NextDouble() < CON_ADD_CHANCE)
+        {
+            for (int i = 0; i < TRY_ADD_CON_TIMES; i++)
+            {
+                int inid = Rand.Next(Nodes.Count), outid = Rand.Next(Nodes.Count);
+                if (outid == inid) outid = (outid + 1) % Nodes.Count;
+                Connection newcon = new Connection(inid, outid, GaussRand()), reversecon = new Connection(outid, inid, 0);
+                if (!Connections.ContainsKey(newcon.Id) && (ALLOW_RECURSIVE_CON || !Connections.ContainsKey(reversecon.Id)))
+                {
+                    Nodes[inid].Outputs.Add(newcon);
+                    Nodes[outid].Inputs.Add(newcon);
+                    Connections.Add(newcon.Id, newcon);
+                    ConnectionIds.Add(newcon.Id);
+                    break;
+                }
+            }
+        }
+
+        // Add node between onto existing connection
+        if (Rand.NextDouble() < NODE_ADD_CHANCE)
+        {
+            // Original connection to split
+            Connection breakcon = Connections[ConnectionIds[Rand.Next(Connections.Count)]];
+            for (int i = 0; i < TRY_ADD_CON_TIMES - 1 && !breakcon.Enabled; i++) breakcon = Connections[ConnectionIds[Rand.Next(Connections.Count)]];
+            // Disable original connection
+            breakcon.Enabled = false;
+            // Insert node inbetween
+            Connection incon = new Connection(breakcon.Input, Nodes.Count, breakcon.Weight), outcon = new Connection(Nodes.Count, breakcon.Output, 1);
+            Connections.Add(incon.Id, incon);
+            Connections.Add(outcon.Id, outcon);
+            ConnectionIds.Add(incon.Id);
+            ConnectionIds.Add(outcon.Id);
+            Nodes[breakcon.Input].Outputs.Add(incon);
+            Nodes[breakcon.Output].Inputs.Add(outcon);
+            Nodes.Add(new Node(Nodes.Count, Nodes, DEFAULT_ACTIVATION, new List<Connection>() { incon }, new List<Connection>() { outcon }));
+        }
+
+        // Find all connected nodes
+        FindConnectedNodes();
+
+        return this;
+    }
+
+    public bool SameSpecies(NN other, double compat_tresh)
+    {
+        int matching = 0, large_genome_norm = Math.Max(1, Math.Max(Connections.Count, other.Connections.Count) - 20);
+        double weight_diff = 0;
+        // Go through each connection and see if it is excess or matching
+        foreach (int conid in Connections.Keys)
+        {
+            if (other.Connections.ContainsKey(conid))
+            {
+                double weight = Connections[conid].Enabled ? Connections[conid].Weight : 0, other_weight = other.Connections[conid].Enabled ? other.Connections[conid].Weight : 0;
+                weight_diff += Math.Abs(weight - other_weight);
+                matching++;
+            }
+        }
+        // Return whether or not they're the same species
+        if (matching == 0) return EXCESS_COE * (Connections.Count + other.Connections.Count - 2 * matching) / large_genome_norm < compat_tresh;
+        else return (WEIGHT_DIFF_COE * weight_diff / matching) + (EXCESS_COE * (Connections.Count + other.Connections.Count - 2 * matching) / large_genome_norm) < compat_tresh;
+    }
+
+    public int GetSize() => Visited.Count(x => x == true);
+
+    public NN Clone() => new NN(InputCount, OutputCount, new List<Connection>(Connections.Values));
+
+    public static void SaveToFile(string path, NN[] NNs, int gen, double compat_tresh)
+    {
+        StringBuilder text = new();
+        text.AppendLine(gen.ToString());
+        text.AppendLine(compat_tresh.ToString());
+        for (int i = 0; i < NNs.Length; i++)
+        {
+            text.AppendLine(i + " - Fitness: " + NNs[i].Fitness + (NNs[i].Played ? " played" : ""));
+            text.AppendLine(NNs[i].InputCount + " " + NNs[i].OutputCount);
+            foreach (Connection c in NNs[i].Connections.Values) text.AppendLine(c.Input + " " + c.Output + " " + c.Weight + (c.Enabled ? "" : " Disabled"));
+            text.AppendLine();
+        }
+        File.WriteAllText(path, text.ToString(), Encoding.UTF8);
+        return;
     }
 
     public static NN LoadNN(string path)
@@ -676,6 +856,218 @@ class NN
         return new NN(Convert.ToInt32(inout[0]), Convert.ToInt32(inout[1]), cons);
     }
 
+    public static NN[] LoadNNs(string path, out int gen, out double compat_tresh)
+    {
+        List<string> lines = new(File.ReadAllLines(path, Encoding.UTF8));
+        List<List<string>> NNs_text = new();
+        gen = Convert.ToInt32(lines[0]);
+        compat_tresh = Convert.ToDouble(lines[1]);
+        int oldi = 2;
+        // Split up NNs
+        for (int i = 3; i < lines.Count; i++)
+        {
+            if (lines[i].Length == 0)
+            {
+                NNs_text.Add(lines.GetRange(oldi, i - oldi));
+                i++;
+                oldi = i;
+            }
+        }
+
+        // Create NNS
+        NN[] NNs = new NN[NNs_text.Count];
+        for (int i = 0; i < NNs_text.Count; i++)
+        {
+            // No. of inputs and outputs
+            string[] inout = NNs_text[i][1].Split(' ');
+            // Connections
+            List<Connection> cons = new();
+            for (int j = 2; j < NNs_text[i].Count; j++)
+            {
+                string[] con = NNs_text[i][j].Split(' ');
+                Connection newcon = new(Convert.ToInt32(con[0]), Convert.ToInt32(con[1]), Convert.ToDouble(con[2]));
+                if (con.Length == 4) newcon.Enabled = false;
+                bool reverse = false;
+                int rid = 0;
+                if (!ALLOW_RECURSIVE_CON) for (; rid < cons.Count && !reverse; rid++) if (cons[rid].Input == newcon.Output && cons[rid].Output == newcon.Input) reverse = true;
+                if (reverse)
+                {
+                    if (!cons[rid - 1].Enabled)
+                    {
+                        cons.RemoveAt(rid - 1);
+                        reverse = false;
+                    }
+                }
+                if (!reverse || ALLOW_RECURSIVE_CON) cons.Add(newcon);
+            }
+            // Create NN
+            NNs[i] = new NN(Convert.ToInt32(inout[0]), Convert.ToInt32(inout[1]), cons);
+            string[] header = NNs_text[i][0].Split(' ');
+            NNs[i].Played = header.Length == 5;
+            NNs[i].Fitness = Convert.ToDouble(header[3]);
+        }
+
+        return NNs;
+    }
+
+    public static NN[] Train(string path, Action<NN[], int, double> fitness_func, int inputs, int outputs, int pop_size)
+    {
+        string save_path = path.Insert(path.LastIndexOf('.'), " save");
+
+        // Initialise/load NNs
+        int gen = 0;
+        double compat_tresh = 0.5;
+        NN[] NNs = new NN[pop_size];
+        if (File.Exists(path))
+        {
+            NNs = LoadNNs(path, out gen, out compat_tresh);
+            // Add extra NNs if too few
+            if (NNs.Length < pop_size)
+            {
+                var extra = new NN[pop_size - NNs.Length].Select(x => new NN(inputs, outputs));
+                NNs = NNs.Concat(extra).ToArray();
+            }
+            else pop_size = NNs.Length;
+        }
+        else
+        {
+            for (int i = 0; i < pop_size; i++)
+                NNs[i] = new NN(inputs, outputs);
+        }
+
+        // Train
+        for (; gen < MAX_GENERATIONS || MAX_GENERATIONS == -1; gen++)
+        {
+            // Update fitness
+            fitness_func(NNs, gen, compat_tresh);
+            NNs = NNs.OrderByDescending(x => x.Fitness).ToArray();
+
+            // Speciate
+            List<List<NN>> species = Speciate(NNs);
+            for (int i = 0; i < SPECIES_TRY_TIMES; i++)
+            {
+                // Adjust compattresh
+                if (species.Count < SPECIES_TARGET) compat_tresh /= Math.Pow(COMPAT_MOD, 1 - (double)i / SPECIES_TRY_TIMES);
+                else if (species.Count > SPECIES_TARGET) compat_tresh *= Math.Pow(COMPAT_MOD, 1 - (double)i / SPECIES_TRY_TIMES);
+                else break;
+                species = Speciate(NNs);
+            }
+            species = species.OrderByDescending(s => s.Average(x => x.Fitness)).ToList();
+
+            // Explicit fitness sharing
+            // Find average fitnesses
+            double avg_fit = AverageFitness(NNs);
+            List<double> sp_avg_fits = species.ConvertAll(s => s.Average(x => x.Fitness));
+            // Calculate amount of babies
+            int[] species_babies = new int[species.Count];
+            for (int i = 0; i < species_babies.Length; i++)
+            {
+                if (avg_fit == 0)
+                    species_babies[i] = species[i].Count;
+                else
+                    species_babies[i] = (int)(sp_avg_fits[i] / avg_fit * species[i].Count);
+            }
+            // If there is space for extra babies, distribute babies to the fittest species first
+            for (int i = 0; species_babies.Sum() < pop_size; i++)
+                species_babies[i]++;
+
+            // Return if target reached
+            if (NNs.Where(x => x.Played).Max(x => x.Fitness) >= FITNESS_TARGET)
+            {
+                SaveToFile(path, NNs, gen, compat_tresh);
+                return NNs;
+            }
+
+            // Make save file before mating
+            SaveToFile(save_path, NNs, gen, compat_tresh);
+
+            // Mating season
+            List<NN> new_NNs = new List<NN>();
+            for (int i = 0; i < species.Count; i++)
+            {
+                // Sort NNs by descending fitness
+                species[i] = species[i].OrderByDescending(x => x.Fitness).ToList();
+                // Only top n% can reproduce
+                List<NN> can_repro = species[i].GetRange(0, (int)Math.Ceiling(species[i].Count * ELITE_PERCENT));
+                // Add best from species without mutating
+                if (species_babies[i] > 0)
+                {
+                    can_repro[0].Played = false;
+                    new_NNs.Add(can_repro[0]);
+                }
+                if (can_repro.Count != 1)
+                {
+                    // Prepare roulette wheel (fitter parents have higher chance of mating)
+                    double[] wheel = new double[can_repro.Count];
+                    wheel[0] = can_repro[0].Fitness;
+                    for (int j = 1; j < wheel.Length; j++)
+                        wheel[j] = wheel[j - 1] + can_repro[j].Fitness;
+
+                    // Make babeeeeeee
+                    for (int j = 0; j < species_babies[i] - 1; j++)
+                    {
+                        // Spin the wheel
+                        int index = 0;
+                        int speen = Rand.Next((int)wheel[^1]);
+                        while (wheel[index] < speen) index++;
+                        NN parent1 = species[i][index];
+
+                        index = 0;
+                        speen = Rand.Next((int)wheel[^1]);
+                        while (wheel[index] < speen) index++;
+                        NN parent2 = species[i][index];
+
+                        // Uwoooogh seeeeegs
+                        new_NNs.Add(parent1.MateWith(parent2));
+                    }
+                }
+            }
+            new_NNs.CopyTo(NNs);
+
+            // Save new generation
+            SaveToFile(path, NNs, gen, compat_tresh);
+        }
+
+        return NNs;
+
+        List<List<NN>> Speciate(NN[] nnetworks)
+        {
+            List<List<NN>> species = new List<List<NN>>();
+            species.Add(new List<NN> { nnetworks[0] });
+            for (int i = 1; i < nnetworks.Length; i++)
+            {
+                bool existing_sp = false;
+                NN nn = nnetworks[i];
+                foreach (List<NN> s in species)
+                {
+                    if (nn.SameSpecies(s[0], compat_tresh))
+                    {
+                        s.Add(nn);
+                        existing_sp = true;
+                        break;
+                    }
+                }
+                if (!existing_sp) species.Add(new List<NN> { nn });
+            }
+
+            return species;
+        }
+        double AverageFitness(NN[] nnetworks)
+        {
+            // Return 0 if none played
+            if (nnetworks.All(x => !x.Played)) return 0;
+
+            return nnetworks.Where(x => x.Played).Average(x => x.Fitness);
+        }
+    }
+
+    static double GaussRand()
+    {
+        double output = 0;
+        for (int i = 0; i < 6; i++) output += Rand.NextDouble();
+        return (output - 3) / 3;
+    }
+    static double UniformRand() => Math.FusedMultiplyAdd(Rand.NextDouble(), 2, -1);
     #region // Activation functions
     static double Sigmoid(double x) => 1 / (1 + Math.Exp(-x));
     static double TanH(double x) => Math.Tanh(x);
