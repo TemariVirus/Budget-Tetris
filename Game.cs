@@ -2,9 +2,8 @@
 
 using FastConsole;
 using System.Diagnostics;
-using System.Windows.Input;
 
-enum Moves
+public enum Moves
 {
     None,
     Hold,
@@ -19,7 +18,7 @@ enum Moves
     HardDrop
 }
 
-enum TargetModes
+public enum TargetModes
 {
     Random,
     All,
@@ -27,7 +26,7 @@ enum TargetModes
 }
 
 // TODO: change callbacks to events or use tasks?
-sealed class Piece
+public sealed class Piece
 {
     private static readonly int[] KicksX = { 0, -1, -1, 0, -1 }, IKicksX = { 0, -2, 1, -2, 1 };
     private static readonly int[] KicksY = { 0, 0, -1, 2, 2 }, IKicksY = { 0, 0, 0, 1, -2 };
@@ -78,7 +77,7 @@ sealed class Piece
     internal readonly int Kick180X = 0, Kick180Y = 0;
 
     public readonly ulong Mask;
-    
+
     private Piece(int id)
     {
         Id = id;
@@ -133,7 +132,7 @@ sealed class Piece
         Pieces[i & (PIECE_BITS | ROTATION_BITS)];
 
     public static implicit operator int(Piece i) => i.Id;
-    
+
     public override string ToString()
     {
         string name = "";
@@ -181,7 +180,7 @@ sealed class Piece
     }
 }
 
-class GameBase
+public class GameBase
 {
     protected static readonly int[] GarbageLine = { Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage };
 
@@ -239,10 +238,10 @@ class GameBase
         for (int i = 0; i < 4; i++)
             if (Matrix[BlockY(i) + 1][BlockX(i)] != Piece.EMPTY)
                 return true;
-        
+
         return false;
     }
-    
+
     public int TSpin(bool rotatedLast)
     {
         if (rotatedLast && Current.PieceType == Piece.T)
@@ -310,7 +309,7 @@ class GameBase
                     pass = false;
             if (!pass)
                 continue;
-            
+
             X = x;
             Y = y;
             Current = rotated;
@@ -421,7 +420,7 @@ class GameBase
     public int TryDrop(int dy)
     {
         int moved = 0;
-        for ( ; dy > 0 && !OnGround(); dy--, Y++) moved++;
+        for (; dy > 0 && !OnGround(); dy--, Y++) moved++;
         return moved;
     }
 
@@ -514,7 +513,7 @@ class GameBase
         // No possible route if piece is out of bounds
         if (end_x < end_piece.MinX || end_x > end_piece.MaxX || end_y < 0 || end_y > end_piece.MaxY)
             return false;
-        
+
         GameBase clone = Clone();
         // Check if hold is needed
         bool hold = false;
@@ -617,7 +616,7 @@ class GameBase
     }
 }
 
-sealed class Game : GameBase
+public sealed class Game : GameBase
 {
     public const int GAMEWIDTH = 44, GAMEHEIGHT = 27;
     const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
@@ -635,13 +634,13 @@ sealed class Game : GameBase
         ConsoleColor.Gray,          // Garbage
         ConsoleColor.DarkGray       // Bedrock
     };
-    
+
     // 0 for false, 1 for true
     public static int GamesLock = 0;
     public static Game[] Games { get; private set; }
     public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
     public static bool IsPausedGlobal { get; private set; } = false;
-    
+
     public int[] LinesTrash { get; private set; } = { 0, 0, 1, 2, 4 };
     public int[] TSpinsTrash { get; private set; } = { 0, 2, 4, 6 };
     // Jstris combo table = { 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }
@@ -707,7 +706,7 @@ sealed class Game : GameBase
     public int B2B { get; internal set; } = -1;
     public int Combo { get; internal set; } = -1;
 
-    public double G = 0.03, SoftG = 1;
+    public double G = 0.05, SoftG = 1;
     double Vel = 0;
     readonly Queue<Moves> MoveQueue = new Queue<Moves>();
 
@@ -926,7 +925,7 @@ sealed class Game : GameBase
         {
             victim.Garbage.Add((trash, time));
             victim.DrawTrashMeter();
-            Task.Delay(GarbageDelay).ContinueWith(t => victim.DrawTrashMeter());
+            Task.Delay(GarbageDelay + 1).ContinueWith(t => victim.DrawTrashMeter());
         }
     }
 
@@ -1285,73 +1284,5 @@ sealed class Game : GameBase
         }
 
         return allReady;
-    }
-}
-
-class Program
-{
-    static readonly string BaseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-
-    static void Main()
-    {
-        // Set up console
-        Console.Title = "Console Tetris Clone With Bots";
-        FConsole.Framerate = 30;
-        FConsole.CursorVisible = false;
-        FConsole.SetFont("Consolas", 18);
-        FConsole.Initialise(FrameEndCallback);
-
-        // Set up games
-        int seed = new Random().Next();
-        Game[] games = { new Game(10, seed), new Game(10, seed), new Game(10, seed), new Game(10, seed), new Game(10, seed) };
-
-        Game main = games[2];
-        main.SoftG = 40;
-
-        Game.SetGames(games);
-
-        // Set up bots
-        new Bot(BaseDirectory + @"NNs\plan3.txt", games[0]).Start(150, 100);
-        new Bot(BaseDirectory + @"NNs\plan2.txt", games[1]).Start(150, 100);
-        new Bot(BaseDirectory + @"NNs\plan3.txt", games[2]).Start(150, 100);
-        new Bot(BaseDirectory + @"NNs\plan3.txt", games[3]).Start(150, 100);
-        new Bot(BaseDirectory + @"NNs\plan2.txt", games[4]).Start(150, 100);
-        
-        // Set up input handler
-        //SetupPlayerInput(main);
-    }
-
-    static void SetupPlayerInput(Game player_game)
-    {
-        FConsole.AddOnPressListener(Key.Left, () => player_game.Play(Moves.Left));
-        //FastConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.Left), 133, 0);
-        FConsole.AddOnHoldListener(Key.Left, () => player_game.Play(Moves.DASLeft), 133, 15);
-
-        FConsole.AddOnPressListener(Key.Right, () => player_game.Play(Moves.Right));
-        //FastConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.Right), 133, 0);
-        FConsole.AddOnHoldListener(Key.Right, () => player_game.Play(Moves.DASRight), 133, 15);
-
-        FConsole.AddOnPressListener(Key.Up, () => player_game.Play(Moves.RotateCW));
-        FConsole.AddOnPressListener(Key.Z, () => player_game.Play(Moves.RotateCCW));
-        FConsole.AddOnPressListener(Key.A, () => player_game.Play(Moves.Rotate180));
-
-        FConsole.AddOnHoldListener(Key.Down, () => player_game.Play(Moves.SoftDrop), 0, 16);
-        FConsole.AddOnPressListener(Key.Space, () => player_game.Play(Moves.HardDrop));
-
-        FConsole.AddOnPressListener(Key.C, () => player_game.Play(Moves.Hold));
-        FConsole.AddOnPressListener(Key.R, () => player_game.Restart());
-    }
-    
-    static void FrameEndCallback()
-    {
-        // Wait for games to be ready
-        while (!Game.AllReady()) Thread.Sleep(0);
-        // Aquire lock
-        while (Interlocked.Exchange(ref Game.GamesLock, 1) == 1) Thread.Sleep(0);
-
-        foreach (Game game in Game.Games) game.TickAsync();
-
-        // Release lock
-        Interlocked.Exchange(ref Game.GamesLock, 0);
     }
 }

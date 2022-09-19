@@ -188,11 +188,13 @@ static class FConsole
         }
     }
 
-    private static void RenderLoop()
+    private static async void RenderLoop()
     {
-        Queue<long> times = new Queue<long>();
+        PeriodicTimer timer = new PeriodicTimer(TimeSpan.FromSeconds(1D / Framerate));
+
+        Queue<long> draw_times = new Queue<long>(16);
         long prevT = 0;
-        while (true)
+        while (await timer.WaitForNextTickAsync())
         {
             // Handle window being resized
             try
@@ -216,18 +218,15 @@ static class FConsole
 
             // Write fps
             long newT = Time.ElapsedTicks;
-            times.Enqueue(newT);
+            draw_times.Enqueue(newT);
             long oldT;
-            if (times.Count > Framerate) oldT = times.Dequeue();
-            else oldT = times.Peek();
-            WriteAt($"{Math.Round((double)(times.Count - 1) / (newT - oldT) * Stopwatch.Frequency, 1)}fps".PadRight(10), 1, 0);
-            
+            if (draw_times.Count > 16) oldT = draw_times.Dequeue();
+            else oldT = draw_times.Peek();
+            WriteAt($"{Math.Round((double)draw_times.Count / (newT - oldT) * Stopwatch.Frequency, 2)}fps".PadRight(10), 1, 0);
+
             // Callback
             RenderCallback?.Invoke();
 
-            // Wait until next render
-            Thread.Sleep((int)Math.Max(0, 0.9 * (1000D / Framerate) - (1000D * (Time.ElapsedTicks - prevT) / Stopwatch.Frequency)));
-            //while (Time.ElapsedTicks - prevT < Stopwatch.Frequency / Framerate * 0.95) Thread.Sleep(0);
             prevT = Time.ElapsedTicks;
         }
     }

@@ -1,9 +1,12 @@
-﻿using Tetris;
+﻿namespace TetrisAI;
+
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using Tetris;
 
-class Bot
+public class Bot
 {
     const double MINTRESH = -1, MAXTRESH = -0.01, MOVEMUL = 1.05, MOVETARGET = 5,
                  DISCOUNT_FACTOR = 0.95;
@@ -18,33 +21,31 @@ class Bot
             _Game.SoftG = 40;
         }
     }
-    private GameBase Sandbox;
+    private GameBase Sim;
     bool Done;
 
     private readonly NN Network;
-    bool UsePCFinder = true;
+    public bool UsePCFinder = true;
     long ThinkTicks = Stopwatch.Frequency;
-    double MoveTresh = -0.05;
+    double MoveTresh = -0.1;
 
     int CurrentDepth;
     double MaxDepth;
-    
+
     readonly Dictionary<ulong, double> CachedValues = new Dictionary<ulong, double>();
     readonly Dictionary<ulong, double> CachedStateValues = new Dictionary<ulong, double>();
     readonly ulong[][] MatrixHashTable = RandomArray(10, 40), NextHashTable;
     readonly ulong[] PieceHashTable = RandomArray(8), HoldHashTable = RandomArray(8);
     readonly double[] Discounts;
 
-    readonly Stopwatch Timer = new Stopwatch();
+    readonly Stopwatch Sw = new Stopwatch();
     bool TimesUp;
 
-
     const int RunAvgCount = 20;
-    long[] NCount = new long[RunAvgCount];
+    long[] NodeCounts = new long[RunAvgCount];
 
-    public Bot(string filePath, Game game)
+    private Bot(Game game)
     {
-        Network = NN.LoadNN(filePath);
         Game = game;
 
         NextHashTable = RandomArray(game.Next.Length, 8);
@@ -54,6 +55,19 @@ class Bot
 
         CachedValues.EnsureCapacity(200000);
         CachedStateValues.EnsureCapacity(5000000);
+    }
+
+    public Bot(NN network, Game game) : this(game)
+    {
+        Network = network;
+        game.Name = "Bot";
+    }
+
+    public Bot(string filePath, Game game) : this(NN.LoadNN(filePath), game)
+    {
+        string name = filePath.Substring(Math.Max(0, filePath.LastIndexOf('\\')));
+        name = name.Substring(1, name.LastIndexOf('.') - 1);
+        game.Name = name;
     }
 
     static ulong[] RandomArray(int size)
@@ -75,9 +89,9 @@ class Bot
         return arr;
     }
 
-    public void Start(int ThinkDelay, int MoveDelay)
+    public void Start(int think_time, int move_delay)
     {
-        ThinkTicks = ThinkDelay * Stopwatch.Frequency / 1000;
+        ThinkTicks = think_time * Stopwatch.Frequency / 1000;
         Game.TickingCallback = () =>
         {
             Done = true;
@@ -87,25 +101,23 @@ class Bot
             while (!Game.IsDead)
             {
                 List<Moves> moves = FindMoves();
-                Timer.Start();
-                while (Timer.ElapsedTicks < ThinkTicks) Thread.Sleep(0);
-                // Think Delay
-                Thread.Sleep(ThinkDelay);
-                while (moves.Count != 0)
+                while (Sw.ElapsedTicks < ThinkTicks) Thread.Sleep(0);
+                foreach (Moves move in moves)
                 {
-                    Game.Play(moves[0]);
-                    moves.RemoveAt(0);
+                    Game.Play(move);
                     // Move delay
-                    Thread.Sleep(MoveDelay);
+                    Thread.Sleep(move_delay);
                 }
                 Done = false;
                 while (!Done) Thread.Sleep(0);
                 Game.WriteAt(0, 23, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(Game.GAMEWIDTH));
-                Game.WriteAt(0, 24, ConsoleColor.White, $"Nodes: {Math.Round(NCount.Average())}".PadRight(Game.GAMEWIDTH));
+                long count = NodeCounts.Aggregate(0, (aggregate, next) => (next == 0) ? aggregate : aggregate + 1);
+                if (count == 0) count++;
+                Game.WriteAt(0, 24, ConsoleColor.White, $"Nodes: {NodeCounts.Sum() / count}".PadRight(Game.GAMEWIDTH));
                 Game.WriteAt(0, 25, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(Game.GAMEWIDTH));
-                for (int i = NCount.Length - 1; i > 0; i--)
-                    NCount[i] = NCount[i - 1];
-                NCount[0] = 0;
+                for (int i = NodeCounts.Length - 1; i > 0; i--)
+                    NodeCounts[i] = NodeCounts[i - 1];
+                NodeCounts[0] = 0;
             }
         });
         main.Priority = ThreadPriority.Highest;
@@ -116,14 +128,14 @@ class Bot
     {
         // { scoreadd, B2B, T - spin, combo, clears } //first bit of B2B = B2B chain status
         // Check for t - spins
-        int tspin = Sandbox.TSpin(lastrot);
+        int tspin = Sim.TSpin(lastrot);
         // Clear lines
-        int[] clears = Sandbox.Place(out cleared);
+        int[] clears = Sim.Place(out cleared);
         // Combo
         comb = cleared == 0 ? -1 : comb + 1;
         // Perfect clear
         bool pc = true;
-        for (int x = 0; x < 10; x++) if (Sandbox.Matrix[39][x] != 0) pc = false;
+        for (int x = 0; x < 10; x++) if (Sim.Matrix[39][x] != 0) pc = false;
         // Compute score
         if (tspin == 0 && cleared != 4 && cleared != 0) _b2b = -1;
         else if (tspin + cleared > 3) _b2b++;
@@ -145,18 +157,14 @@ class Bot
 
     public List<Moves> FindMoves()
     {
-        // Remove excess cache
-        if (CachedValues.Count < 200000) CachedValues.Clear();
-        if (CachedStateValues.Count < 5000000) CachedStateValues.Clear();
-
         // Get copy of attached game
-        Sandbox = Game.Clone();
+        Sim = Game.Clone();
         GameBase pathfind = Game.Clone();
-        
+
         // Call the dedicated PC Finder
         //
 
-        Timer.Restart();
+        Sw.Restart();
         TimesUp = false;
 
         List<Moves> bestMoves = new List<Moves>();
@@ -166,7 +174,7 @@ class Bot
         MaxDepth = 0;
         int combo = Game.Combo, b2b = Game.B2B;
         double out1 = Network.FeedFoward(ExtrFeat(0))[0];
-        for (int depth = 0; !TimesUp && depth < Sandbox.Next.Length; depth++)
+        for (int depth = 0; !TimesUp && depth < Sim.Next.Length; depth++)
         {
             CurrentDepth = depth;
             bool swap;
@@ -174,11 +182,11 @@ class Bot
             {
                 swap = s == 1;
                 // Get piece based on swap
-                Piece current = swap ? Sandbox.Hold : Sandbox.Current, hold = swap ? Sandbox.Current : Sandbox.Hold;
+                Piece current = swap ? Sim.Hold : Sim.Current, hold = swap ? Sim.Current : Sim.Hold;
                 int nexti = 0;
-                if (swap && Sandbox.Hold == Piece.EMPTY)
+                if (swap && Sim.Hold == Piece.EMPTY)
                 {
-                    current = Sandbox.Next[0];
+                    current = Sim.Next[0];
                     nexti++;
                 }
 
@@ -192,17 +200,17 @@ class Bot
                     {
                         if (TimesUp) break;
 
-                        Sandbox.Current = piece;
-                        Sandbox.X = orix;
-                        Sandbox.Y = 19;
+                        Sim.Current = piece;
+                        Sim.X = orix;
+                        Sim.Y = 19;
                         // Hard drop
-                        Sandbox.TryDrop(40);
-                        int oriy = Sandbox.Y;
+                        Sim.TryDrop(40);
+                        int oriy = Sim.Y;
                         // Update screen
                         int new_combo = combo, new_b2b = b2b;
                         int[] clears = SearchScore(false, ref new_combo, ref new_b2b, out double garbage, out int cleared);
                         // Check if better
-                        double newvalue = Search(depth, nexti + 1, Sandbox.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage);
+                        double newvalue = Search(depth, nexti + 1, Sim.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage);
                         if (newvalue >= bestScore)
                         {
                             if (pathfind.PathFind(piece, orix, oriy, out List<Moves> new_bestMoves))
@@ -214,32 +222,32 @@ class Bot
                                 }
                             }
                         }
-                        Sandbox.Current = piece;
-                        Sandbox.X = orix;
-                        Sandbox.Y = oriy;
-                        Sandbox.Unplace(clears, cleared);
+                        Sim.Current = piece;
+                        Sim.X = orix;
+                        Sim.Y = oriy;
+                        Sim.Unplace(clears, cleared);
                         // Only vertical pieces can be spun
                         if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
                         {
                             for (int rotate_cw = 0; rotate_cw < 2; rotate_cw++)
                             {
-                                Sandbox.Current = piece;
-                                Sandbox.X = orix;
-                                Sandbox.Y = oriy;
+                                Sim.Current = piece;
+                                Sim.X = orix;
+                                Sim.Y = oriy;
                                 bool clockwise = rotate_cw == 0;
 
                                 for (int i = 0; i < 2; i++)
                                 {
-                                    if (!Sandbox.TryRotate(clockwise ? 1 : -1)) break;
-                                    if (!Sandbox.OnGround()) break;
+                                    if (!Sim.TryRotate(clockwise ? 1 : -1)) break;
+                                    if (!Sim.OnGround()) break;
                                     // Update screen
-                                    Piece rotated = Sandbox.Current;
-                                    int x = Sandbox.X, y = Sandbox.Y;
+                                    Piece rotated = Sim.Current;
+                                    int x = Sim.X, y = Sim.Y;
                                     new_combo = combo;
                                     new_b2b = b2b;
                                     clears = SearchScore(true, ref new_combo, ref new_b2b, out garbage, out cleared);
                                     // Check if better
-                                    newvalue = Search(depth, nexti + 1, Sandbox.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage);
+                                    newvalue = Search(depth, nexti + 1, Sim.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage);
                                     if (newvalue > bestScore)
                                     {
                                         if (pathfind.PathFind(rotated, x, y, out List<Moves> new_bestMoves))
@@ -249,10 +257,10 @@ class Bot
                                         }
                                     }
                                     // Revert screen
-                                    Sandbox.Current = rotated;
-                                    Sandbox.X = x;
-                                    Sandbox.Y = y;
-                                    Sandbox.Unplace(clears, cleared);
+                                    Sim.Current = rotated;
+                                    Sim.X = x;
+                                    Sim.Y = y;
+                                    Sim.Unplace(clears, cleared);
 
                                     // Only try to spin T pieces twice (for TSTs)
                                     if (piece.PieceType != Piece.T) break;
@@ -269,16 +277,18 @@ class Bot
                     else MaxDepth += (1d / 2) / 4;
                 }
 
-                Sandbox.Current = swap ? hold : current;
+                Sim.Current = swap ? hold : current;
             }
         }
-        CachedValues.Clear();
-        Timer.Stop();
+        //CachedValues.Clear();
+        // Remove excess cache
+        if (CachedValues.Count < 200000) CachedValues.Clear();
+        if (CachedStateValues.Count < 5000000) CachedStateValues.Clear();
 
-        // Check if pc found
+        // Check if PC found
         //
         // Adjust movetresh
-        double time_remaining = (double)(ThinkTicks - Timer.ElapsedTicks) / ThinkTicks;
+        double time_remaining = (double)(ThinkTicks - Sw.ElapsedTicks) / ThinkTicks;
         if (time_remaining > 0)
             MoveTresh *= Math.Pow(MOVEMUL, time_remaining / ((1 + Math.E) / Math.E - time_remaining));
         else
@@ -292,7 +302,7 @@ class Bot
     {
         //if (TimesUp || pc_found) return double.MinValue;
         if (TimesUp) return double.MinValue;
-        if (Timer.ElapsedTicks > ThinkTicks)
+        if (Sw.ElapsedTicks > ThinkTicks)
         {
             TimesUp = true;
             return double.MinValue;
@@ -300,12 +310,12 @@ class Bot
 
         if (depth == 0 || nexti == NextHashTable.Length)
         {
-            NCount[0]++;
+            NodeCounts[0]++;
 
             ulong hash = BitConverter.DoubleToUInt64Bits(_trash);
             for (int x = 0; x < 10; x++)
                 for (int y = 20; y < 40; y++)
-                    if (Sandbox.Matrix[y][x] != Piece.EMPTY)
+                    if (Sim.Matrix[y][x] != Piece.EMPTY)
                         hash ^= MatrixHashTable[x][y];
             if (CachedStateValues.ContainsKey(hash))
                 return CachedStateValues[hash];
@@ -329,7 +339,7 @@ class Bot
                 ulong statehash = BitConverter.DoubleToUInt64Bits(_trash);
                 for (int x = 0; x < 10; x++)
                     for (int y = 20; y < 40; y++)
-                        if (Sandbox.Matrix[y][x] != Piece.EMPTY)
+                        if (Sim.Matrix[y][x] != Piece.EMPTY)
                             statehash ^= MatrixHashTable[x][y];
                 if (!CachedStateValues.ContainsKey(statehash))
                     CachedStateValues.Add(statehash, outs[0]);
@@ -339,7 +349,7 @@ class Bot
             if (!swapped)
             {
                 if (_hold.PieceType == Piece.EMPTY)
-                    _value = Math.Max(_value, Search(depth, nexti + 1, Sandbox.Next[nexti], current, true, comb, b2b, prevstate, _trash));
+                    _value = Math.Max(_value, Search(depth, nexti + 1, Sim.Next[nexti], current, true, comb, b2b, prevstate, _trash));
                 else
                     _value = Math.Max(_value, Search(depth, nexti, _hold, current, true, comb, b2b, prevstate, _trash));
                 if (CachedValues.ContainsKey(hash))
@@ -353,11 +363,11 @@ class Bot
                 {
                     if (TimesUp) break;
 
-                    Sandbox.X = orix;
-                    Sandbox.Y = 19;
-                    Sandbox.Current = piece;
-                    Sandbox.TryDrop(40);
-                    int oriy = Sandbox.Y;
+                    Sim.X = orix;
+                    Sim.Y = 19;
+                    Sim.Current = piece;
+                    Sim.TryDrop(40);
+                    int oriy = Sim.Y;
                     int[] clears;
                     if ((piece.PieceType != Piece.S && piece.PieceType != Piece.Z) || rot < Piece.ROTATION_180)
                     {
@@ -365,12 +375,12 @@ class Bot
                         int new_comb = comb, new_b2b = b2b;
                         clears = SearchScore(false, ref new_comb, ref new_b2b, out double garbage, out int cleared);
                         // Check if better
-                        _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sandbox.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], discount * garbage + _trash));
+                        _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sim.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], discount * garbage + _trash));
                         // Revert matrix
-                        Sandbox.X = orix;
-                        Sandbox.Y = oriy;
-                        Sandbox.Current = piece;
-                        Sandbox.Unplace(clears, cleared);
+                        Sim.X = orix;
+                        Sim.Y = oriy;
+                        Sim.Current = piece;
+                        Sim.Unplace(clears, cleared);
                     }
                     // Only vertical pieces can be spun
                     if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
@@ -378,26 +388,26 @@ class Bot
                         for (int rotate_cw = 0; rotate_cw < 2; rotate_cw++)
                         {
                             bool clockwise = rotate_cw == 0;
-                            Sandbox.X = orix;
-                            Sandbox.Y = oriy;
-                            Sandbox.Current = piece;
+                            Sim.X = orix;
+                            Sim.Y = oriy;
+                            Sim.Current = piece;
                             // Try spin
                             for (int i = 0; i < 2; i++)
                             {
-                                if (!Sandbox.TryRotate(clockwise ? 1 : -1)) break;
-                                if (!Sandbox.OnGround()) break;
-                                int x = Sandbox.X, y = Sandbox.Y;
-                                Piece rotated = Sandbox.Current;
+                                if (!Sim.TryRotate(clockwise ? 1 : -1)) break;
+                                if (!Sim.OnGround()) break;
+                                int x = Sim.X, y = Sim.Y;
+                                Piece rotated = Sim.Current;
                                 // Update matrix
                                 int new_comb = comb, new_b2b = b2b;
                                 clears = SearchScore(true, ref new_comb, ref new_b2b, out double garbage, out int cleared);
                                 // Check if better
-                                _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sandbox.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], discount * garbage + _trash));
+                                _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sim.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], discount * garbage + _trash));
                                 // Revert matrix
-                                Sandbox.X = x;
-                                Sandbox.Y = y;
-                                Sandbox.Current = rotated;
-                                Sandbox.Unplace(clears, cleared);
+                                Sim.X = x;
+                                Sim.Y = y;
+                                Sim.Current = rotated;
+                                Sim.Unplace(clears, cleared);
 
                                 // Only try to spin T pieces twice(for TSTs)
                                 if (current.PieceType != Piece.T) break;
@@ -414,20 +424,6 @@ class Bot
         }
     }
 
-    int DistanceFromWall(Piece piece, List<Moves> _moves)
-    {
-        int _x = 4;
-        foreach (Moves move in _moves)
-        {
-            if (move == Moves.Left) _x--;
-            else if (move == Moves.Right) _x++;
-            else if (move == Moves.RotateCW) piece += Piece.ROTATION_CW;
-            else if (move == Moves.RotateCCW) piece += Piece.ROTATION_CCW;
-            else if (move == Moves.SoftDrop) break;
-        }
-        return Math.Min(_x - piece.MinX, piece.MaxX - _x);
-    }
-
     double[] ExtrFeat(double _trash)
     {
         // Find heightest block in each column
@@ -435,7 +431,7 @@ class Bot
         for (int x = 0; x < 10; x++)
         {
             double height = 20;
-            for (int y = 20; Sandbox.Matrix[y][x] == 0; y++)
+            for (int y = 20; Sim.Matrix[y][x] == 0; y++)
             {
                 height--;
                 if (y == 39) break;
@@ -454,16 +450,16 @@ class Bot
         if (Network.Visited[1])
         {
             for (int y = 39 - (int)heights[0]; y < 40; y++)
-                if (Sandbox.Matrix[y][0] == 0 && Sandbox.Matrix[y - 1][0] != 0)
+                if (Sim.Matrix[y][0] == 0 && Sim.Matrix[y - 1][0] != 0)
                     if (y < 39 - heights[1])
                         caves += heights[0] + y - 39;
             for (int x = 1; x < 9; x++)
                 for (int y = 39 - (int)heights[x]; y < 40; y++)
-                    if (Sandbox.Matrix[y][x] == 0 && Sandbox.Matrix[y - 1][x] != 0)
+                    if (Sim.Matrix[y][x] == 0 && Sim.Matrix[y - 1][x] != 0)
                         if (y <= Math.Min(39 - heights[x - 1], 39 - heights[x + 1]))
                             caves += heights[x] + y - 39;
             for (int y = 39 - (int)heights[9]; y < 40; y++)
-                if (Sandbox.Matrix[y][9] == 0 && Sandbox.Matrix[y - 1][9] != 0) if (y <= 39 - heights[8])
+                if (Sim.Matrix[y][9] == 0 && Sim.Matrix[y - 1][9] != 0) if (y <= 39 - heights[8])
                         caves += heights[9] + y - 39;
         }
         // Pillars
@@ -486,10 +482,10 @@ class Bot
         {
             for (int y = 19; y < 40; y++)
             {
-                bool empty = Sandbox.Matrix[y][0] == 0;
+                bool empty = Sim.Matrix[y][0] == 0;
                 for (int x = 1; x < 10; x++)
                 {
-                    bool isempty = Sandbox.Matrix[y][x] == 0;
+                    bool isempty = Sim.Matrix[y][x] == 0;
                     if (empty ^ isempty)
                     {
                         rowtrans++;
@@ -504,10 +500,10 @@ class Bot
         {
             for (int x = 0; x < 10; x++)
             {
-                bool empty = Sandbox.Matrix[19][x] == 0;
+                bool empty = Sim.Matrix[19][x] == 0;
                 for (int y = 20; y < 40; y++)
                 {
-                    bool isempty = Sandbox.Matrix[y][x] == 0;
+                    bool isempty = Sim.Matrix[y][x] == 0;
                     if (empty ^ isempty)
                     {
                         coltrans++;
@@ -523,8 +519,8 @@ class Bot
     ulong HashBoard(Piece piece, Piece _hold, int nexti, int depth)
     {
         ulong hash = PieceHashTable[piece.PieceType] ^ HoldHashTable[_hold.PieceType];
-        for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++) hash ^= NextHashTable[i][Sandbox.Next[nexti + i]];
-        for (int x = 0; x < 10; x++) for (int y = 20; y < 40; y++) if (Sandbox.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
+        for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++) hash ^= NextHashTable[i][Sim.Next[nexti + i]];
+        for (int x = 0; x < 10; x++) for (int y = 20; y < 40; y++) if (Sim.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
         return hash;
     }
 
@@ -541,9 +537,9 @@ class Bot
     }
 }
 
-class NN
+public class NN
 {
-    internal class Node
+    private class Node
     {
         public List<Node> Network;
         public double Value = 0;
@@ -573,7 +569,7 @@ class NN
         }
     }
 
-    internal class Connection
+    private class Connection
     {
         public bool Enabled;
         public int Input, Output, Id;
@@ -606,17 +602,50 @@ class NN
         }
     }
 
+    public static readonly Func<double, double> DEFAULT_ACTIVATION = ReLU;
+
+    static readonly Random Rand = new();
+    private static readonly List<int> InNodes = new List<int>(), OutNodes = new List<int>();
+
     public int InputCount { get; private set; }
     public int OutputCount { get; private set; }
-    private static readonly List<int> InNodes = new List<int>(), OutNodes = new List<int>();
-    readonly List<Node> Nodes = new List<Node>();
-    public bool[] Visited = Array.Empty<bool>();
-    readonly List<int> ConnectionIds = new List<int>();
-    readonly Dictionary<int, Connection> Connections = new Dictionary<int, Connection>();
+    private readonly List<Node> Nodes = new List<Node>();
+    public bool[] Visited { get; private set; } = Array.Empty<bool>();
+    private readonly List<int> ConnectionIds = new List<int>();
+    private readonly Dictionary<int, Connection> Connections = new Dictionary<int, Connection>();
 
-    NN(int inputs, int outputs, List<Connection> connections)
+    private NN(int inputs, int outputs)
     {
-        InputCount = inputs + 1; // Add 1 for bias
+        InputCount = inputs;
+        OutputCount = outputs;
+        // Make input nodes
+        for (int i = 0; i < InputCount + 1; i++)
+        {
+            // Connect every input to every output
+            List<Connection> outs = new();
+            for (int j = 0; j < OutputCount; j++)
+            {
+                outs.Add(new(i, InputCount + j + 1, GaussRand()));
+                Connections.Add(outs[j].Id, outs[j]);
+                ConnectionIds.Add(outs[j].Id);
+            }
+            Nodes.Add(new(i, Nodes, DEFAULT_ACTIVATION, outputs: new(outs)));
+        }
+        // Make output nodes
+        for (int i = 0; i < OutputCount; i++)
+        {
+            List<Connection> ins = new();
+            for (int j = 0; j < InputCount + 1; j++)
+                ins.Add(Connections[ConnectionIds[OutputCount * j + i]]);
+            Nodes.Add(new(InputCount + i + 1, Nodes, DEFAULT_ACTIVATION, inputs: new List<Connection>(ins)));
+        }
+        // Find all connected nodes
+        FindConnectedNodes();
+    }
+
+    private NN(int inputs, int outputs, List<Connection> connections)
+    {
+        InputCount = inputs; // Add 1 for bias
         OutputCount = outputs;
         foreach (Connection c in connections)
         {
@@ -626,37 +655,37 @@ class NN
             Connections.Add(newc.Id, newc);
             // Add nodes as nescessary
             while (Nodes.Count <= newc.Input || Nodes.Count <= newc.Output)
-                Nodes.Add(new Node(Nodes.Count, Nodes, ReLU));
+                Nodes.Add(new Node(Nodes.Count, Nodes, DEFAULT_ACTIVATION));
             // Add connection to coresponding nodes
             Nodes[c.Input].Outputs.Add(newc);
             Nodes[c.Output].Inputs.Add(newc);
         }
         // Find all connected nodes
         FindConnectedNodes();
+
     }
 
     public double[] FeedFoward(double[] input)
     {
         // Set input nodes
-        for (int i = 0; i < InputCount - 1; i++)
+        for (int i = 0; i < InputCount; i++)
             if (Visited[i])
                 Nodes[i].Value = input[i];
-        Nodes[InputCount - 1].Value = 1; // Bias node
+        Nodes[InputCount].Value = 1; // Bias node
         // Update hidden all nodes
-        for (int i = InputCount + OutputCount; i < Nodes.Count; i++)
-            if (Visited[i])
-                Nodes[i].UpdateValue();
+        for (int i = InputCount + OutputCount + 1; i < Nodes.Count; i++)
+            if (Visited[i]) Nodes[i].UpdateValue();
         // Update ouput nodes and get output
         double[] output = new double[OutputCount];
-        for (int i = 0; i < OutputCount; i++) output[i] = Nodes[i + InputCount].UpdateValue();
+        for (int i = 0; i < OutputCount; i++) output[i] = Nodes[i + InputCount + 1].UpdateValue();
 
         return output;
     }
 
-    void FindConnectedNodes()
+    private void FindConnectedNodes()
     {
         Visited = new bool[Nodes.Count];
-        for (int i = InputCount; i < InputCount + OutputCount; i++)
+        for (int i = InputCount + 1; i < InputCount + OutputCount + 1; i++)
             if (!Visited[i])
                 VisitDownstream(i);
 
@@ -668,6 +697,10 @@ class NN
                     VisitDownstream(c.Input);
         }
     }
+
+    public int GetSize() => Visited.Count(x => x == true);
+
+    public NN Clone() => new NN(InputCount, OutputCount, new List<Connection>(Connections.Values));
 
     public static NN LoadNN(string path)
     {
@@ -684,6 +717,13 @@ class NN
         return new NN(Convert.ToInt32(inout[0]), Convert.ToInt32(inout[1]), cons);
     }
 
+    static double GaussRand()
+    {
+        double output = 0;
+        for (int i = 0; i < 6; i++) output += Rand.NextDouble();
+        return (output - 3) / 3;
+    }
+    static double UniformRand() => Math.FusedMultiplyAdd(Rand.NextDouble(), 2, -1);
     #region // Activation functions
     static double Sigmoid(double x) => 1 / (1 + Math.Exp(-x));
     static double TanH(double x) => Math.Tanh(x);
