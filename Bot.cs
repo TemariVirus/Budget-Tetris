@@ -628,7 +628,7 @@ public class NN
     public int OutputCount { get; private set; }
     public double Fitness = 0;
     private readonly List<Node> Nodes = new List<Node>();
-    public bool[] Visited { get; private set; } = Array.Empty<bool>();
+    public bool[] Visited { get; private set; }
     private readonly List<int> ConnectionIds = new List<int>();
     private readonly Dictionary<int, Connection> Connections = new Dictionary<int, Connection>();
 
@@ -680,7 +680,6 @@ public class NN
         }
         // Find all connected nodes
         FindConnectedNodes();
-
     }
 
     public double[] FeedFoward(double[] input)
@@ -825,16 +824,16 @@ public class NN
 
     public NN Clone() => new NN(InputCount, OutputCount, new List<Connection>(Connections.Values));
 
-    public static void SaveToFile(string path, NN[] NNs, int gen, double compat_tresh)
+    public static void SaveNNs(string path, NN[] networks, int gen, double compat_tresh)
     {
         StringBuilder text = new();
         text.AppendLine(gen.ToString());
         text.AppendLine(compat_tresh.ToString());
-        for (int i = 0; i < NNs.Length; i++)
+        for (int i = 0; i < networks.Length; i++)
         {
-            text.AppendLine(i + " - Fitness: " + NNs[i].Fitness + (NNs[i].Played ? " played" : ""));
-            text.AppendLine(NNs[i].InputCount + " " + NNs[i].OutputCount);
-            foreach (Connection c in NNs[i].Connections.Values) text.AppendLine(c.Input + " " + c.Output + " " + c.Weight + (c.Enabled ? "" : " Disabled"));
+            text.AppendLine(i + " - Fitness: " + networks[i].Fitness + (networks[i].Played ? " played" : ""));
+            text.AppendLine(networks[i].InputCount + " " + networks[i].OutputCount);
+            foreach (Connection c in networks[i].Connections.Values) text.AppendLine(c.Input + " " + c.Output + " " + c.Weight + (c.Enabled ? "" : " Disabled"));
             text.AppendLine();
         }
         File.WriteAllText(path, text.ToString(), Encoding.UTF8);
@@ -933,6 +932,7 @@ public class NN
         {
             for (int i = 0; i < pop_size; i++)
                 NNs[i] = new NN(inputs, outputs);
+            SaveNNs(path, NNs, gen, compat_tresh);
         }
 
         // Train
@@ -943,20 +943,20 @@ public class NN
             NNs = NNs.OrderByDescending(x => x.Fitness).ToArray();
 
             // Speciate
-            List<List<NN>> species = Speciate(NNs);
+            List<List<NN>> species = Speciate(NNs, compat_tresh);
             for (int i = 0; i < SPECIES_TRY_TIMES; i++)
             {
                 // Adjust compattresh
                 if (species.Count < SPECIES_TARGET) compat_tresh /= Math.Pow(COMPAT_MOD, 1 - (double)i / SPECIES_TRY_TIMES);
                 else if (species.Count > SPECIES_TARGET) compat_tresh *= Math.Pow(COMPAT_MOD, 1 - (double)i / SPECIES_TRY_TIMES);
                 else break;
-                species = Speciate(NNs);
+                species = Speciate(NNs, compat_tresh);
             }
             species = species.OrderByDescending(s => s.Average(x => x.Fitness)).ToList();
 
             // Explicit fitness sharing
             // Find average fitnesses
-            double avg_fit = AverageFitness(NNs);
+            double avg_fit = NNs.Average(x => x.Fitness);
             List<double> sp_avg_fits = species.ConvertAll(s => s.Average(x => x.Fitness));
             // Calculate amount of babies
             int[] species_babies = new int[species.Count];
@@ -972,93 +972,84 @@ public class NN
                 species_babies[i]++;
 
             // Return if target reached
-            if (NNs.Where(x => x.Played).Max(x => x.Fitness) >= FITNESS_TARGET)
+            if (NNs.Max(x => x.Fitness) >= FITNESS_TARGET)
             {
-                SaveToFile(path, NNs, gen, compat_tresh);
+                SaveNNs(path, NNs, gen, compat_tresh);
                 return NNs;
             }
 
             // Make save file before mating
-            SaveToFile(save_path, NNs, gen, compat_tresh);
+            SaveNNs(save_path, NNs, gen, compat_tresh);
 
             // Mating season
             List<NN> new_NNs = new List<NN>();
             for (int i = 0; i < species.Count; i++)
             {
-                // Sort NNs by descending fitness
-                species[i] = species[i].OrderByDescending(x => x.Fitness).ToList();
                 // Only top n% can reproduce
-                List<NN> can_repro = species[i].GetRange(0, (int)Math.Ceiling(species[i].Count * ELITE_PERCENT));
+                species[i] = species[i].OrderByDescending(x => x.Fitness).ToList();
+                List<NN> elites = species[i].GetRange(0, (int)Math.Ceiling(species[i].Count * ELITE_PERCENT));
+                
                 // Add best from species without mutating
-                if (species_babies[i] > 0)
+                if (species_babies[i] > 0) new_NNs.Add(elites[0]);
+                
+                // Prepare roulette wheel (fitter parents have higher chance of mating)
+                double[] wheel = new double[elites.Count];
+                wheel[0] = elites[0].Fitness;
+                for (int j = 1; j < wheel.Length; j++)
+                    wheel[j] = wheel[j - 1] + elites[j].Fitness;
+
+                // Make babeeeeeee
+                for (int j = 0; j < species_babies[i] - 1; j++)
                 {
-                    can_repro[0].Played = false;
-                    new_NNs.Add(can_repro[0]);
-                }
-                if (can_repro.Count != 1)
-                {
-                    // Prepare roulette wheel (fitter parents have higher chance of mating)
-                    double[] wheel = new double[can_repro.Count];
-                    wheel[0] = can_repro[0].Fitness;
-                    for (int j = 1; j < wheel.Length; j++)
-                        wheel[j] = wheel[j - 1] + can_repro[j].Fitness;
+                    // Spin the wheel
+                    int index = 0;
+                    int speen = Rand.Next((int)wheel[^1]);
+                    while (wheel[index] < speen) index++;
+                    NN parent1 = elites[index];
 
-                    // Make babeeeeeee
-                    for (int j = 0; j < species_babies[i] - 1; j++)
-                    {
-                        // Spin the wheel
-                        int index = 0;
-                        int speen = Rand.Next((int)wheel[^1]);
-                        while (wheel[index] < speen) index++;
-                        NN parent1 = species[i][index];
+                    index = 0;
+                    speen = Rand.Next((int)wheel[^1]);
+                    while (wheel[index] < speen) index++;
+                    NN parent2 = elites[index];
 
-                        index = 0;
-                        speen = Rand.Next((int)wheel[^1]);
-                        while (wheel[index] < speen) index++;
-                        NN parent2 = species[i][index];
-
-                        // Uwoooogh seeeeegs
-                        new_NNs.Add(parent1.MateWith(parent2));
-                    }
+                    // Uwoooogh seeeeegs
+                    new_NNs.Add(parent1.MateWith(parent2));
                 }
             }
+
+            // Set all NNs to unplayed and replace old NNs with new NNs
+            foreach (NN nn in new_NNs)
+                nn.Played = false;
             new_NNs.CopyTo(NNs);
 
             // Save new generation
-            SaveToFile(path, NNs, gen, compat_tresh);
+            SaveNNs(path, NNs, gen, compat_tresh);
         }
 
         return NNs;
+    }
 
-        List<List<NN>> Speciate(NN[] nnetworks)
+    static List<List<NN>> Speciate(NN[] networks, double compat_tresh)
+    {
+        List<List<NN>> species = new List<List<NN>>();
+        species.Add(new List<NN> { networks[0] });
+        for (int i = 1; i < networks.Length; i++)
         {
-            List<List<NN>> species = new List<List<NN>>();
-            species.Add(new List<NN> { nnetworks[0] });
-            for (int i = 1; i < nnetworks.Length; i++)
+            bool existing_sp = false;
+            NN nn = networks[i];
+            foreach (List<NN> s in species)
             {
-                bool existing_sp = false;
-                NN nn = nnetworks[i];
-                foreach (List<NN> s in species)
+                if (nn.SameSpecies(s[0], compat_tresh))
                 {
-                    if (nn.SameSpecies(s[0], compat_tresh))
-                    {
-                        s.Add(nn);
-                        existing_sp = true;
-                        break;
-                    }
+                    s.Add(nn);
+                    existing_sp = true;
+                    break;
                 }
-                if (!existing_sp) species.Add(new List<NN> { nn });
             }
-
-            return species;
+            if (!existing_sp) species.Add(new List<NN> { nn });
         }
-        double AverageFitness(NN[] nnetworks)
-        {
-            // Return 0 if none played
-            if (nnetworks.All(x => !x.Played)) return 0;
 
-            return nnetworks.Where(x => x.Played).Average(x => x.Fitness);
-        }
+        return species;
     }
 
     static double GaussRand()
