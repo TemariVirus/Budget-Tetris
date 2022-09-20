@@ -690,11 +690,11 @@ public sealed class Game : GameBase
             _Name = value;
             // Center text
             int space = GAMEWIDTH - value.Length;
-            int right_space = space / 2;
+            int left_space = space / 2;
             if (space < 0)
-                WriteAt(0, -1, ConsoleColor.White, value.Substring(-right_space, 44));
+                WriteAt(0, -1, ConsoleColor.White, value.Substring(-left_space, 44));
             else
-                WriteAt(0, -1, ConsoleColor.White, value.PadRight(right_space + value.Length).PadLeft(GAMEWIDTH));
+                WriteAt(0, -1, ConsoleColor.White, value.PadLeft(left_space + value.Length).PadRight(GAMEWIDTH));
         }
     }
     private bool _IsDead = true;
@@ -728,7 +728,6 @@ public sealed class Game : GameBase
             WriteAt(25, 0, ConsoleColor.White, _Lines.ToString().PadRight(45 - 26));
         }
     }
-    public int Sent = 0;
     public int Level { get => Lines / 10 + 1; }
 
     public int B2B { get; internal set; } = -1;
@@ -738,7 +737,7 @@ public sealed class Game : GameBase
     double Vel = 0;
     readonly Queue<Moves> MoveQueue = new Queue<Moves>();
 
-    double LastFrameT;
+    double LastFrameTime;
     public int LockDelay = 1000, EraseDelay = 1500, GarbageDelay = 1000; // In miliseconds
     public int AutoLockGrace = 15;
     int MoveCount = 0;
@@ -751,9 +750,42 @@ public sealed class Game : GameBase
     readonly List<(int, long)> Garbage = new List<(int, long)>();
 
     int GameIndex;
-    long TargetChangeInteval = 500, LastTargetChangeT; // In miliseconds
+    long TargetChangeInteval = 500, LastTargetChangeTime; // In miliseconds
     TargetModes TargetMode = TargetModes.Random;
     List<Game> Targets = new List<Game>();
+    #endregion
+
+    #region // Stats
+    public double StartTime { get; private set; }
+    public int Sent { get; private set; } = 0;
+    public double APL
+    {
+        get
+        {
+            if (Sent == 0) return 0;
+            return (double)Sent / Lines;
+        }
+    }
+
+    public int PiecesPlaced { get; private set; } = 0;
+    public double PPS
+    {
+        get
+        {
+            if (PiecesPlaced == 0) return 0;
+            return PiecesPlaced / (GlobalTime.Elapsed.Seconds - StartTime);
+        }
+    }
+
+    public int KeysPressed { get; private set; } = 0;
+    public double KPP
+    {
+        get
+        {
+            if (PiecesPlaced == 0) return 0;
+            return KeysPressed / PiecesPlaced;
+        }
+    }
     #endregion
 
     public Game() : base(6, Guid.NewGuid().GetHashCode())
@@ -764,15 +796,6 @@ public sealed class Game : GameBase
     public Game(int next_length, int seed) : base(next_length, seed)
     {
         GarbageRand = new Random(seed.GetHashCode());
-    }
-
-    public void Initialise()
-    {
-        IsDead = false;
-        SpawnNextPiece();
-        // Timekeeping
-        LastFrameT = GlobalTime.Elapsed.TotalSeconds;
-        LastTargetChangeT = GlobalTime.ElapsedMilliseconds;
     }
 
     public void Restart()
@@ -788,6 +811,7 @@ public sealed class Game : GameBase
         Score = 0;
         Lines = 0;
         Sent = 0;
+        PiecesPlaced = 0;
 
         Vel = 0;
         IsLastMoveRotate = false;
@@ -795,8 +819,9 @@ public sealed class Game : GameBase
         MoveCount = 0;
         MoveQueue.Clear();
 
-        LastFrameT = GlobalTime.Elapsed.TotalSeconds;
-        LastTargetChangeT = GlobalTime.ElapsedMilliseconds;
+        StartTime = GlobalTime.Elapsed.TotalSeconds;
+        LastFrameTime = StartTime;
+        LastTargetChangeTime = GlobalTime.ElapsedMilliseconds;
         LockT.Reset();
         EraseT.Reset();
         Garbage.Clear();
@@ -814,8 +839,8 @@ public sealed class Game : GameBase
         IsTicking = true;
         new Thread(() => {
             // Timekeeping
-            double deltaT = GlobalTime.Elapsed.TotalSeconds - LastFrameT;
-            LastFrameT = GlobalTime.Elapsed.TotalSeconds;
+            double deltaT = GlobalTime.Elapsed.TotalSeconds - LastFrameTime;
+            LastFrameTime = GlobalTime.Elapsed.TotalSeconds;
 
             // Erase stats
             if (EraseT.ElapsedMilliseconds > EraseDelay) EraseClearStats();
@@ -908,7 +933,7 @@ public sealed class Game : GameBase
             Games[i].XOffset = (i % width) * (GAMEWIDTH + 1) + 1;
             Games[i].YOffset = (i / width) * GAMEHEIGHT + 1;
             Games[i].GameIndex = i;
-            if (Games[i].IsDead) Games[i].Initialise();
+            if (Games[i].IsDead) Games[i].Restart();
             Games[i].DrawAll();
         }
     }
@@ -929,9 +954,9 @@ public sealed class Game : GameBase
         switch (TargetMode)
         {
             case TargetModes.Random:
-                if (time - LastTargetChangeT > TargetChangeInteval)
+                if (time - LastTargetChangeTime > TargetChangeInteval)
                 {
-                    LastTargetChangeT = time;
+                    LastTargetChangeTime = time;
                     Targets.Clear();
                     List<Game> aliveGames = GetAliveGames();
                     if (aliveGames.Count <= 1) break;
@@ -997,6 +1022,7 @@ public sealed class Game : GameBase
         if (IsDead || IsPaused) return;
         
         MoveQueue.Enqueue(move);
+        KeysPressed++;
     }
 
     void Slide(int dx)
@@ -1070,7 +1096,7 @@ public sealed class Game : GameBase
         }
     }
 
-    // Update to use static trash arrays
+    // TODO: Update to use static trash arrays
     void PlacePiece()
     {
         int tspin = TSpin(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
@@ -1125,7 +1151,10 @@ public sealed class Game : GameBase
         if (Combo > 0) trash += new int[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 9)];
         //if (Combo > 0) _trash += new int[] { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 11)]; //jstris combo table
         if (pc) trash = 10;
+        
+        // Stats
         Sent += trash;
+        PiecesPlaced++;
 
         // Garbage
         try
@@ -1176,7 +1205,7 @@ public sealed class Game : GameBase
         }
         if (trash > 0) SendTrash(trash);
 
-        //redraw screen
+        // Redraw screen
         for (int x = 0; x < 10; x++)
             for (int y = 39; y > 19; y--)
                 WriteAt(12 + x * 2, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);

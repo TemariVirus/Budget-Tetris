@@ -55,8 +55,8 @@ public class Bot
         Discounts = new double[game.Next.Length];
         for (int i = 0; i < game.Next.Length; i++) Discounts[i] = Math.Pow(DISCOUNT_FACTOR, i);
 
-        CachedValues.EnsureCapacity(200000);
-        CachedStateValues.EnsureCapacity(5000000);
+        //CachedValues.EnsureCapacity(200000);
+        //CachedStateValues.EnsureCapacity(5000000);
     }
 
     public Bot(NN network, Game game) : this(game)
@@ -108,16 +108,19 @@ public class Bot
         {
             while (!Game.IsDead)
             {
+                // Find moves
                 List<Moves> moves = FindMoves();
+                // Wait out excess think time
                 while (Sw.ElapsedTicks < ThinkTicks) Thread.Sleep(0);
+                // Play moves
                 foreach (Moves move in moves)
                 {
                     Game.Play(move);
-                    // Move delay
                     Thread.Sleep(move_delay);
                 }
                 Done = false;
                 while (!Done && !ToStop) Thread.Sleep(0);
+                // Stats
                 Game.WriteAt(0, 23, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(Game.GAMEWIDTH));
                 long count = NodeCounts.Aggregate(0, (aggregate, next) => (next == 0) ? aggregate : aggregate + 1);
                 if (count == 0) count++;
@@ -126,7 +129,7 @@ public class Bot
                 for (int i = NodeCounts.Length - 1; i > 0; i--)
                     NodeCounts[i] = NodeCounts[i - 1];
                 NodeCounts[0] = 0;
-
+                // Check if should stop
                 if (ToStop) break;
             }
 
@@ -135,9 +138,18 @@ public class Bot
         });
         BotThread.Priority = ThreadPriority.Highest;
         BotThread.Start();
+
+        // Write stats to prevent flashing
+        Game.WriteAt(0, 23, ConsoleColor.White, $"Depth: 0".PadRight(Game.GAMEWIDTH));
+        Game.WriteAt(0, 24, ConsoleColor.White, $"Nodes: 0".PadRight(Game.GAMEWIDTH));
+        Game.WriteAt(0, 25, ConsoleColor.White, $"Tresh: 0.000000".PadRight(Game.GAMEWIDTH));
     }
 
-    public void Stop() => ToStop = true;
+    public void Stop()
+    {
+        ToStop = true;
+        BotThread.Join();
+    }
 
     int[] SearchScore(bool lastrot, ref int comb, ref int _b2b, out double _trash, out int cleared)
     {
