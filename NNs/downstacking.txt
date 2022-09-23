@@ -1,8 +1,44 @@
-0 - Fitness: 614
-6 1
-3 7 -0.004181354483013631
-6 7 0.36900374072288306
-2 6 -0.20327844255256328
-6 0 0.0325644956604223
-0 3 0.33973893909907515
-0 2 0.11450026579750452
+﻿{
+  "Played": false,
+  "Inputs": 6,
+  "Outputs": 1,
+  "Fitness": 614,
+  "Connections": [
+    {
+      "Enabled": true,
+      "Input": 3,
+      "Output": 7,
+      "Weight": -0.004181354483013631
+    },
+    {
+      "Enabled": true,
+      "Input": 6,
+      "Output": 7,
+      "Weight": 0.36900374072288306
+    },
+    {
+      "Enabled": true,
+      "Input": 2,
+      "Output": 6,
+      "Weight": -0.20327844255256328
+    },
+    {
+      "Enabled": true,
+      "Input": 6,
+      "Output": 0,
+      "Weight": 0.0325644956604223
+    },
+    {
+      "Enabled": true,
+      "Input": 0,
+      "Output": 3,
+      "Weight": 0.33973893909907515
+    },
+    {
+      "Enabled": true,
+      "Input": 0,
+      "Output": 2,
+      "Weight": 0.11450026579750452
+    }
+  ]
+}

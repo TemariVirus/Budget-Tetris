@@ -1,9 +1,14 @@
 ﻿namespace TetrisAI;
 
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Windows.Media;
 using Tetris;
 
 public class Bot
@@ -576,7 +581,7 @@ public class NN
     {
         public List<Node> Network;
         public double Value = 0;
-        public int Id;
+        public readonly int Id;
         public List<Connection> Inputs, Outputs;
         readonly Func<double, double> Activation;
 
@@ -605,7 +610,8 @@ public class NN
     private class Connection
     {
         public bool Enabled;
-        public int Input, Output, Id;
+        public readonly int Id;
+        public readonly int Input, Output;
         public double Weight;
 
         public Connection(int input, int output, double weight, bool enabled = true)
@@ -627,12 +633,57 @@ public class NN
             }
         }
 
+        public Connection(ConnectionData data) : this(data.Input, data.Output, data.Weight, data.Enabled)
+        {
+            
+        }
+
         public Connection Clone()
         {
             Connection clone = new Connection(Input, Output, Weight);
             if (!Enabled) clone.Enabled = false;
             return clone;
         }
+    }
+
+    public struct TrainingData
+    {
+        public int Gen;
+        public double CompatTresh;
+        public NNData[] NNData;
+    }
+    
+    public struct NNData
+    {
+        public bool Played;
+        public int Inputs;
+        public int Outputs;
+        public double Fitness;
+        public List<ConnectionData> Connections;
+
+        public NNData(NN nn)
+        {
+            Played = nn.Played;
+            Inputs = nn.InputCount;
+            Outputs = nn.OutputCount;
+            Fitness = nn.Fitness;
+            Connections = new List<ConnectionData>();
+            foreach (Connection c in nn.Connections.Values)
+                Connections.Add(new ConnectionData
+                {
+                    Enabled = c.Enabled,
+                    Input = c.Input,
+                    Output = c.Output,
+                    Weight = c.Weight
+                });
+        }
+    }
+
+    public struct ConnectionData
+    {
+        public bool Enabled;
+        public int Input, Output;
+        public double Weight;
     }
 
     #region // Hyperparameters
@@ -713,6 +764,12 @@ public class NN
         }
         // Find all connected nodes
         FindConnectedNodes();
+    }
+
+    private NN(NNData data) : this(data.Inputs, data.Outputs, data.Connections.Select(x => new Connection(x)).ToList())
+    {
+        Played = data.Played;
+        Fitness = data.Fitness;
     }
 
     public double[] FeedFoward(double[] input)
@@ -857,23 +914,32 @@ public class NN
 
     public NN Clone() => new NN(InputCount, OutputCount, new List<Connection>(Connections.Values));
 
-    public static void SaveNNs(string path, NN[] networks, int gen, double compat_tresh)
+    public static void SaveNN(string path, NN network)
     {
-        StringBuilder text = new();
-        text.AppendLine(gen.ToString());
-        text.AppendLine(compat_tresh.ToString());
-        for (int i = 0; i < networks.Length; i++)
-        {
-            text.AppendLine(i + " - Fitness: " + networks[i].Fitness + (networks[i].Played ? " played" : ""));
-            text.AppendLine(networks[i].InputCount + " " + networks[i].OutputCount);
-            foreach (Connection c in networks[i].Connections.Values) text.AppendLine(c.Input + " " + c.Output + " " + c.Weight + (c.Enabled ? "" : " Disabled"));
-            text.AppendLine();
-        }
-        File.WriteAllText(path, text.ToString(), Encoding.UTF8);
+        NNData data = new NNData(network);
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        string json = JsonSerializer.Serialize(data, options);
+        File.WriteAllText(path, json, Encoding.UTF8);
         return;
     }
 
-    public static NN LoadNN(string path)
+    public static void SaveNNs(string path, NN[] networks, int gen, double compat_tresh)
+    {
+        NNData[] networks_data = networks.Select(x => new NNData(x)).ToArray();
+        TrainingData training_data = new TrainingData
+        {
+            Gen = gen,
+            CompatTresh = compat_tresh,
+            NNData = networks_data
+        };
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        string json = JsonSerializer.Serialize(training_data, options);
+        File.WriteAllText(path, json, Encoding.UTF8); 
+        return;
+    }
+
+    [Obsolete("Use LoadNN instead")]
+    public static NN LoadNNLagacy(string path)
     {
         string[] lines = File.ReadAllLines(path, Encoding.UTF8);
         string[] inout = lines[1].Split(' ');
@@ -888,58 +954,25 @@ public class NN
         return new NN(Convert.ToInt32(inout[0]), Convert.ToInt32(inout[1]), cons);
     }
 
+    public static NN LoadNN(string path)
+    {
+        string jsonString = File.ReadAllText(path);
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        NNData data = JsonSerializer.Deserialize<NNData>(jsonString, options);
+
+        return new NN(data);
+    }
+
     public static NN[] LoadNNs(string path, out int gen, out double compat_tresh)
     {
-        List<string> lines = new(File.ReadAllLines(path, Encoding.UTF8));
-        List<List<string>> NNs_text = new();
-        gen = Convert.ToInt32(lines[0]);
-        compat_tresh = Convert.ToDouble(lines[1]);
-        int oldi = 2;
-        // Split up NNs
-        for (int i = 3; i < lines.Count; i++)
-        {
-            if (lines[i].Length == 0)
-            {
-                NNs_text.Add(lines.GetRange(oldi, i - oldi));
-                i++;
-                oldi = i;
-            }
-        }
+        string jsonString = File.ReadAllText(path);
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        TrainingData training_data = JsonSerializer.Deserialize<TrainingData>(jsonString, options)!;
+        gen = training_data.Gen;
+        compat_tresh = training_data.CompatTresh;
+        NN[] networks = training_data.NNData.Select(x => new NN(x)).ToArray();
 
-        // Create NNS
-        NN[] NNs = new NN[NNs_text.Count];
-        for (int i = 0; i < NNs_text.Count; i++)
-        {
-            // No. of inputs and outputs
-            string[] inout = NNs_text[i][1].Split(' ');
-            // Connections
-            List<Connection> cons = new();
-            for (int j = 2; j < NNs_text[i].Count; j++)
-            {
-                string[] con = NNs_text[i][j].Split(' ');
-                Connection newcon = new(Convert.ToInt32(con[0]), Convert.ToInt32(con[1]), Convert.ToDouble(con[2]));
-                if (con.Length == 4) newcon.Enabled = false;
-                bool reverse = false;
-                int rid = 0;
-                if (!ALLOW_RECURSIVE_CON) for (; rid < cons.Count && !reverse; rid++) if (cons[rid].Input == newcon.Output && cons[rid].Output == newcon.Input) reverse = true;
-                if (reverse)
-                {
-                    if (!cons[rid - 1].Enabled)
-                    {
-                        cons.RemoveAt(rid - 1);
-                        reverse = false;
-                    }
-                }
-                if (!reverse || ALLOW_RECURSIVE_CON) cons.Add(newcon);
-            }
-            // Create NN
-            NNs[i] = new NN(Convert.ToInt32(inout[0]), Convert.ToInt32(inout[1]), cons);
-            string[] header = NNs_text[i][0].Split(' ');
-            NNs[i].Played = header.Length == 5;
-            NNs[i].Fitness = Convert.ToDouble(header[3]);
-        }
-
-        return NNs;
+        return networks;
     }
 
     public static NN[] Train(string path, Action<NN[], int, double> fitness_func, int inputs, int outputs, int pop_size)

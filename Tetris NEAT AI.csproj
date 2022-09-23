@@ -8,36 +8,4 @@
 	<UseWPF>true</UseWPF>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="NNs\downstacking.txt" />
-    <None Remove="NNs\fixedhold2.txt" />
-    <None Remove="NNs\PC.txt" />
-    <None Remove="NNs\plan2.txt" />
-    <None Remove="NNs\plan3.txt" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="NNs\downstacking.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="NNs\fixedhold2.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="NNs\PC.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="NNs\plan2.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="NNs\plan3.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="Pops\plan.txt">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>
