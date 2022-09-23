@@ -13,22 +13,24 @@ using Tetris;
 //- add a featrue for t-spins
 class Program
 {
-    const int MAX_LINES = 500, THINK_TIME_IN_MILLIS = 150;
+    // MAX_LINES = 300
+    const int MAX_LINES = 250, THINK_TIME_IN_MILLIS = 100;
     const double PLACE_COE = 0;
-    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\new vs.txt";
+    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\fixedhold vs.txt";
         
     static void Main()
     {
         // Set up console
         Console.Title = "Tetris NEAT AI Training";
-        FConsole.Framerate = 15;
+        FConsole.Framerate = 21;
         FConsole.CursorVisible = false;
         FConsole.SetFont("Consolas", 18);
         FConsole.Initialise(FrameEndCallback);
 
         //Game[] games = new Game[2].Select(x => new Game()).ToArray();
         //Game.SetGames(games);
-        //SetupPlayerInput(games[0]);
+        //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]).Start(100, 0);
+        //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\fixedhold vs.txt"), games[1]).Start(100, 0);
 
         // Train NNs
         NN.Train(Population_path, FitnessFunction, 6, 1, 30);
@@ -59,17 +61,23 @@ class Program
 
     static void FrameEndCallback()
     {
-        // Wait for games to be ready
-        while (!Game.AllReady()) Thread.Sleep(0);
-        // Aquire lock
-        while (Interlocked.Exchange(ref Game.GamesLock, 1) == 1) Thread.Sleep(0);
-
-        foreach (Game g in Game.Games) g.TickAsync();
-
-        // Release lock
-        Interlocked.Exchange(ref Game.GamesLock, 0);
+        if (Game.IsPaused || Game.Games == null) return;
+        foreach (Game g in Game.Games)
+        {
+            g.Tick();
+        }
     }
 
+    //gaussian curve with mean at x = m and standard dev d:
+    // e^[-(1/2)(x-m/d)^2]
+    // Rating system:
+    //
+    // Goals:
+    //  -Rating must not be less than 0
+    //  -n times the rating means n times the no. of babies made
+    //
+    // Specification:
+    //  -
     static void FitnessFunction(NN[] networks, int gen, double compat_tresh)
     {
         // Pick up where we left off
@@ -100,12 +108,24 @@ class Program
                 Game.SetGames(games);
 
                 // Show info on console
-                var played = networks.TakeWhile(x => x.Played);
                 FConsole.Set(FConsole.Width, FConsole.Height + 8);
                 FConsole.CursorVisible = false;
                 FConsole.WriteAt($"Gen: {gen}", 1, 28);
-                FConsole.WriteAt($"Best: {(!played.Any() ? 0 : played.Max(x => x.Fitness))}", 1, 29);
-                FConsole.WriteAt($"Average Fitness: {(!played.Any() ? 0 : played.Average(x => x.Fitness))}", 1, 30);
+                double max = 0, average = 0;
+                int max_index = -1;
+                for (int k = 0; k < i; k++)
+                {
+                    double fitness = networks[k].Fitness;
+                    average += fitness;
+                    if (fitness > max)
+                    {
+                        max = fitness;
+                        max_index = k;
+                    }
+                }
+                if (i != 0) average /= i;
+                FConsole.WriteAt($"Best: {max} by AI no. {max_index}", 1, 29);
+                FConsole.WriteAt($"Average Fitness: {average}", 1, 30);
                 FConsole.WriteAt($"Average Size: {networks.Average(x => x.GetSize())}", 1, 31);
                 FConsole.WriteAt($"No. of Species: {NN.Speciate(networks, compat_tresh).Count}", 1, 32);
 
@@ -119,7 +139,7 @@ class Program
                 right.Start(THINK_TIME_IN_MILLIS, 0);
 
                 // Wait until one dies or game takes too long
-                while (games.All(x => !x.IsDead) && games.All(x => x.Lines < MAX_LINES))
+                while (games.Any(x => !x.IsDead) && games.All(x => x.Lines < MAX_LINES))
                 {
                     foreach (Game g in Game.Games)
                     {
@@ -135,8 +155,10 @@ class Program
                 right.Stop();
 
                 // Experiment with this
-                networks[i].Fitness += Math.Max(0, (left.Game.IsDead ? left.Game.Sent - right.Game.Sent : left.Game.APL * MAX_LINES - right.Game.Sent) + (left.Game.PiecesPlaced * 0.4 * PLACE_COE));
-                networks[j].Fitness += Math.Max(0, (right.Game.IsDead ? right.Game.Sent - left.Game.Sent : right.Game.APL * MAX_LINES - left.Game.Sent) + (right.Game.PiecesPlaced * 0.4 * PLACE_COE));
+                networks[i].Fitness += left.Game.Sent;
+                networks[j].Fitness += right.Game.Sent;
+                //networks[i].Fitness += Math.Max(0, (left.Game.IsDead ? left.Game.Sent - right.Game.Sent : left.Game.APL * MAX_MOVES - right.Game.Sent) + (left.Game.PiecesPlaced * 0.4 * PLACE_COE));
+                //networks[j].Fitness += Math.Max(0, (right.Game.IsDead ? right.Game.Sent - left.Game.Sent : right.Game.APL * MAX_MOVES - left.Game.Sent) + (right.Game.PiecesPlaced * 0.4 * PLACE_COE));
                 // Save progress
                 networks[j].Played = true;
                 NN.SaveNNs(Population_path, networks, gen, compat_tresh);

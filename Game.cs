@@ -22,7 +22,8 @@ public enum TargetModes
 {
     Random,
     All,
-    Self
+    Self,
+    None
 }
 
 // TODO: change callbacks to events or use tasks?
@@ -242,7 +243,7 @@ public class GameBase
         return false;
     }
 
-    public int TSpin(bool rotatedLast)
+    public int TSpinType(bool rotatedLast)
     {
         if (rotatedLast && Current.PieceType == Piece.T)
         {
@@ -635,8 +636,6 @@ public sealed class Game : GameBase
         ConsoleColor.DarkGray       // Bedrock
     };
 
-    // 0 for false, 1 for true
-    public static int GamesLock = 0;
     public static Game[] Games { get; private set; }
     public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
     private static bool _IsPaused = false;
@@ -669,7 +668,7 @@ public sealed class Game : GameBase
     }
 
     public int[] LinesTrash { get; private set; } = { 0, 0, 1, 2, 4 };
-    public int[] TSpinsTrash { get; private set; } = { 0, 2, 4, 6 };
+    public int[] TSpinTrash { get; private set; } = { 0, 2, 4, 6 };
     // Jstris combo table = { 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }
     public int[] ComboTrash { get; private set; } = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 };
     public int[] PCTrash { get; private set; } = { 0, 10, 10, 10, 10 };
@@ -738,7 +737,7 @@ public sealed class Game : GameBase
     readonly Queue<Moves> MoveQueue = new Queue<Moves>();
 
     double LastFrameTime;
-    public int LockDelay = 1000, EraseDelay = 1500, GarbageDelay = 1000; // In miliseconds
+    public int LockDelay = 500, EraseDelay = 1000, GarbageDelay = 500; // In miliseconds
     public int AutoLockGrace = 15;
     int MoveCount = 0;
     bool IsLastMoveRotate = false, AlreadyHeld = false;
@@ -773,7 +772,7 @@ public sealed class Game : GameBase
         get
         {
             if (PiecesPlaced == 0) return 0;
-            return PiecesPlaced / (GlobalTime.Elapsed.Seconds - StartTime);
+            return PiecesPlaced / (GlobalTime.Elapsed.TotalSeconds - StartTime);
         }
     }
 
@@ -832,85 +831,77 @@ public sealed class Game : GameBase
         DrawAll();
     }
 
-    public void TickAsync()
+    public void Tick()
     {
         if (IsDead || IsPaused) return;
 
         IsTicking = true;
-        new Thread(() => {
-            // Timekeeping
-            double deltaT = GlobalTime.Elapsed.TotalSeconds - LastFrameTime;
-            LastFrameTime = GlobalTime.Elapsed.TotalSeconds;
+        // Timekeeping
+        double deltaT = GlobalTime.Elapsed.TotalSeconds - LastFrameTime;
+        LastFrameTime = GlobalTime.Elapsed.TotalSeconds;
 
-            // Erase stats
-            if (EraseT.ElapsedMilliseconds > EraseDelay) EraseClearStats();
+        // Erase stats
+        if (EraseT.ElapsedMilliseconds > EraseDelay) EraseClearStats();
 
-            // Play queued moves (it's up to the input adapter to time the moves, the queue is a buffer jic)
-            bool softDrop = false;
-            while (MoveQueue.Count != 0 && !IsDead)
+        // Play queued moves (it's up to the input adapter to time the moves, the queue is a buffer jic)
+        bool softDrop = false;
+        while (MoveQueue.Count != 0 && !IsDead)
+        {
+            switch (MoveQueue.Dequeue())
             {
-                switch (MoveQueue.Dequeue())
-                {
-                    case Moves.Hold:
-                        HoldPiece();
-                        break;
-                    case Moves.Left:
-                        Slide(-1);
-                        break;
-                    case Moves.Right:
-                        Slide(1);
-                        break;
-                    case Moves.DASLeft:
-                        Slide(-10);
-                        break;
-                    case Moves.DASRight:
-                        Slide(10);
-                        break;
-                    case Moves.SoftDrop:
-                        softDrop = true;
-                        Drop((int)SoftG, 1);
-                        Vel += SoftG - Math.Floor(SoftG);
-                        break;
-                    case Moves.HardDrop:
-                        Drop(40, 2);
-                        PlacePiece();
-                        break;
-                    case Moves.RotateCW:
-                        Rotate(1);
-                        break;
-                    case Moves.RotateCCW:
-                        Rotate(-1);
-                        break;
-                    case Moves.Rotate180:
-                        Rotate(2);
-                        break;
-                }
+                case Moves.Hold:
+                    HoldPiece();
+                    break;
+                case Moves.Left:
+                    Slide(-1);
+                    break;
+                case Moves.Right:
+                    Slide(1);
+                    break;
+                case Moves.DASLeft:
+                    Slide(-10);
+                    break;
+                case Moves.DASRight:
+                    Slide(10);
+                    break;
+                case Moves.SoftDrop:
+                    softDrop = true;
+                    Drop((int)SoftG, 1);
+                    Vel += SoftG - Math.Floor(SoftG);
+                    break;
+                case Moves.HardDrop:
+                    Drop(40, 2);
+                    PlacePiece();
+                    break;
+                case Moves.RotateCW:
+                    Rotate(1);
+                    break;
+                case Moves.RotateCCW:
+                    Rotate(-1);
+                    break;
+                case Moves.Rotate180:
+                    Rotate(2);
+                    break;
             }
+        }
 
-            // Handle locking and gravity
-            Vel += G * deltaT * FConsole.Framerate;
-            if (OnGround())
-            {
-                Vel = 0;
-                if (MoveCount > AutoLockGrace) PlacePiece(); // Lock piece
-                LockT.Start();
-            }
-            else
-            {
-                if (MoveCount < AutoLockGrace) LockT.Reset();
-                Vel -= Drop((int)Vel, softDrop ? 1 : 0); // Round Vel down
-            }
-            if (LockT.ElapsedMilliseconds > LockDelay && OnGround()) PlacePiece();
+        // Handle locking and gravity
+        Vel += G * deltaT * FConsole.Framerate;
+        if (OnGround())
+        {
+            Vel = 0;
+            if (MoveCount > AutoLockGrace) PlacePiece(); // Lock piece
+            LockT.Start();
+        }
+        else
+        {
+            if (MoveCount < AutoLockGrace) LockT.Reset();
+            Vel -= Drop((int)Vel, softDrop ? 1 : 0); // Round Vel down
+        }
+        if (LockT.ElapsedMilliseconds > LockDelay && OnGround()) PlacePiece();
 
-            // Ded
-            //if (IsDead)
-            //{
-            //    Restart();
-            //}
-
-            IsTicking = false;
-            TickingCallback?.Invoke();
-        }).Start();
+        IsTicking = false;
+        TickingCallback?.Invoke();
     }
 
     public static void SetGames(Game[] games)
@@ -945,75 +936,6 @@ public sealed class Game : GameBase
             if (!g.IsDead)
                 games.Add(g);
         return games;
-    }
-
-    void SendTrash(int trash)
-    {
-        long time = GlobalTime.ElapsedMilliseconds;
-        // Select targets
-        switch (TargetMode)
-        {
-            case TargetModes.Random:
-                if (time - LastTargetChangeTime > TargetChangeInteval)
-                {
-                    LastTargetChangeTime = time;
-                    Targets.Clear();
-                    List<Game> aliveGames = GetAliveGames();
-                    if (aliveGames.Count <= 1) break;
-                    int i = new Random().Next(aliveGames.Count - 1);
-                    GameIndex = aliveGames.IndexOf(this);
-                    if (i >= GameIndex) i = (i + 1) % aliveGames.Count;
-                    Targets.Add(aliveGames[i]);
-                }
-                break;
-            case TargetModes.All:
-                Targets = GetAliveGames();
-                break;
-            case TargetModes.Self:
-                Targets = new List<Game>() { this };
-                break;
-        }
-        // Send trash
-        foreach (Game victim in Targets)
-        {
-            victim.Garbage.Add((trash, time));
-            victim.DrawTrashMeter();
-            Task.Delay(GarbageDelay + 1).ContinueWith(t => victim.DrawTrashMeter());
-
-        }
-    }
-
-    void SpawnNextPiece()
-    {
-        // Undraw next
-        for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 37, 3 + 3 * i, true);
-        // Update current and next
-        Current = Next[0];
-        for (int i = 1; i < Next.Length; i++) Next[i - 1] = Next[i];
-        Next[Next.Length - 1] = NextPiece();
-        // Reset piece
-        ResetPiece();
-        IsLastMoveRotate = false;
-        AlreadyHeld = false;
-        Vel = 0;
-        MoveCount = 0;
-        LockT.Restart();
-        // Check for block out
-        for (int i = 0; i < 4; i++)
-            if (Matrix[BlockY(i)][BlockX(i)] != 0)
-                IsDead = true;
-        // Check for lock out
-        //bool isDead = true;
-        //for (int i = 0; i < 4; i++)
-        //    if (BlockY(i) > 19)
-        //        isDead = false;
-        //IsDead |= isDead;
-        // Draw next
-        for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 37, 3 + 3 * i, false);
-        // Draw current
-        DrawCurrent(false);
     }
 
     #region // Player methods
@@ -1099,7 +1021,7 @@ public sealed class Game : GameBase
     // TODO: Update to use static trash arrays
     void PlacePiece()
     {
-        int tspin = TSpin(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
+        int tspin = TSpinType(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
         // Clear lines
         Place(out int cleared);
         // Line clears
@@ -1112,14 +1034,12 @@ public sealed class Game : GameBase
         bool pc = true;
         for (int x = 0; x < 10 && pc; x++) if (Matrix[^1][x] != 0) pc = false;
         if (pc) scoreadd += new int[] { 800, 1200, 1800, 2000 }[cleared - 1];
-        // B2B 
-        bool B2Bbonus = (tspin + cleared > 3) && B2B > -1;
+        // B2B
+        bool is_hard_clear = tspin + cleared > 3;
         if (tspin == 0 && cleared != 4 && cleared != 0) B2B = -1; // Reset B2B
-        else if (tspin + cleared > 3)
-        {
-            B2B++;
-            if (B2Bbonus) scoreadd += scoreadd / 2; //B2B bonus
-        }
+        else if (is_hard_clear) B2B++;
+        bool b2b_active = is_hard_clear && B2B > 0;
+        if (b2b_active) scoreadd += scoreadd / 2; //B2B bonus
         // Combo
         Combo = cleared == 0 ? -1 : Combo + 1;
         if (Combo > -1) scoreadd += 50 * Combo;
@@ -1136,7 +1056,7 @@ public sealed class Game : GameBase
         WriteAt(1, 11, ConsoleColor.White, Level.ToString());
         // Write clear stats and play sound
         if (tspin > 0 || cleared > 0 || Combo > 0 || pc) EraseClearStats();
-        if (B2Bbonus) WriteAt(4, 14, ConsoleColor.White, "B2B");
+        if (b2b_active) WriteAt(4, 14, ConsoleColor.White, "B2B");
         if (tspin == 2) WriteAt(0, 15, ConsoleColor.White, "T-SPIN MINI");
         else if (tspin == 3) WriteAt(2, 15, ConsoleColor.White, "T-SPIN");
         if (cleared > 0) WriteAt(2, 16, ConsoleColor.White, ClearText[cleared - 1]);
@@ -1144,14 +1064,19 @@ public sealed class Game : GameBase
         if (pc) WriteAt(0, 18, ConsoleColor.White, "ALL CLEAR!");
 
         // Trash sent
-        int trash = LinesTrash[cleared];
-        if (tspin == 3) trash += new int[] { 0, 2, 3, 4 }[cleared];
-        if (B2Bbonus) trash++;
-        //if (pc) trash += 4;
-        if (Combo > 0) trash += new int[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 9)];
-        //if (Combo > 0) _trash += new int[] { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 11)]; //jstris combo table
-        if (pc) trash = 10;
-        
+        //int trash = LinesTrash[cleared];
+        //if (tspin == 3) trash += new int[] { 0, 2, 3, 4 }[cleared];
+        //if (B2Bbonus) trash++;
+        ////if (pc) trash += 4;
+        ////if (Combo > 0) trash += new int[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 9)];
+        //if (Combo > 0) trash += new int[] { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 11)]; //jstris combo table
+        //if (pc) trash = 10;
+        int trash = pc ?         PCTrash[cleared] :
+                    tspin == 3 ? TSpinTrash[cleared] :
+                                 LinesTrash[cleared];
+        if (Combo > 0) trash += ComboTrash[Math.Min(Combo, ComboTrash.Length) - 1];
+        if (b2b_active) trash++;
+
         // Stats
         Sent += trash;
         PiecesPlaced++;
@@ -1211,6 +1136,78 @@ public sealed class Game : GameBase
                 WriteAt(12 + x * 2, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);
 
         SpawnNextPiece();
+    }
+
+    void SendTrash(int trash)
+    {
+        long time = GlobalTime.ElapsedMilliseconds;
+        // Select targets
+        switch (TargetMode)
+        {
+            case TargetModes.Random:
+                if (time - LastTargetChangeTime > TargetChangeInteval)
+                {
+                    LastTargetChangeTime = time;
+                    Targets.Clear();
+                    List<Game> aliveGames = GetAliveGames();
+                    if (aliveGames.Count <= 1) break;
+                    int i = new Random().Next(aliveGames.Count - 1);
+                    GameIndex = aliveGames.IndexOf(this);
+                    if (i >= GameIndex) i = (i + 1) % aliveGames.Count;
+                    Targets.Add(aliveGames[i]);
+                }
+                break;
+            case TargetModes.All:
+                Targets = GetAliveGames();
+                break;
+            case TargetModes.Self:
+                Targets.Clear();
+                Targets.Add(this);
+                break;
+            case TargetModes.None:
+                Targets.Clear();
+                break;
+        }
+        // Send trash
+        foreach (Game victim in Targets)
+        {
+            victim.Garbage.Add((trash, time));
+            victim.DrawTrashMeter();
+            Task.Delay(GarbageDelay + 1).ContinueWith(t => victim.DrawTrashMeter());
+        }
+    }
+
+    void SpawnNextPiece()
+    {
+        // Undraw next
+        for (int i = 0; i < Math.Min(6, Next.Length); i++)
+            DrawPiece(Next[i], 37, 3 + 3 * i, true);
+        // Update current and next
+        Current = Next[0];
+        for (int i = 1; i < Next.Length; i++) Next[i - 1] = Next[i];
+        Next[Next.Length - 1] = NextPiece();
+        // Reset piece
+        ResetPiece();
+        IsLastMoveRotate = false;
+        AlreadyHeld = false;
+        Vel = 0;
+        MoveCount = 0;
+        LockT.Restart();
+        // Check for block out
+        for (int i = 0; i < 4; i++)
+            if (Matrix[BlockY(i)][BlockX(i)] != 0)
+                IsDead = true;
+        // Check for lock out
+        //bool isDead = true;
+        //for (int i = 0; i < 4; i++)
+        //    if (BlockY(i) > 19)
+        //        isDead = false;
+        //IsDead |= isDead;
+        // Draw next
+        for (int i = 0; i < Math.Min(6, Next.Length); i++)
+            DrawPiece(Next[i], 37, 3 + 3 * i, false);
+        // Draw current
+        DrawCurrent(false);
     }
     #endregion
 

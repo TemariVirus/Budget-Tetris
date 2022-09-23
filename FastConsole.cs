@@ -128,11 +128,8 @@ static class FConsole
         get => _CursorVisible;
         set
         {
-            if (_CursorVisible != value)
-            {
-                _CursorVisible = value;
-                Console.CursorVisible = value;
-            }
+            _CursorVisible = value;
+            Console.CursorVisible = value;
         }
     }
     public static int CursorLeft = 0, CursorTop = 0;

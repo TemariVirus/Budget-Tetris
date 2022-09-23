@@ -151,33 +151,39 @@ public class Bot
         BotThread.Join();
     }
 
-    int[] SearchScore(bool lastrot, ref int comb, ref int _b2b, out double _trash, out int cleared)
+    int[] SearchScore(bool last_rot, ref int combo, ref int b2b, out double trash, out int cleared)
     {
         // { scoreadd, B2B, T - spin, combo, clears } //first bit of B2B = B2B chain status
         // Check for t - spins
-        int tspin = Sim.TSpin(lastrot);
+        int tspin = Sim.TSpinType(last_rot);
         // Clear lines
         int[] clears = Sim.Place(out cleared);
         // Combo
-        comb = cleared == 0 ? -1 : comb + 1;
+        combo = cleared == 0 ? -1 : combo + 1;
         // Perfect clear
         bool pc = true;
         for (int x = 0; x < 10; x++) if (Sim.Matrix[39][x] != 0) pc = false;
         // Compute score
-        if (tspin == 0 && cleared != 4 && cleared != 0) _b2b = -1;
-        else if (tspin + cleared > 3) _b2b++;
+        if (tspin == 0 && cleared != 4 && cleared != 0) b2b = -1;
+        else if (tspin + cleared > 3) b2b++;
 
-        //_trash = new double[] { 0, 0, 1, 2, 4 }[cleared];
-        if (pc) _trash = 5;
-        else _trash = new double[] { 0, 0, 1, 1.5, 5 }[cleared];
-        //if (info[2] == 3) _trash += new double[] { 0, 2, 3, 4 }[cleared];
-        if (tspin == 3) _trash += new double[] { 0, 2, 5, 8.5 }[cleared];
-        if ((tspin + cleared > 3) && _b2b > -1) _trash++;
-        //if (pc) _trash += 4;
-        //if (comb > 0) _trash += new double[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(comb - 1, 9)];
-        if (comb > 0) _trash += new double[] { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(comb - 1, 11)]; //jstris combo table
-        // Modify _trash(use trash sent * APL and offset it slightly)
-        //if (cleared != 0 && comb > 1) _trash = Math.FusedMultiplyAdd(_trash, _trash / cleared, -1.5);
+        ////_trash = new double[] { 0, 0, 1, 2, 4 }[cleared];
+        //if (pc) _trash = 5;
+        //else _trash = new double[] { 0, 0, 1, 1.5, 5 }[cleared];
+        ////if (info[2] == 3) _trash += new double[] { 0, 2, 3, 4 }[cleared];
+        //if (tspin == 3) _trash += new double[] { 0, 2, 5, 8.5 }[cleared];
+        //if ((tspin + cleared > 3) && b2b > -1) _trash++;
+        ////if (pc) _trash += 4;
+        ////if (comb > 0) _trash += new double[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(comb - 1, 9)];
+        //if (comb0 > 0) _trash += new double[] { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(comb0 - 1, 11)]; //jstris combo table
+        //// Modify _trash(use trash sent * APL and offset it slightly)
+        ////if (cleared != 0 && comb > 1) _trash = Math.FusedMultiplyAdd(_trash, _trash / cleared, -1.5);
+
+        trash = pc ? Game.PCTrash[cleared] :
+                tspin == 3 ? Game.TSpinTrash[cleared] :
+                             Game.LinesTrash[cleared];
+        if (combo > 0) trash += Game.ComboTrash[Math.Min(combo, Game.ComboTrash.Length) - 1];
+        if ((tspin + cleared > 3) && b2b > 0) trash++;
 
         return clears;
     }
@@ -968,6 +974,7 @@ public class NN
             // Update fitness
             fitness_func(NNs, gen, compat_tresh);
             NNs = NNs.OrderByDescending(x => x.Fitness).ToArray();
+            if (NNs[^1].Fitness < 0) throw new Exception("Fitness must be not less than 0!");
 
             // Speciate
             List<List<NN>> species = Speciate(NNs, compat_tresh);
@@ -1030,13 +1037,27 @@ public class NN
                 {
                     // Spin the wheel
                     int index = 0;
-                    int speen = Rand.Next((int)wheel[^1]);
-                    while (wheel[index] < speen) index++;
+                    double speen = Rand.NextDouble() * wheel[^1];
+                    while (wheel[index] <= speen)
+                    {
+                        if (++index == wheel.Length)
+                        {
+                            index = 0;
+                            break;
+                        }
+                    }
                     NN parent1 = elites[index];
 
                     index = 0;
-                    speen = Rand.Next((int)wheel[^1]);
-                    while (wheel[index] < speen) index++;
+                    speen = Rand.NextDouble() * wheel[^1];
+                    while (wheel[index] <= speen)
+                    {
+                        if (++index == wheel.Length)
+                        {
+                            index = 0;
+                            break;
+                        }
+                    }
                     NN parent2 = elites[index];
 
                     // Uwoooogh seeeeegs
