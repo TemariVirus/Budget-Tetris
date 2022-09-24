@@ -774,8 +774,6 @@ public class NN
         Name = data.Name;
         Played = data.Played;
         Fitness = data.Fitness;
-        Mu = data.Mu;
-        Delta = data.Delta;
     }
 
     private static string GenerateName()
