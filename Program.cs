@@ -1,7 +1,6 @@
 ﻿namespace TetrisAI;
 
 using FastConsole;
-using System.IO;
 using System.Windows.Input;
 using Tetris;
 
@@ -17,7 +16,7 @@ class Program
     const int MAX_LINES = 300;
     const int THINK_TIME_IN_MILLIS = 150, MOVE_DELAY_IN_MILLIS = 0;
     const int PLAY_TIMES = 3;
-    const double DELTA_TRESH = 0.5;
+    const double DELTA_TRESH = 0.77;
     static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\rating.txt";
         
     static void Main()
@@ -26,7 +25,7 @@ class Program
         Console.Title = "Tetris NEAT AI Training";
         FConsole.Framerate = 2222D / THINK_TIME_IN_MILLIS;
         FConsole.CursorVisible = false;
-        FConsole.SetFont("Consolas", 18);
+        FConsole.SetFont("Consolas", 16);
         FConsole.Initialise(FrameEndCallback);
 
         //Game[] games = new Game[2].Select(x => new Game()).ToArray();
@@ -106,7 +105,7 @@ class Program
         const double K = 1, A = 4, C = 3;
 
         // If it's the start of a new gen, reset mu and delta
-        if (!networks[0].Played)
+        if (networks.All(x => !x.Played))
         {
             foreach (NN network in networks)
             {
@@ -117,7 +116,7 @@ class Program
         }
 
         // Play until all NNs reach delta treshold
-        while (networks.All(x => x.Delta > DELTA_TRESH))
+        while (networks.Any(x => x.Delta > DELTA_TRESH))
         {
             double left_score = 0;
             networks = networks.OrderByDescending(x => x.Delta).ToArray();
@@ -134,9 +133,9 @@ class Program
                 FConsole.Set(FConsole.Width, FConsole.Height + 8);
                 FConsole.CursorVisible = false;
                 FConsole.WriteAt($"Gen: {gen}", 1, 28);
-                NN best_nn = networks.Aggregate((max, current) => (current.Mu > max.Mu) ? current : max);
+                NN best_nn = networks.Aggregate((max, current) => (current.Mu - current.Delta > max.Mu - max.Delta) ? current : max);
                 FConsole.WriteAt($"Best: {best_nn.Mu} +- {best_nn.Delta} by {best_nn.Name}", 1, 29);
-                FConsole.WriteAt($"Average Fitness: {networks.Average(x => x.Mu)}", 1, 30);
+                FConsole.WriteAt($"Average Fitness: {networks.Average(x => x.Mu - x.Delta)}", 1, 30);
                 FConsole.WriteAt($"Average Size: {networks.Average(x => x.GetSize())}", 1, 31);
                 FConsole.WriteAt($"No. of Species: {NN.Speciate(networks, compat_tresh).Count}", 1, 32);
 

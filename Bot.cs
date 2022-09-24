@@ -774,6 +774,8 @@ public class NN
         Name = data.Name;
         Played = data.Played;
         Fitness = data.Fitness;
+        Mu = data.Mu;
+        Delta = data.Delta;
     }
 
     private static string GenerateName()
@@ -1106,10 +1108,10 @@ public class NN
                 }
             }
 
-            // Set all NNs to unplayed and replace old NNs with new NNs
-            foreach (NN nn in new_NNs)
-                nn.Played = false;
+            // Replace old NNs with new NNs and set all NNs to unplayed
             new_NNs.CopyTo(NNs);
+            foreach (NN nn in NNs)
+                nn.Played = false;
 
             // Save new generation
             SaveNNs(path, NNs, gen, compat_tresh);
