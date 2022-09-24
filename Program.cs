@@ -2,6 +2,7 @@
 
 using FastConsole;
 using System;
+using System.Reflection;
 using System.Windows.Input;
 using Tetris;
 
@@ -17,7 +18,7 @@ class Program
     const int MAX_LINES = 300;
     const int THINK_TIME_IN_MILLIS = 150, MOVE_DELAY_IN_MILLIS = 0;
     const int PLAY_TIMES = 3;
-    const double DELTA_TRESH = 0.1;
+    const double DELTA_TRESH = 0.04;
     static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\rating.txt";
         
     static void Main()
@@ -150,7 +151,7 @@ class Program
     static void FitnessFunction(NN[] networks, int gen, double compat_tresh)
     {
         const double MinMu = -700, MaxMu = 700;
-        const double K = 1, A = 3, C = 4;
+        const double K = 1, A = 4, C = 3;
 
         // If it's the start of a new gen, reset mu and delta
         if (networks.All(x => !x.Played))
@@ -170,13 +171,11 @@ class Program
             // First NN is the one with highest delta
             networks = networks.OrderByDescending(x => x.Delta).ToArray();
             NN left = networks[0];
-            // Opponent is the one with the nearest rating that still needs to play
-            NN right = networks.Where(x => x.Delta > DELTA_TRESH && x != left)
-                               .Aggregate((networks[1], double.PositiveInfinity),
-                                          (tuple, current) => (Math.Abs(current.Mu - left.Mu) < tuple.Item2) ?
-                                                              (current, Math.Abs(current.Mu - left.Mu)) :
-                                                              tuple)
-                               .Item1;
+            // Opponent is more likely to be of similar rating
+            NN[] yet_to_play = networks.Where(x => x.Delta > DELTA_TRESH && x != left).ToArray();
+            NN right = yet_to_play[WeightedRandom(yet_to_play
+                                  .Select(x => Math.Exp((x.Mu - left.Mu) * (left.Mu - x.Mu))) // Gaussian distribution
+                                  .ToArray())];
 
             // Play 3(?) times
             for (int i = 0; i < PLAY_TIMES; i++)
@@ -283,5 +282,20 @@ class Program
 
         
         static double Decay(double x) => Math.Exp(-x) / (C + Math.Exp(A * x));
+
+        static int WeightedRandom(double[] weights)
+        {
+            // Make weights culmulative
+            for (int i = 1; i < weights.Length; i++)
+                weights[i] += weights[i - 1];
+
+            double spin = new Random(Guid.NewGuid().GetHashCode()).NextDouble() * weights[^1];
+            for (int i = 0; i < weights.Length; i++)
+            {
+                if (weights[i] > spin) return i;
+            }
+
+            return 0;
+        }
     }
 }
