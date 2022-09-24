@@ -1,8 +1,10 @@
 ﻿namespace TetrisAI;
 
+using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using Tetris;
@@ -573,13 +575,72 @@ public class Bot
 
 public class NN
 {
+    public enum ActivationTypes
+    {
+        Sigmoid,
+        TanH,
+        ReLU,
+        LeakyReLU,
+        ELU,
+        SELU,
+        SoftPlus
+    }
+
+    public struct TrainingData
+    {
+        public int Gen;
+        public double CompatTresh;
+        public NNData[] NNData;
+    }
+    
+    public struct NNData
+    {
+        public string Name;
+        public bool Played;
+        public int Inputs;
+        public int Outputs;
+        public double Fitness;
+        public double Mu, Delta;
+        public List<ConnectionData> Connections;
+        public List<ActivationTypes> Activations;
+
+        public NNData(NN network)
+        {
+            Name = network.Name;
+            Played = network.Played;
+            Inputs = network.InputCount;
+            Outputs = network.OutputCount;
+            Fitness = network.Fitness;
+            Mu = network.Mu;
+            Delta = network.Delta;
+            Connections = new List<ConnectionData>();
+            foreach (Connection c in network.Connections.Values)
+                Connections.Add(new ConnectionData
+                {
+                    Enabled = c.Enabled,
+                    Input = c.Input,
+                    Output = c.Output,
+                    Weight = c.Weight
+                });
+            Activations = new List<ActivationTypes>();
+            foreach (Node n in network.Nodes) Activations.Add(ToFuncType(n.Activation));
+        }
+    }
+
+    public struct ConnectionData
+    {
+        public bool Enabled;
+        public int Input, Output;
+        public double Weight;
+    }
+
     private class Node
     {
         public List<Node> Network;
         public double Value = 0;
         public readonly int Id;
         public List<Connection> Inputs, Outputs;
-        readonly Func<double, double> Activation;
+        public Func<double, double> Activation;
 
         public Node(int id, List<Node> network, Func<double, double> activationType, List<Connection> inputs = null, List<Connection> outputs = null)
         {
@@ -630,9 +691,7 @@ public class NN
         }
 
         public Connection(ConnectionData data) : this(data.Input, data.Output, data.Weight, data.Enabled)
-        {
-            
-        }
+        { }
 
         public Connection Clone()
         {
@@ -642,67 +701,25 @@ public class NN
         }
     }
 
-    public struct TrainingData
-    {
-        public int Gen;
-        public double CompatTresh;
-        public NNData[] NNData;
-    }
-    
-    public struct NNData
-    {
-        public string Name;
-        public bool Played;
-        public int Inputs;
-        public int Outputs;
-        public double Fitness;
-        public double Mu, Delta;
-        public List<ConnectionData> Connections;
-
-        public NNData(NN network)
-        {
-            Name = network.Name;
-            Played = network.Played;
-            Inputs = network.InputCount;
-            Outputs = network.OutputCount;
-            Fitness = network.Fitness;
-            Mu = network.Mu;
-            Delta = network.Delta;
-            Connections = new List<ConnectionData>();
-            foreach (Connection c in network.Connections.Values)
-                Connections.Add(new ConnectionData
-                {
-                    Enabled = c.Enabled,
-                    Input = c.Input,
-                    Output = c.Output,
-                    Weight = c.Weight
-                });
-        }
-    }
-
-    public struct ConnectionData
-    {
-        public bool Enabled;
-        public int Input, Output;
-        public double Weight;
-    }
-
     #region // Hyperparameters
     // Activation
-    public static readonly Func<double, double> DEFAULT_ACTIVATION = ReLU;
+    public static readonly Func<double, double> INPUT_ACTIVATION = ReLU;
+    public static readonly Func<double, double> HIDDEN_ACTIVATION = ReLU;
+    public static readonly Func<double, double> OUTPUT_ACTIVATION = ReLU;
+    //public const bool ALLOW_RECURSIVE = false;
     // Crossover & speciation
-    public const int SPECIES_TARGET = 5, SPECIES_TRY_TIMES = 10;
+    public const int SPECIES_TARGET = 6, SPECIES_TRY_TIMES = 20;
     public const double COMPAT_MOD = 1.1;
     public const double WEIGHT_DIFF_COE = 1, EXCESS_COE = 2;
-    public const double ELITE_PERCENT = 0.4; //0.3
+    public const double ELITE_PERCENT = 0.3;
     // Population
-    public const double FITNESS_TARGET = 2500;
+    public const double FITNESS_TARGET = double.PositiveInfinity;
     public const int MAX_GENERATIONS = -1; // Leave maxgen as -1 for unlimited
     // Mutation
     public const bool BOUND_WEIGHTS = false, ALLOW_RECURSIVE_CON = false;
-    public const double MUTATE_POW = 2; //MUTATE_POW = 3
+    public const double MUTATE_POW = 3;
     public const double CON_PURTURB_CHANCE = 0.8, CON_ENABLE_CHANCE = 0.1, CON_ADD_CHANCE = 0.1, NODE_ADD_CHANCE = 0.02;
-    public const int TRY_ADD_CON_TIMES = 5;
+    public const int TRY_ADD_CON_TIMES = 20;
     #endregion
 
     static readonly Random Rand = new();
@@ -734,7 +751,7 @@ public class NN
                 Connections.Add(outs[j].Id, outs[j]);
                 ConnectionIds.Add(outs[j].Id);
             }
-            Nodes.Add(new(i, Nodes, DEFAULT_ACTIVATION, outputs: new(outs)));
+            Nodes.Add(new Node(i, Nodes, INPUT_ACTIVATION, outputs: new(outs)));
         }
         // Make output nodes
         for (int i = 0; i < OutputCount; i++)
@@ -742,7 +759,7 @@ public class NN
             List<Connection> ins = new();
             for (int j = 0; j < InputCount + 1; j++)
                 ins.Add(Connections[ConnectionIds[OutputCount * j + i]]);
-            Nodes.Add(new(InputCount + i + 1, Nodes, DEFAULT_ACTIVATION, inputs: new List<Connection>(ins)));
+            Nodes.Add(new(InputCount + i + 1, Nodes, OUTPUT_ACTIVATION, inputs: new List<Connection>(ins)));
         }
         // Find all connected nodes
         FindConnectedNodes();
@@ -750,7 +767,7 @@ public class NN
 
     private NN(int inputs, int outputs, List<Connection> connections)
     {
-        InputCount = inputs; // Add 1 for bias
+        InputCount = inputs;
         OutputCount = outputs;
         foreach (Connection c in connections)
         {
@@ -760,7 +777,9 @@ public class NN
             Connections.Add(newc.Id, newc);
             // Add nodes as nescessary
             while (Nodes.Count <= newc.Input || Nodes.Count <= newc.Output)
-                Nodes.Add(new Node(Nodes.Count, Nodes, DEFAULT_ACTIVATION));
+                Nodes.Add(new Node(Nodes.Count, Nodes, Nodes.Count <= inputs ? INPUT_ACTIVATION :
+                                                       Nodes.Count <= inputs + outputs ? OUTPUT_ACTIVATION :
+                                                                                         HIDDEN_ACTIVATION));
             // Add connection to coresponding nodes
             Nodes[c.Input].Outputs.Add(newc);
             Nodes[c.Output].Inputs.Add(newc);
@@ -776,6 +795,9 @@ public class NN
         Fitness = data.Fitness;
         Mu = data.Mu;
         Delta = data.Delta;
+        if (data.Activations != null)
+            for (int i = 0; i < data.Activations.Count; i++)
+                Nodes[i].Activation = ToFunc(data.Activations[i]);
     }
 
     private static string GenerateName()
@@ -908,7 +930,7 @@ public class NN
             ConnectionIds.Add(outcon.Id);
             Nodes[breakcon.Input].Outputs.Add(incon);
             Nodes[breakcon.Output].Inputs.Add(outcon);
-            Nodes.Add(new Node(Nodes.Count, Nodes, DEFAULT_ACTIVATION, new List<Connection>() { incon }, new List<Connection>() { outcon }));
+            Nodes.Add(new Node(Nodes.Count, Nodes, HIDDEN_ACTIVATION, new List<Connection>() { incon }, new List<Connection>() { outcon }));
         }
 
         // Find all connected nodes
@@ -1008,8 +1030,8 @@ public class NN
         {
             for (int i = 0; i < pop_size; i++)
                 NNs[i] = new NN(inputs, outputs);
-            SaveNNs(path, NNs, gen, compat_tresh);
         }
+        SaveNNs(path, NNs, gen, compat_tresh);
 
         // Train
         for (; gen < MAX_GENERATIONS || MAX_GENERATIONS == -1; gen++)
@@ -1151,6 +1173,29 @@ public class NN
     }
     static double UniformRand() => Math.FusedMultiplyAdd(Rand.NextDouble(), 2, -1);
     #region // Activation functions
+    static Func<double, double> ToFunc(ActivationTypes type)
+    {
+        MethodInfo[] methods = typeof(NN).GetMethods(BindingFlags.Static | BindingFlags.NonPublic);
+        foreach (MethodInfo method in methods)
+        {
+            if (method.Name == type.ToString())
+                return (Func<double, double>)Delegate.CreateDelegate(typeof(Func<double, double>), method);
+        }
+
+        throw new MissingMethodException("Activation function not found!");
+    }
+    static ActivationTypes ToFuncType(Func<double, double> func)
+    {
+        MemberInfo[] types = typeof(ActivationTypes).GetMembers();
+        foreach (MemberInfo type in types)
+        {
+            if (type.Name == func.Method.Name)
+                return (ActivationTypes)Enum.Parse(typeof(ActivationTypes), type.Name);
+        }
+
+        throw new MissingMemberException("Activation type not found!");
+    }
+
     static double Sigmoid(double x) => 1 / (1 + Math.Exp(-x));
     static double TanH(double x) => Math.Tanh(x);
     static double ReLU(double x) => x >= 0 ? x : 0;

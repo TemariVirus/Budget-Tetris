@@ -19,7 +19,7 @@ class Program
     const int THINK_TIME_IN_MILLIS = 150, MOVE_DELAY_IN_MILLIS = 0;
     const int PLAY_TIMES = 3;
     const double DELTA_TRESH = 0.04;
-    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\rating.txt";
+    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\rating2.json";
         
     static void Main()
     {
@@ -30,13 +30,14 @@ class Program
         FConsole.SetFont("Consolas", 16);
         FConsole.Initialise(FrameEndCallback);
 
-        //Game[] games = new Game[2].Select(x => new Game()).ToArray();
-        //Game.SetGames(games);
-        //new Bot(NN.LoadNNNew(AppContext.BaseDirectory + @"NNs\plan2 new.txt"), games[0]).Start(100, 0);
+        Game[] games = new Game[2].Select(x => new Game()).ToArray();
+        Game.SetGames(games);
+        FConsole.Set(FConsole.Width, FConsole.Height + 2);
+        //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NN\plan2.txt"), games[0]).Start(150, 0);
         //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\fixedhold vs.txt"), games[1]).Start(100, 0);
 
         // Train NNs
-        NN.Train(Population_path, FitnessFunction, 6, 1, 30);
+        NN.Train(Population_path, FitnessFunction, 6, 1, 50);
     }
 
     static void SetupPlayerInput(Game player_game)
@@ -151,7 +152,7 @@ class Program
     static void FitnessFunction(NN[] networks, int gen, double compat_tresh)
     {
         const double MinMu = -700, MaxMu = 700;
-        const double K = 1, A = 4, C = 3;
+        const double K = 1, A = 2, C = 2;
 
         // If it's the start of a new gen, reset mu and delta
         if (networks.All(x => !x.Played))
