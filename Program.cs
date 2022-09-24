@@ -14,16 +14,17 @@ using Tetris;
 //- add a featrue for t-spins
 class Program
 {
-    // MAX_LINES = 300
-    const int MAX_LINES = 250, THINK_TIME_IN_MILLIS = 100;
-    const double PLACE_COE = 0;
-    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\fixedhold vs.txt";
+    const int MAX_LINES = 300;
+    const int THINK_TIME_IN_MILLIS = 150, MOVE_DELAY_IN_MILLIS = 0;
+    const int PLAY_TIMES = 3;
+    const double DELTA_TRESH = 0.5;
+    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\rating.txt";
         
     static void Main()
     {
         // Set up console
         Console.Title = "Tetris NEAT AI Training";
-        FConsole.Framerate = 21;
+        FConsole.Framerate = 2222D / THINK_TIME_IN_MILLIS;
         FConsole.CursorVisible = false;
         FConsole.SetFont("Consolas", 18);
         FConsole.Initialise(FrameEndCallback);
@@ -34,14 +35,7 @@ class Program
         //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\fixedhold vs.txt"), games[1]).Start(100, 0);
 
         // Train NNs
-        //NN.Train(Population_path, FitnessFunction, 6, 1, 30);
-        
-        //NN[] nns = NN.LoadNNs(Population_path, out int gen, out double compat_tresh);
-        //NN.SaveNNsNew(AppContext.BaseDirectory + "test.txt", nns, gen, compat_tresh);
-        string dict = AppContext.BaseDirectory + @"NNs\";
-        foreach (string f in Directory.GetFiles(dict)) NN.SaveNN(f, NN.LoadNNLagacy(f));
-        //NN.SaveNN(dict + "plan2.txt", NN.LoadNN(dict + "downstacking vs.txt"));
-        
+        NN.Train(Population_path, FitnessFunction, 6, 1, 30);
     }
 
     static void SetupPlayerInput(Game player_game)
@@ -76,130 +70,6 @@ class Program
         }
     }
 
-    class Player
-    {
-        public double Mean = 0, StdDev = 100;
-        public NN NN;
-
-        public static void Update(Player A, Player B, double result_A)
-        {
-            // Update eqns:
-            // rA += k * dA * (sA - P(A wins)); where k is constant and > 0
-            // dA *= 1 - decay(|sA - P(A wins)|) ; where decay(x) = e^-x / (c + e^ax); where a and c are constant
-            // P(A wins) = 1 / (1 + e^(rB - rA))
-            const double K = 1, N = 4, C = 3;
-
-            double P_A = 1 / (1 + Math.Exp(B.Mean - A.Mean));
-            double error_A = result_A - P_A;
-            //double error_B = result_B - (1 - P_A);
-            double error_B = -error_A; // if result_A + result_B = 1
-            A.Mean += K * A.StdDev * error_A;
-            A.StdDev *= 1 - Decay(Math.Abs(error_A));
-            B.Mean += K * B.StdDev * error_B;
-            B.StdDev *= 1 - Decay(Math.Abs(error_B));
-
-
-            static double Decay(double x) => Math.Exp(-x) / (C + Math.Exp(N * x));
-        }
-    }
-
-    static void FitnessFunction(NN[] networks, int gen, double compat_tresh)
-    {
-        // Pick up where we left off
-        int current = 0;
-        while (networks[current].Played)
-        {
-            current++;
-            if (current == networks.Length) return;
-        }
-
-        // Round-robin tournament
-        for (int i = current; i < networks.Length - 1; i++)
-        {
-            // Pick up where we left off
-            int rival = i + 1;
-            while (networks[rival].Played)
-            {
-                rival++;
-                if (rival == networks.Length) break;
-            }
-            
-            // Play against rest of networks
-            for (int j = rival; j < networks.Length; j++)
-            {
-                // Prepare games
-                int seed = Guid.NewGuid().GetHashCode();
-                Game[] games = new Game[2].Select(x => new Game(5, seed)).ToArray();
-                Game.SetGames(games);
-
-                // Show info on console
-                FConsole.Set(FConsole.Width, FConsole.Height + 8);
-                FConsole.CursorVisible = false;
-                FConsole.WriteAt($"Gen: {gen}", 1, 28);
-                double max = 0, average = 0;
-                int max_index = -1;
-                for (int k = 0; k < i; k++)
-                {
-                    double fitness = networks[k].Fitness;
-                    average += fitness;
-                    if (fitness > max)
-                    {
-                        max = fitness;
-                        max_index = k;
-                    }
-                }
-                if (i != 0) average /= i;
-                FConsole.WriteAt($"Best: {max} by AI no. {max_index}", 1, 29);
-                FConsole.WriteAt($"Average Fitness: {average}", 1, 30);
-                FConsole.WriteAt($"Average Size: {networks.Average(x => x.GetSize())}", 1, 31);
-                FConsole.WriteAt($"No. of Species: {NN.Speciate(networks, compat_tresh).Count}", 1, 32);
-
-                // Start bots
-                Bot left = new Bot(networks[i], games[0]);
-                Bot right = new Bot(networks[j], games[1]);
-                left.Game.Name = "AI no. " + i;
-                right.Game.Name = "AI no. " + j;
-                Game.IsPaused = false;
-                left.Start(THINK_TIME_IN_MILLIS, 0);
-                right.Start(THINK_TIME_IN_MILLIS, 0);
-
-                // Wait until one dies or game takes too long
-                while (games.Any(x => !x.IsDead) && games.All(x => x.Lines < MAX_LINES))
-                {
-                    foreach (Game g in Game.Games)
-                    {
-                        g.WriteAt(0, 6, ConsoleColor.White, $"Sent: {g.Sent}".PadRight(11));
-                        g.WriteAt(0, 22, ConsoleColor.White, $"APL: {Math.Round(g.APL, 3)}".PadRight(10));
-                    }
-                    Thread.Sleep((int)(1000 / FConsole.Framerate));
-                }
-                
-                // Stop bots
-                Game.IsPaused = true;
-                left.Stop();
-                right.Stop();
-
-                // Experiment with this
-                networks[i].Fitness += left.Game.Sent;
-                networks[j].Fitness += right.Game.Sent;
-                //networks[i].Fitness += Math.Max(0, (left.Game.IsDead ? left.Game.Sent - right.Game.Sent : left.Game.APL * MAX_MOVES - right.Game.Sent) + (left.Game.PiecesPlaced * 0.4 * PLACE_COE));
-                //networks[j].Fitness += Math.Max(0, (right.Game.IsDead ? right.Game.Sent - left.Game.Sent : right.Game.APL * MAX_MOVES - left.Game.Sent) + (right.Game.PiecesPlaced * 0.4 * PLACE_COE));
-                // Save progress
-                networks[j].Played = true;
-                NN.SaveNNs(Population_path, networks, gen, compat_tresh);
-            }
-            
-            for (int j = i + 1; j < networks.Length; j++)
-                networks[j].Played = false;
-            networks[i].Played = true;
-            networks[i].Fitness /= networks.Length - 1;
-        }
-        networks[^1].Played = true;
-        networks[^1].Fitness /= networks.Length - 1;
-
-        return;
-    }
-
     // Own rating system:
     //
     // Goals:
@@ -230,71 +100,128 @@ class Program
     //   As ln(double.maxvalue) ~ 709.78, we will shift the ratings to make the highest one 700, then shift again to make the lowest one
     //   not smaller than -700 become -700 (ratings under -700 are considered negligible)
     //  -Start with mean of 0, and sd of 100 (~99.9999999997% fall within 7 sd of the mean)
-    //static void NewFitnessFunction(NN[] networks, int gen, double compat_tresh)
-    //{
-    //    // Play until all NNs 
-    //    while (true)
-    //    {
-    //        // Prepare games
-    //        int seed = Guid.NewGuid().GetHashCode();
-    //        Game[] games = new Game[2].Select(x => new Game(5, seed)).ToArray();
-    //        Game.SetGames(games);
+    static void FitnessFunction(NN[] networks, int gen, double compat_tresh)
+    {
+        const double MinMu = -700, MaxMu = 700;
+        const double K = 1, A = 4, C = 3;
 
-    //        // Show info on console
-    //        FConsole.Set(FConsole.Width, FConsole.Height + 8);
-    //        FConsole.CursorVisible = false;
-    //        FConsole.WriteAt($"Gen: {gen}", 1, 28);
-    //        double max = 0, average = 0;
-    //        int max_index = -1;
-    //        for (int k = 0; k < i; k++)
-    //        {
-    //            double fitness = networks[k].Fitness;
-    //            average += fitness;
-    //            if (fitness > max)
-    //            {
-    //                max = fitness;
-    //                max_index = k;
-    //            }
-    //        }
-    //        if (i != 0) average /= i;
-    //        FConsole.WriteAt($"Best: {max} by AI no. {max_index}", 1, 29);
-    //        FConsole.WriteAt($"Average Fitness: {average}", 1, 30);
-    //        FConsole.WriteAt($"Average Size: {networks.Average(x => x.GetSize())}", 1, 31);
-    //        FConsole.WriteAt($"No. of Species: {NN.Speciate(networks, compat_tresh).Count}", 1, 32);
+        // If it's the start of a new gen, reset mu and delta
+        if (!networks[0].Played)
+        {
+            foreach (NN network in networks)
+            {
+                network.Mu = 0; // Maybe we can skip resetting this
+                network.Delta = 100;
+            }
+            networks[0].Played = true;
+        }
 
-    //        // Start bots
-    //        Bot left = new Bot(networks[i], games[0]);
-    //        Bot right = new Bot(networks[j], games[1]);
-    //        left.Game.Name = "AI no. " + i;
-    //        right.Game.Name = "AI no. " + j;
-    //        Game.IsPaused = false;
-    //        left.Start(THINK_TIME_IN_MILLIS, 0);
-    //        right.Start(THINK_TIME_IN_MILLIS, 0);
+        // Play until all NNs reach delta treshold
+        while (networks.All(x => x.Delta > DELTA_TRESH))
+        {
+            double left_score = 0;
+            networks = networks.OrderByDescending(x => x.Delta).ToArray();
 
-    //        // Wait until one dies or game takes too long
-    //        while (games.Any(x => !x.IsDead) && games.All(x => x.Lines < MAX_LINES))
-    //        {
-    //            foreach (Game g in Game.Games)
-    //            {
-    //                g.WriteAt(0, 6, ConsoleColor.White, $"Sent: {g.Sent}".PadRight(11));
-    //                g.WriteAt(0, 22, ConsoleColor.White, $"APL: {Math.Round(g.APL, 3)}".PadRight(10));
-    //            }
-    //            Thread.Sleep((int)(1000 / FConsole.Framerate));
-    //        }
+            // Play 3(?) times
+            for (int i = 0; i < PLAY_TIMES; i++)
+            {
+                // Prepare games
+                int seed = Guid.NewGuid().GetHashCode();
+                Game[] games = new Game[2].Select(x => new Game(5, seed)).ToArray();
+                Game.SetGames(games);
 
-    //        // Stop bots
-    //        Game.IsPaused = true;
-    //        left.Stop();
-    //        right.Stop();
+                // Show info on console
+                FConsole.Set(FConsole.Width, FConsole.Height + 8);
+                FConsole.CursorVisible = false;
+                FConsole.WriteAt($"Gen: {gen}", 1, 28);
+                NN best_nn = networks.Aggregate((max, current) => (current.Mu > max.Mu) ? current : max);
+                FConsole.WriteAt($"Best: {best_nn.Mu} +- {best_nn.Delta} by {best_nn.Name}", 1, 29);
+                FConsole.WriteAt($"Average Fitness: {networks.Average(x => x.Mu)}", 1, 30);
+                FConsole.WriteAt($"Average Size: {networks.Average(x => x.GetSize())}", 1, 31);
+                FConsole.WriteAt($"No. of Species: {NN.Speciate(networks, compat_tresh).Count}", 1, 32);
 
-    //        // Experiment with this
-    //        networks[i].Fitness += left.Game.Sent;
-    //        networks[j].Fitness += right.Game.Sent;
-            
-    //        // Save progress
-    //        NN.SaveNNs(Population_path, networks, gen, compat_tresh);
-    //    }
+                // Start bots
+                Bot left = new Bot(networks[0], games[0]);
+                Bot right = new Bot(networks[1], games[1]);
+                left.Game.Name = networks[0].Name;
+                right.Game.Name = networks[1].Name;
+                Game.IsPaused = false;
+                left.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);
+                right.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);
 
-    //    return;
-    //}
+                // Wait until one dies or game takes too long
+                while (games.All(x => !x.IsDead) && games.All(x => x.Lines < MAX_LINES))
+                {
+                    foreach (Game g in Game.Games)
+                    {
+                        g.WriteAt(0, 6, ConsoleColor.White, $"Sent: {g.Sent}".PadRight(11));
+                        g.WriteAt(0, 22, ConsoleColor.White, $"APL: {Math.Round(g.APL, 3)}".PadRight(10));
+                    }
+                    Thread.Sleep((int)(1000 / FConsole.Framerate));
+                }
+                // If only one is alive, wait a while to see if it kills itself
+                if (left.Game.IsDead ^ right.Game.IsDead)
+                {
+                    Game alive = left.Game.IsDead ? right.Game : left.Game;
+                    int placed = alive.PiecesPlaced;
+                    while (alive.PiecesPlaced - placed < 10 && !alive.IsDead)
+                    {
+                        foreach (Game g in Game.Games)
+                        {
+                            g.WriteAt(0, 6, ConsoleColor.White, $"Sent: {g.Sent}".PadRight(11));
+                            g.WriteAt(0, 22, ConsoleColor.White, $"APL: {Math.Round(g.APL, 3)}".PadRight(10));
+                        }
+                        Thread.Sleep((int)(1000 / FConsole.Framerate));
+                    }
+                }
+
+                // End game
+                Game.IsPaused = true;
+                left.Stop();
+                right.Stop();
+
+                if (left.Game.IsDead ^ right.Game.IsDead)
+                {
+                    // If left is only one surviving, left wins
+                    if (!left.Game.IsDead) left_score += 1D;
+                }
+                else
+                {
+                    // If both alive or both dead, call it a draw
+                    left_score += 0.5D;
+                }
+            }
+
+            // Update rating mean and std dev
+            double P_left = 1 / (1 + Math.Exp(networks[1].Mu - networks[0].Mu));
+            left_score /= PLAY_TIMES;
+            double error_left = left_score - P_left;
+            double error_right = -error_left;
+            networks[0].Mu += K * networks[0].Delta * error_left;
+            networks[0].Delta *= 1 - Decay(Math.Abs(error_left));
+            networks[1].Mu += K * networks[1].Delta * error_right;
+            networks[1].Delta *= 1 - Decay(Math.Abs(error_right));
+
+            // Save progress
+            NN.SaveNNs(Population_path, networks, gen, compat_tresh);
+        }
+
+        // Shift means so that the fittest is exactly the max
+        double shift = MaxMu - networks.Max(x => x.Mu);
+        foreach (NN network in networks) network.Mu += shift;
+        // Any means lower than the min are too small, so they are ignored
+        // Of the remaining means, we shift back down so that the least fit is excatly the min
+        shift = MinMu - networks.Min(x => (x.Mu < MinMu) ? double.PositiveInfinity : x.Mu);
+        foreach (NN network in networks) network.Mu += shift;
+        // Fitness = e^mean
+        foreach (NN network in networks)
+        {
+            network.Fitness = Math.Exp(network.Mu);
+            network.Played = true;
+        }
+        return;
+
+        
+        static double Decay(double x) => Math.Exp(-x) / (C + Math.Exp(A * x));
+    }
 }
