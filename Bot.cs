@@ -1,14 +1,10 @@
 ﻿namespace TetrisAI;
 
-using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Windows.Media;
 using Tetris;
 
 public class Bot
@@ -655,20 +651,25 @@ public class NN
     
     public struct NNData
     {
+        public string Name;
         public bool Played;
         public int Inputs;
         public int Outputs;
         public double Fitness;
+        public double Mu, Delta;
         public List<ConnectionData> Connections;
 
-        public NNData(NN nn)
+        public NNData(NN network)
         {
-            Played = nn.Played;
-            Inputs = nn.InputCount;
-            Outputs = nn.OutputCount;
-            Fitness = nn.Fitness;
+            Name = network.Name;
+            Played = network.Played;
+            Inputs = network.InputCount;
+            Outputs = network.OutputCount;
+            Fitness = network.Fitness;
+            Mu = network.Mu;
+            Delta = network.Delta;
             Connections = new List<ConnectionData>();
-            foreach (Connection c in nn.Connections.Values)
+            foreach (Connection c in network.Connections.Values)
                 Connections.Add(new ConnectionData
                 {
                     Enabled = c.Enabled,
@@ -707,10 +708,12 @@ public class NN
     static readonly Random Rand = new();
     private static readonly List<int> InNodes = new List<int>(), OutNodes = new List<int>();
 
+    public string Name = GenerateName();
     public bool Played = false;
     public int InputCount { get; private set; }
     public int OutputCount { get; private set; }
     public double Fitness = 0;
+    public double Mu, Delta;
     private readonly List<Node> Nodes = new List<Node>();
     public bool[] Visited { get; private set; }
     private readonly List<int> ConnectionIds = new List<int>();
@@ -768,8 +771,33 @@ public class NN
 
     private NN(NNData data) : this(data.Inputs, data.Outputs, data.Connections.Select(x => new Connection(x)).ToList())
     {
+        Name = data.Name;
         Played = data.Played;
         Fitness = data.Fitness;
+        Mu = data.Mu;
+        Delta = data.Delta;
+    }
+
+    private static string GenerateName()
+    {
+        Random r = new Random(Guid.NewGuid().GetHashCode());
+        string[] consonants = { "b", "c", "d", "f", "g", "h", "j", "k", "l", "m", "l", "n", "p", "q", "r", "s", "sh", "zh", "t", "v", "w", "x" };
+        string[] vowels = { "a", "e", "i", "o", "u", "ae", "y" };
+        string name = "";
+        name += consonants[r.Next(consonants.Length)];
+        name += vowels[r.Next(vowels.Length)];
+        int len = r.Next(8) + 4;
+        while (name.Length < len)
+        {
+            name += consonants[r.Next(consonants.Length)];
+            name += vowels[r.Next(vowels.Length)];
+        }
+
+        //name = (name[0] + 32) + name.Substring(1);
+        Span<char> name_span = name.ToCharArray();
+        name_span[0] = (char)(name_span[0] - 32);
+        
+        return name_span.ToString();
     }
 
     public double[] FeedFoward(double[] input)
@@ -936,22 +964,6 @@ public class NN
         string json = JsonSerializer.Serialize(training_data, options);
         File.WriteAllText(path, json, Encoding.UTF8); 
         return;
-    }
-
-    [Obsolete("Use LoadNN instead")]
-    public static NN LoadNNLagacy(string path)
-    {
-        string[] lines = File.ReadAllLines(path, Encoding.UTF8);
-        string[] inout = lines[1].Split(' ');
-        List<Connection> cons = new List<Connection>();
-        for (int i = 2; i < lines.Length; i++)
-        {
-            string[] split = lines[i].Split(' ');
-            if (split.Length != 4)
-                cons.Add(new Connection(Convert.ToInt32(split[0]), Convert.ToInt32(split[1]), Convert.ToDouble(split[2])));
-        }
-
-        return new NN(Convert.ToInt32(inout[0]), Convert.ToInt32(inout[1]), cons);
     }
 
     public static NN LoadNN(string path)
