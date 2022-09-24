@@ -305,13 +305,31 @@ static class FConsole
 
     public static void WriteAt(string text, int x, int y, ConsoleColor foreground = ConsoleColor.White, ConsoleColor background = ConsoleColor.Black)
     {
-        int index = y * Width + x;
-        for (int i = 0; i < text.Length && index < Height * Width; i++, index++)
+        int pos = y * Width + x;
+        for (int i = 0; i < text.Length && pos < Height * Width; i++, pos++)
         {
             // might need to do checks for tab, return and newline?
-            ConsoleBuffer[index] = text[i] | ((int)foreground << 16) | ((int)background << 20);
+            if (text[i] == '\t')
+            {
+                int space_end = pos + 8 - (pos % Width % 8);
+                for (; pos < space_end && pos < Height * Width; pos++)
+                    ConsoleBuffer[pos] = ' ' | ((int)foreground << 16) | ((int)background << 20);
+            }
+            else if (text[i] == '\r')
+            {
+                pos -= pos % Width;
+            }
+            else if (text[i] == '\n')
+            {
+                pos -= pos % Width;
+                pos += Width - 1;
+            }
+            else
+            {
+                ConsoleBuffer[pos] = text[i] | ((int)foreground << 16) | ((int)background << 20);
+            }
         }
-        int cursor_pos = Math.Min(index, ConsoleBuffer.Length - 1);
+        int cursor_pos = Math.Min(pos, ConsoleBuffer.Length - 1);
         CursorLeft = cursor_pos % Width;
         CursorTop = cursor_pos / Width;
     }
