@@ -276,7 +276,6 @@ class Program
         // Fitness = e^mean
         foreach (NN network in networks)
         {
-            //network.Fitness = Math.Exp(network.Mu);
             network.Fitness = Math.Exp(network.Mu);
             network.Played = true;
         }
