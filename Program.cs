@@ -2,42 +2,41 @@
 
 using FastConsole;
 using System;
-using System.Reflection;
 using System.Windows.Input;
 using Tetris;
 
-// Inputs: standard height, caves, pillars, row transitions, col transitions, trash
-// Outputs: score of state
+// Inputs: standard height, caves, pillars, row transitions, col transitions, trash, cleared, intent
+// Outputs: score of state, intent(don't search further if it drops below a treshold)
 // TODO:
-//- Do timekeeping on a separate thread
-//- Separate lines sent and lines cleared
 //- add height of trash as a feature
 //- add a featrue for t-spins
 class Program
 {
-    const int MAX_LINES = 300;
-    const int THINK_TIME_IN_MILLIS = 150, MOVE_DELAY_IN_MILLIS = 0;
-    const int PLAY_TIMES = 3;
+    const int MAX_LINES = 1000;
+    const int THINK_TIME_IN_MILLIS = 100, MOVE_DELAY_IN_MILLIS = 0;
+    const int PLAY_TIMES = 4;
     const double DELTA_TRESH = 0.04;
-    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\rating2.json";
+    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\double out.json";
         
     static void Main()
     {
         // Set up console
         Console.Title = "Tetris NEAT AI Training";
-        FConsole.Framerate = 2222D / THINK_TIME_IN_MILLIS;
+        FConsole.Framerate = 10;
         FConsole.CursorVisible = false;
         FConsole.SetFont("Consolas", 16);
-        FConsole.Initialise(FrameEndCallback);
+        //FConsole.SetFont("Consolas", 40); // Biggest
+        FConsole.Initialise();
 
-        Game[] games = new Game[2].Select(x => new Game()).ToArray();
-        Game.SetGames(games);
-        FConsole.Set(FConsole.Width, FConsole.Height + 2);
-        //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NN\plan2.txt"), games[0]).Start(150, 0);
-        //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\fixedhold vs.txt"), games[1]).Start(100, 0);
+        //int seed = new Random().Next();
+        //Game[] games = new Game[2].Select(x => new Game(5, seed)).ToArray();
+        //Game.SetGames(games);
+        //FConsole.Set(FConsole.Width, FConsole.Height + 2);
+        //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[1]).Start(150, 0);
+        //new NewBot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]).Start(150, 0);
 
         // Train NNs
-        NN.Train(Population_path, FitnessFunction, 6, 1, 50);
+        NN.Train(Population_path, FitnessFunctionAPL, 8, 2, 50);
     }
 
     static void SetupPlayerInput(Game player_game)
@@ -82,6 +81,7 @@ class Program
             // Prepare games
             Game game = new Game(5, seed);
             Game.SetGames(new Game[] { game });
+            if (gen % 2 == 0) HalfHeight();
 
             // Show info on console
             FConsole.Set(FConsole.Width, FConsole.Height + 8);
@@ -97,17 +97,13 @@ class Program
             FConsole.WriteLine($" No. of Species: {NN.Speciate(networks, compat_tresh).Count}");
 
             // Start bots
-            Bot bot = new Bot(network, game);
+            NewBot bot = new NewBot(network, game);
             game.Name = network.Name;
             bot.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);
 
             // Wait bot dies or game takes too long
             while (!game.IsDead && game.Lines < MAX_LINES)
-            {
-                game.WriteAt(0, 6, ConsoleColor.White, $"Sent: {game.Sent}".PadRight(11));
-                game.WriteAt(0, 22, ConsoleColor.White, $"APL: {Math.Round(game.APL, 3)}".PadRight(10));
-                Thread.Sleep((int)(1000 / FConsole.Framerate));
-            }
+                Thread.Sleep(THINK_TIME_IN_MILLIS / 2);
 
             // End game
             bot.Stop();
@@ -148,7 +144,7 @@ class Program
     //  -Having the lowest rating be as low as possible will allow for much higher ratings before hitting overflow.
     //   As ln(double.maxvalue) ~ 709.78, we will shift the ratings to make the highest one 700, then shift again to make the lowest one
     //   not smaller than -700 become -700 (ratings under -700 are considered negligible)
-    //  -Start with mean of 0, and sd of 3 (Chess ratings range from around 0-2800, which in our scale is roughly 0-16. With an sd of 8/3 ~3 we can expect that 99.7% of the ratings are within 3 sd)
+    //  -Start with mean of 0, and sd of 8/3 (Chess ratings range from around 0-2800, which in our scale is roughly 0-16. With an sd of 8/3 we can expect that 99.7% of the ratings are within 3 sd)
     static void FitnessFunction(NN[] networks, int gen, double compat_tresh)
     {
         const double MinMu = -700, MaxMu = 700;
@@ -159,10 +155,11 @@ class Program
         {
             foreach (NN network in networks)
             {
-                network.Mu = 0; // Maybe we can skip resetting this
-                network.Delta = 3;
+                network.Mu = 0;
+                network.Delta = 8D / 3D;
             }
             networks[0].Played = true;
+            NN.SaveNNs(Population_path, networks, gen, compat_tresh);
         }
 
         // Play until all NNs reach delta treshold
@@ -173,10 +170,14 @@ class Program
             networks = networks.OrderByDescending(x => x.Delta).ToArray();
             NN left = networks[0];
             // Opponent is more likely to be of similar rating
-            NN[] yet_to_play = networks.Where(x => x.Delta > DELTA_TRESH && x != left).ToArray();
-            NN right = yet_to_play[WeightedRandom(yet_to_play
-                                  .Select(x => Math.Exp((x.Mu - left.Mu) * (left.Mu - x.Mu))) // Gaussian distribution
-                                  .ToArray())];
+            //NN[] yet_to_play = networks.Skip(1).Where(x => x.Delta > DELTA_TRESH * 0.9).ToArray();
+            //NN right = yet_to_play[WeightedRandom(yet_to_play
+            //                                      .Select(x => Math.Exp((x.Mu - left.Mu) * (left.Mu - x.Mu))) // Gaussian distribution (e^-x^2)
+            //                                      .ToArray())];
+            NN right = networks[WeightedRandom(networks
+                                               .Skip(1) // Skip first NN
+                                               .Select(x => Math.Exp((x.Mu - left.Mu) * (left.Mu - x.Mu))) // Gaussian distribution (e^-x^2)
+                                               .ToArray()) + 1];
 
             // Play 3(?) times
             for (int i = 0; i < PLAY_TIMES; i++)
@@ -189,16 +190,17 @@ class Program
                 // Show info on console
                 FConsole.Set(FConsole.Width, FConsole.Height + 8);
                 FConsole.CursorVisible = false;
-                FConsole.WriteAt($"Gen: {gen}", 1, 28);
-                NN best_nn = networks.Aggregate((max, current) => (current.Mu - current.Delta > max.Mu - max.Delta) ? current : max);
-                FConsole.WriteAt($"Best: {best_nn.Mu} +- {best_nn.Delta} by {best_nn.Name}", 1, 29);
-                FConsole.WriteAt($"Average Fitness: {networks.Average(x => x.Mu - x.Delta)}", 1, 30);
-                FConsole.WriteAt($"Average Size: {networks.Average(x => x.GetSize())}", 1, 31);
-                FConsole.WriteAt($"No. of Species: {NN.Speciate(networks, compat_tresh).Count}", 1, 32);
+                FConsole.WriteAt($"Gen: {gen}\n", 1, 28);
+                //NN best_nn = networks.Aggregate((max, current) => (current.Mu - current.Delta > max.Mu - max.Delta) ? current : max);
+                NN best_nn = networks.Aggregate((max, current) => (current.Mu > max.Mu) ? current : max);
+                FConsole.WriteLine($" Best: {best_nn.Mu} +- {best_nn.Delta} by {best_nn.Name}");
+                FConsole.WriteLine($" Average Rating: {networks.Average(x => x.Mu - x.Delta)}");
+                FConsole.WriteLine($" Average Size: {networks.Average(x => x.GetSize())}");
+                FConsole.WriteLine($" No. of Species: {NN.Speciate(networks, compat_tresh).Count}");
 
                 // Start bots
-                Bot left_bot = new Bot(left, games[0]);
-                Bot right_bot = new Bot(right, games[1]);
+                NewBot left_bot = new NewBot(left, games[0]);
+                NewBot right_bot = new NewBot(right, games[1]);
                 left_bot.Game.Name = left.Name;
                 right_bot.Game.Name = right.Name;
                 Game.IsPaused = false;
@@ -221,14 +223,7 @@ class Program
                     Game alive = left_bot.Game.IsDead ? right_bot.Game : left_bot.Game;
                     int placed = alive.PiecesPlaced;
                     while (alive.PiecesPlaced - placed < 10 && !alive.IsDead)
-                    {
-                        foreach (Game g in Game.Games)
-                        {
-                            g.WriteAt(0, 6, ConsoleColor.White, $"Sent: {g.Sent}".PadRight(11));
-                            g.WriteAt(0, 22, ConsoleColor.White, $"APL: {Math.Round(g.APL, 3)}".PadRight(10));
-                        }
-                        Thread.Sleep((int)(1000 / FConsole.Framerate));
-                    }
+                        Thread.Sleep(THINK_TIME_IN_MILLIS / 2);
                 }
 
                 // End game
@@ -297,6 +292,18 @@ class Program
             }
 
             return 0;
+        }
+    }
+
+    static void HalfHeight()
+    {
+        foreach (Game g in Game.Games)
+        {
+            int[] full_row = new int[10].Select(x => Piece.Bedrock).ToArray();
+            for (int j = 30; j < 40; j++)
+            {
+                full_row.CopyTo(g.Matrix[j], 0);
+            }
         }
     }
 }

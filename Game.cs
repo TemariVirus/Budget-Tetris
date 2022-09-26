@@ -669,14 +669,11 @@ public sealed class Game : GameBase
 
     public int[] LinesTrash { get; private set; } = { 0, 0, 1, 2, 4 };
     public int[] TSpinTrash { get; private set; } = { 0, 2, 4, 6 };
-    // Jstris combo table = { 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }
-    public int[] ComboTrash { get; private set; } = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 };
+    //public int[] ComboTrash { get; private set; } = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Tetris 99
+    public int[] ComboTrash { get; private set; } = { 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Jstris
     public int[] PCTrash { get; private set; } = { 0, 10, 10, 10, 10 };
 
     #region // Fields and Properties
-    public Action TickingCallback;
-    public bool IsTicking { get; private set; } = false;
-
     int XOffset = 0;
     int YOffset = 0;
 
@@ -750,7 +747,7 @@ public sealed class Game : GameBase
 
     int GameIndex;
     long TargetChangeInteval = 500, LastTargetChangeTime; // In miliseconds
-    TargetModes TargetMode = TargetModes.Random;
+    public TargetModes TargetMode = TargetModes.Random;
     List<Game> Targets = new List<Game>();
     #endregion
 
@@ -835,7 +832,6 @@ public sealed class Game : GameBase
     {
         if (IsDead || IsPaused) return;
 
-        IsTicking = true;
         // Timekeeping
         double deltaT = GlobalTime.Elapsed.TotalSeconds - LastFrameTime;
         LastFrameTime = GlobalTime.Elapsed.TotalSeconds;
@@ -900,8 +896,10 @@ public sealed class Game : GameBase
         }
         if (LockT.ElapsedMilliseconds > LockDelay && OnGround()) PlacePiece();
 
-        IsTicking = false;
-        TickingCallback?.Invoke();
+        // Write stats
+        WriteAt(0, 20, ConsoleColor.White, $"Sent:{Sent}".PadRight(11));
+        WriteAt(0, 21, ConsoleColor.White, $"PPS: {Math.Round(PPS, 3)}".PadRight(11));
+        WriteAt(0, 22, ConsoleColor.White, $"APL: {Math.Round(APL, 3)}".PadRight(11));
     }
 
     public static void SetGames(Game[] games)
@@ -1324,21 +1322,4 @@ public sealed class Game : GameBase
         DrawTrashMeter();
     }
     #endregion
-
-    public static bool AllReady()
-    {
-        if (Games == null) return false;
-
-        bool allReady = true;
-        foreach (Game g in Games)
-        {
-            if (g.IsTicking)
-            {
-                allReady = false;
-                break;
-            }
-        }
-
-        return allReady;
-    }
 }
