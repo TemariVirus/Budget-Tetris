@@ -564,8 +564,8 @@ public class Bot
 
 public class NewBot : Bot
 {
-    new const double MIN_TRESH = -0.99, MAX_TRESH = 0.5, MOVE_MUL = 1.05;
-    const double MOVE_TRESH_START = -0.5;
+    new const double MIN_TRESH = -0.999, MAX_TRESH = 1, MOVE_MUL = 0.015;
+    const double MOVE_TRESH_START = 0;
 
     public NewBot(NN network, Game game) : base(network, game)
     {
@@ -714,11 +714,11 @@ public class NewBot : Bot
         //double inverse = MoveTresh >= 0 ? MoveTresh : MoveTresh / Math.Sqrt(1 - MoveTresh * MoveTresh);
         //// plus or minus inverse here instead
         //if (time_remaining > 0)
-        //    MoveTresh *= Math.Pow(MOVEMUL, time_remaining / ((1 + Math.E) / Math.E - time_remaining));
+        //    inverse -= MOVE_MUL * time_remaining * time_remaining / (2 - time_remaining);
         //else
-        //    MoveTresh *= Math.Pow(MOVEMUL, MaxDepth - MOVETARGET);
+        //    inverse += MOVE_MUL * (MOVE_TARGET - MaxDepth);
         //MoveTresh = inverse >= 0 ? inverse : inverse / Math.Sqrt(inverse * inverse + 1);
-        //MoveTresh = Math.Min(Math.Max(MoveTresh, MINTRESH), MAXTRESH);
+        //MoveTresh = Math.Min(Math.Max(MoveTresh, MIN_TRESH), MAX_TRESH);
 
         return bestMoves;
     }

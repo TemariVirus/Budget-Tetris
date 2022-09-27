@@ -473,7 +473,7 @@ public class NN
         SaveNNs(path, NNs, gen, compat_tresh);
 
         // Train
-        for (; gen < MAX_GENERATIONS || MAX_GENERATIONS == -1; gen++)
+        for (; gen < MAX_GENERATIONS || MAX_GENERATIONS == -1;)
         {
             // Update fitness and age
             fitness_func(NNs, gen, compat_tresh);
@@ -576,6 +576,7 @@ public class NN
                 nn.Played = false;
 
             // Save new generation
+            gen++;
             SaveNNs(path, NNs, gen, compat_tresh);
         }
 

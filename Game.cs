@@ -669,8 +669,8 @@ public sealed class Game : GameBase
 
     public int[] LinesTrash { get; private set; } = { 0, 0, 1, 2, 4 };
     public int[] TSpinTrash { get; private set; } = { 0, 2, 4, 6 };
-    //public int[] ComboTrash { get; private set; } = { 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Tetris 99
-    public int[] ComboTrash { get; private set; } = { 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Jstris
+    //public int[] ComboTrash { get; private set; } = { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Tetris 99
+    public int[] ComboTrash { get; private set; } = { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Jstris
     public int[] PCTrash { get; private set; } = { 0, 10, 10, 10, 10 };
 
     #region // Fields and Properties
@@ -1016,7 +1016,6 @@ public sealed class Game : GameBase
         }
     }
 
-    // TODO: Update to use static trash arrays
     void PlacePiece()
     {
         int tspin = TSpinType(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
@@ -1062,13 +1061,6 @@ public sealed class Game : GameBase
         if (pc) WriteAt(0, 18, ConsoleColor.White, "ALL CLEAR!");
 
         // Trash sent
-        //int trash = LinesTrash[cleared];
-        //if (tspin == 3) trash += new int[] { 0, 2, 3, 4 }[cleared];
-        //if (B2Bbonus) trash++;
-        ////if (pc) trash += 4;
-        ////if (Combo > 0) trash += new int[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 9)];
-        //if (Combo > 0) trash += new int[] { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }[Math.Min(Combo - 1, 11)]; //jstris combo table
-        //if (pc) trash = 10;
         int trash = pc ?         PCTrash[cleared] :
                     tspin == 3 ? TSpinTrash[cleared] :
                                  LinesTrash[cleared];
@@ -1108,8 +1100,11 @@ public sealed class Game : GameBase
                     int linesToAdd = Garbage[0].Item1;
                     Garbage.RemoveAt(0);
                     int hole = GarbageRand.Next(10);
-                    for (int y = 17; y < 40; y++) Matrix[y - linesToAdd] = Matrix[y]; // Move stuff up
-                    for (int y = 40 - linesToAdd; y < 40; y++)
+                    int bedrock_height = Matrix.Length - 1;
+                    while (Matrix[bedrock_height].All(x => x == Piece.Bedrock)) bedrock_height--;
+                    bedrock_height++;
+                    for (int y = 17; y < bedrock_height; y++) Matrix[y - linesToAdd] = Matrix[y]; // Move stuff up
+                    for (int y = bedrock_height - linesToAdd; y < bedrock_height; y++)
                     {
                         // Make row of trash
                         Matrix[y] = new int[10];

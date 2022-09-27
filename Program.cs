@@ -12,8 +12,8 @@ using Tetris;
 //- add a featrue for t-spins
 class Program
 {
-    const int MAX_LINES = 1000;
-    const int THINK_TIME_IN_MILLIS = 100, MOVE_DELAY_IN_MILLIS = 0;
+    const int MAX_LINES = 250;
+    const int THINK_TIME_IN_MILLIS = 150, MOVE_DELAY_IN_MILLIS = 0;
     const int PLAY_TIMES = 4;
     const double DELTA_TRESH = 0.04;
     static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\double out.json";
@@ -22,7 +22,7 @@ class Program
     {
         // Set up console
         Console.Title = "Tetris NEAT AI Training";
-        FConsole.Framerate = 10;
+        FConsole.Framerate = 12;
         FConsole.CursorVisible = false;
         FConsole.SetFont("Consolas", 16);
         //FConsole.SetFont("Consolas", 40); // Biggest
@@ -33,10 +33,10 @@ class Program
         //Game.SetGames(games);
         //FConsole.Set(FConsole.Width, FConsole.Height + 2);
         //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[1]).Start(150, 0);
-        //new NewBot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]).Start(150, 0);
+        //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan3.txt"), games[0]).Start(150, 0);
 
         // Train NNs
-        NN.Train(Population_path, FitnessFunctionAPL, 8, 2, 50);
+        NN.Train(Population_path, FitnessFunction, 8, 2, 50);
     }
 
     static void SetupPlayerInput(Game player_game)
@@ -81,7 +81,6 @@ class Program
             // Prepare games
             Game game = new Game(5, seed);
             Game.SetGames(new Game[] { game });
-            if (gen % 2 == 0) HalfHeight();
 
             // Show info on console
             FConsole.Set(FConsole.Width, FConsole.Height + 8);
@@ -186,6 +185,7 @@ class Program
                 int seed = Guid.NewGuid().GetHashCode();
                 Game[] games = new Game[2].Select(x => new Game(5, seed)).ToArray();
                 Game.SetGames(games);
+                if (gen % 2 == 0) HalfHeight();
 
                 // Show info on console
                 FConsole.Set(FConsole.Width, FConsole.Height + 8);
