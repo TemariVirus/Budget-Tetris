@@ -110,7 +110,11 @@ public class Bot
                 foreach (Moves move in moves)
                 {
                     Game.Play(move);
-                    Thread.Sleep(move_delay);
+                    if (move_delay != 0)
+                    {
+                        Game.Tick();
+                        Thread.Sleep(move_delay);
+                    }
                 }
                 // Stats
                 Game.WriteAt(0, Game.GAMEHEIGHT - 1, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(Game.GAMEWIDTH));
@@ -546,6 +550,7 @@ public class Bot
         ulong hash = PieceHashTable[piece.PieceType] ^ HoldHashTable[_hold.PieceType];
         for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++) hash ^= NextHashTable[i][Sim.Next[nexti + i]];
         for (int x = 0; x < 10; x++) for (int y = 20; y < 40; y++) if (Sim.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
+        
         return hash;
     }
 
@@ -596,6 +601,9 @@ public class NewBot : Bot
         MaxDepth = 0;
         int combo = Game.Combo, b2b = Game.B2B;
         double[] outs = Network.FeedFoward(ExtrFeat(0, 0, 0));
+        ulong hash = HashState(0, 0, 0);
+        if (!CachedStateValues.ContainsKey(hash))
+            CachedStateValues.Add(hash, outs[0]);
         for (int depth = 0; !TimesUp && depth < Sim.Next.Length; depth++)
         {
             CurrentDepth = depth;
@@ -632,7 +640,7 @@ public class NewBot : Bot
                         int new_combo = combo, new_b2b = b2b;
                         int[] clears = SearchScore(false, ref new_combo, ref new_b2b, out double garbage, out int cleared);
                         // Check if better
-                        double newvalue = Search(depth, nexti + 1, Sim.Next[nexti], hold, false, new_combo, new_b2b, outs[0], cleared, garbage, outs[1]);
+                        double newvalue = Search(depth, nexti + 1, Sim.Next[nexti], hold, false, new_combo, new_b2b, cleared, garbage, outs[1]);
                         if (newvalue >= bestScore)
                         {
                             if (pathfind.PathFind(piece, orix, oriy, out List<Moves> new_bestMoves))
@@ -669,7 +677,7 @@ public class NewBot : Bot
                                     new_b2b = b2b;
                                     clears = SearchScore(true, ref new_combo, ref new_b2b, out garbage, out cleared);
                                     // Check if better
-                                    newvalue = Search(depth, nexti + 1, Sim.Next[nexti], hold, false, new_combo, new_b2b, outs[0], cleared, garbage, outs[1]);
+                                    newvalue = Search(depth, nexti + 1, Sim.Next[nexti], hold, false, new_combo, new_b2b, cleared, garbage, outs[1]);
                                     if (newvalue > bestScore)
                                     {
                                         if (pathfind.PathFind(rotated, x, y, out List<Moves> new_bestMoves))
@@ -723,7 +731,7 @@ public class NewBot : Bot
         return bestMoves;
     }
 
-    protected double Search(int depth, int nexti, Piece current, Piece _hold, bool swapped, int comb, int b2b, double prevstate, double cleared, double _trash, double intent)
+    protected double Search(int depth, int nexti, Piece current, Piece _hold, bool swapped, int comb, int b2b, double cleared, double _trash, double intent)
     {
         //if (TimesUp || pc_found) return double.MinValue;
         if (TimesUp) return double.MinValue;
@@ -737,11 +745,7 @@ public class NewBot : Bot
         {
             NodeCounts[0]++;
 
-            ulong hash = BitConverter.DoubleToUInt64Bits(_trash);
-            for (int x = 0; x < 10; x++)
-                for (int y = 20; y < 40; y++)
-                    if (Sim.Matrix[y][x] != Piece.EMPTY)
-                        hash ^= MatrixHashTable[x][y];
+            ulong hash = HashState(cleared, _trash, intent);
             if (CachedStateValues.ContainsKey(hash))
                 return CachedStateValues[hash];
 
@@ -754,18 +758,14 @@ public class NewBot : Bot
         {
             double _value = double.MinValue;
             // Have we seen this situation before?
-            ulong hash = HashBoard(current, _hold, nexti, depth);
+            ulong hash = HashBoard(current, _hold, nexti, depth, cleared, _trash, intent);
             if (CachedValues.ContainsKey(hash)) return CachedValues[hash];
             // Check if this move should be explored
             double discount = Discounts[CurrentDepth - depth];
             double[] outs = Network.FeedFoward(ExtrFeat(cleared, _trash, intent));
             if (outs[1] < MoveTresh)
             {
-                ulong statehash = BitConverter.DoubleToUInt64Bits(_trash);
-                for (int x = 0; x < 10; x++)
-                    for (int y = 20; y < 40; y++)
-                        if (Sim.Matrix[y][x] != Piece.EMPTY)
-                            statehash ^= MatrixHashTable[x][y];
+                ulong statehash = HashState(cleared, _trash, intent);
                 if (!CachedStateValues.ContainsKey(statehash))
                     CachedStateValues.Add(statehash, outs[0]);
                 return outs[0];
@@ -774,9 +774,9 @@ public class NewBot : Bot
             if (!swapped)
             {
                 if (_hold.PieceType == Piece.EMPTY)
-                    _value = Math.Max(_value, Search(depth, nexti + 1, Sim.Next[nexti], current, true, comb, b2b, prevstate, cleared, _trash, intent));
+                    _value = Math.Max(_value, Search(depth, nexti + 1, Sim.Next[nexti], current, true, comb, b2b, cleared, _trash, intent));
                 else
-                    _value = Math.Max(_value, Search(depth, nexti, _hold, current, true, comb, b2b, prevstate, cleared, _trash, intent));
+                    _value = Math.Max(_value, Search(depth, nexti, _hold, current, true, comb, b2b, cleared, _trash, intent));
                 if (CachedValues.ContainsKey(hash))
                     return CachedValues[hash];
             }
@@ -800,7 +800,7 @@ public class NewBot : Bot
                         int new_comb = comb, new_b2b = b2b;
                         clears = SearchScore(false, ref new_comb, ref new_b2b, out double garbage, out int _cleared);
                         // Check if better
-                        _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sim.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], cleared + _cleared, Math.FusedMultiplyAdd(discount, garbage, _trash), outs[1]));
+                        _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sim.Next[nexti], _hold, false, new_comb, new_b2b, cleared + _cleared, Math.FusedMultiplyAdd(discount, garbage, _trash), outs[1]));
                         // Revert matrix
                         Sim.X = orix;
                         Sim.Y = oriy;
@@ -827,7 +827,7 @@ public class NewBot : Bot
                                 int new_comb = comb, new_b2b = b2b;
                                 clears = SearchScore(true, ref new_comb, ref new_b2b, out double garbage, out int _cleared);
                                 // Check if better
-                                _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sim.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], cleared + _cleared, Math.FusedMultiplyAdd(discount, garbage, _trash), outs[1]));
+                                _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sim.Next[nexti], _hold, false, new_comb, new_b2b, cleared + _cleared, Math.FusedMultiplyAdd(discount, garbage, _trash), outs[1]));
                                 // Revert matrix
                                 Sim.X = x;
                                 Sim.Y = y;
@@ -855,11 +855,14 @@ public class NewBot : Bot
         double[] heights = new double[10];
         for (int x = 0; x < 10; x++)
         {
-            double height = 20;
-            for (int y = 20; Sim.Matrix[y][x] == 0; y++)
+            double height = 40 - Sim.Highest;
+            if (Sim.Highest < 40)
             {
-                height--;
-                if (y == 39) break;
+                for (int y = Sim.Highest; Sim.Matrix[y][x] == Piece.EMPTY; y++)
+                {
+                    height--;
+                    if (y == 39) break;
+                }
             }
             heights[x] = height;
         }
@@ -905,7 +908,7 @@ public class NewBot : Bot
         double rowtrans = 0;
         if (Network.Visited[3])
         {
-            for (int y = 19; y < 40; y++)
+            for (int y = Sim.Highest; y < 40; y++)
             {
                 bool empty = Sim.Matrix[y][0] == 0;
                 for (int x = 1; x < 10; x++)
@@ -925,8 +928,8 @@ public class NewBot : Bot
         {
             for (int x = 0; x < 10; x++)
             {
-                bool empty = Sim.Matrix[19][x] == 0;
-                for (int y = 20; y < 40; y++)
+                bool empty = Sim.Matrix[Sim.Highest - 1][x] == 0;
+                for (int y = Sim.Highest - 1; y < 40; y++)
                 {
                     bool isempty = Sim.Matrix[y][x] == 0;
                     if (empty ^ isempty)
@@ -939,5 +942,26 @@ public class NewBot : Bot
         }
 
         return new double[] { h, caves, pillars, rowtrans, coltrans, sent, cleared, intent };
+    }
+
+    protected ulong HashBoard(Piece piece, Piece _hold, int nexti, int depth, double cleared, double trash, double intent)
+    {
+        ulong hash = PieceHashTable[piece.PieceType] ^ HoldHashTable[_hold.PieceType];
+        for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++) hash ^= NextHashTable[i][Sim.Next[nexti + i]];
+        for (int x = 0; x < 10; x++) for (int y = Sim.Highest; y < 40; y++) if (Sim.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
+        hash ^= BitConverter.DoubleToUInt64Bits(trash) << 3;
+        hash ^= BitConverter.DoubleToUInt64Bits(cleared) >> 5;
+        hash ^= BitConverter.DoubleToUInt64Bits(intent);
+        return hash;
+    }
+
+    protected ulong HashState(double cleared, double trash, double intent)
+    {
+        ulong hash = 0;
+        for (int x = 0; x < 10; x++) for (int y = Sim.Highest; y < 40; y++) if (Sim.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
+        hash ^= BitConverter.DoubleToUInt64Bits(trash) << 3;
+        hash ^= BitConverter.DoubleToUInt64Bits(cleared) >> 5;
+        hash ^= BitConverter.DoubleToUInt64Bits(intent);
+        return hash;
     }
 }

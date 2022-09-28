@@ -8,14 +8,16 @@ using Tetris;
 // Inputs: standard height, caves, pillars, row transitions, col transitions, trash, cleared, intent
 // Outputs: score of state, intent(don't search further if it drops below a treshold)
 // TODO:
+//- optimise GameBase
+//- check for places whese matrix is changed outside of gamebase's control (and maybe make a setter/getter that resets height every time it's changed by smth outside
 //- add height of trash as a feature
 //- add a featrue for t-spins
 class Program
 {
     const int MAX_LINES = 250;
-    const int THINK_TIME_IN_MILLIS = 150, MOVE_DELAY_IN_MILLIS = 0;
+    const int THINK_TIME_IN_MILLIS = 100, MOVE_DELAY_IN_MILLIS = 100;
     const int PLAY_TIMES = 4;
-    const double DELTA_TRESH = 0.04;
+    const double DELTA_TRESH = 0.0487; // Just less than 5% error (e^0.0487 ~ 1.0499)
     static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\double out.json";
         
     static void Main()
@@ -28,15 +30,15 @@ class Program
         //FConsole.SetFont("Consolas", 40); // Biggest
         FConsole.Initialise();
 
-        //int seed = new Random().Next();
-        //Game[] games = new Game[2].Select(x => new Game(5, seed)).ToArray();
-        //Game.SetGames(games);
-        //FConsole.Set(FConsole.Width, FConsole.Height + 2);
-        //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[1]).Start(150, 0);
-        //new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan3.txt"), games[0]).Start(150, 0);
+        int seed = new Random().Next();
+        Game[] games = new Game[2].Select(x => new Game(8, seed)).ToArray();
+        Game.SetGames(games);
+        FConsole.Set(FConsole.Width, FConsole.Height + 2);
+        new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[1]).Start(150, 0);
+        new NewBot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\double out.txt"), games[0]).Start(150, 0);
 
         // Train NNs
-        NN.Train(Population_path, FitnessFunction, 8, 2, 50);
+        //NN.Train(Population_path, FitnessFunction, 8, 2, 50);
     }
 
     static void SetupPlayerInput(Game player_game)
@@ -174,7 +176,7 @@ class Program
             //                                      .Select(x => Math.Exp((x.Mu - left.Mu) * (left.Mu - x.Mu))) // Gaussian distribution (e^-x^2)
             //                                      .ToArray())];
             NN right = networks[WeightedRandom(networks
-                                               .Skip(1) // Skip first NN
+                                               .Skip(1) // Skip the one already picked
                                                .Select(x => Math.Exp((x.Mu - left.Mu) * (left.Mu - x.Mu))) // Gaussian distribution (e^-x^2)
                                                .ToArray()) + 1];
 
@@ -185,7 +187,6 @@ class Program
                 int seed = Guid.NewGuid().GetHashCode();
                 Game[] games = new Game[2].Select(x => new Game(5, seed)).ToArray();
                 Game.SetGames(games);
-                if (gen % 2 == 0) HalfHeight();
 
                 // Show info on console
                 FConsole.Set(FConsole.Width, FConsole.Height + 8);
@@ -209,14 +210,7 @@ class Program
 
                 // Wait until one dies or game takes too long
                 while (games.All(x => !x.IsDead) && games.All(x => x.Lines < MAX_LINES))
-                {
-                    foreach (Game g in Game.Games)
-                    {
-                        g.WriteAt(0, 6, ConsoleColor.White, $"Sent: {g.Sent}".PadRight(11));
-                        g.WriteAt(0, 22, ConsoleColor.White, $"APL: {Math.Round(g.APL, 3)}".PadRight(10));
-                    }
-                    Thread.Sleep((int)(1000 / FConsole.Framerate));
-                }
+                    Thread.Sleep(THINK_TIME_IN_MILLIS / 2);
                 // If only one is alive, wait a while to see if it kills itself
                 if (left_bot.Game.IsDead ^ right_bot.Game.IsDead)
                 {
@@ -303,6 +297,7 @@ class Program
             for (int j = 30; j < 40; j++)
             {
                 full_row.CopyTo(g.Matrix[j], 0);
+                g.CheckHeight();
             }
         }
     }

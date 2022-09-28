@@ -72,6 +72,7 @@ public sealed class Piece
     public readonly int Id;
     public readonly int PieceType, R;
     public readonly int[] X, Y;
+    public readonly int Highest, Lowest, Height;
     public readonly int MinX, MaxX, MaxY;
     internal readonly int[] KicksCWX, KicksCWY;
     internal readonly int[] KicksCCWX, KicksCCWY;
@@ -91,6 +92,9 @@ public sealed class Piece
         MinX = -X.Min();
         MaxX = 9 - X.Max();
         MaxY = 39 - Y.Max();
+        Highest = Y.Min();
+        Lowest = Y.Max();
+        Height = Lowest - Highest;
 
         GetKicksTable(true, this, out KicksCWX, out KicksCWY);
         GetKicksTable(false, this, out KicksCCWX, out KicksCCWY);
@@ -185,6 +189,8 @@ public class GameBase
 {
     protected static readonly int[] GarbageLine = { Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage };
 
+    // Try out array of heights as well
+    public int Highest { get; private set; }
     public readonly int[][] Matrix = new int[40][]; // [y][x]
     internal int X, Y;
 
@@ -200,6 +206,7 @@ public class GameBase
     {
         BagIndex = Bag.Length;
         for (int i = 0; i < 40; i++) Matrix[i] = new int[10];
+        Highest = Matrix.Length;
     }
 
     public GameBase(int next_length, int seed) : this()
@@ -235,6 +242,7 @@ public class GameBase
 
     public bool OnGround()
     {
+        // if (Y + Current.Lowest < Highest) return false; // Ald checked in most cases, wouldn't speed things up
         if (Y >= Current.MaxY) return true;
         for (int i = 0; i < 4; i++)
             if (Matrix[BlockY(i) + 1][BlockX(i)] != Piece.EMPTY)
@@ -406,6 +414,13 @@ public class GameBase
     // Returns true if the piece was moved; Otherwise, returns false
     public bool TrySlide(int dx)
     {
+        if (Y + Current.Lowest < Highest)
+        {
+            X += dx;
+            X = Math.Clamp(X, Current.MinX, Current.MaxX);
+            return dx != 0;
+        }
+
         bool right = dx > 0, moved = false;
         while (dx != 0)
         {
@@ -420,7 +435,15 @@ public class GameBase
     // Returns number of blocks moved down by
     public int TryDrop(int dy)
     {
-        int moved = 0;
+        int diff = Highest - Y - Current.Lowest - 1;
+        if (diff > dy)
+        {
+            Y += dy;
+            return dy;
+        }
+        dy = Math.Min(dy, dy - diff);
+        int moved = Math.Max(0, diff);
+        Y += moved;
         for (; dy > 0 && !OnGround(); dy--, Y++) moved++;
         return moved;
     }
@@ -437,6 +460,7 @@ public class GameBase
     public int[] Place(out int cleared)
     {
         // Put piece into matrix
+        Highest = Math.Min(Highest, Y + Current.Highest);
         for (int i = 0; i < 4; i++) Matrix[BlockY(i)][BlockX(i)] = Current.PieceType;
 
         // Find cleared lines
@@ -470,6 +494,7 @@ public class GameBase
             // Add new empty rows
             for (; movedown > 0; movedown--) Matrix[16 + movedown] = new int[10];
         }
+        Highest += cleared;
 
         return clears;
     }
@@ -490,16 +515,38 @@ public class GameBase
                 }
                 else Matrix[y] = Matrix[y + moveup];
             }
+            Highest -= cleared;
         }
 
         // Remove piece
         for (int i = 0; i < 4; i++) Matrix[BlockY(i)][BlockX(i)] = Piece.EMPTY;
+
+        while (Highest < 40)
+        {
+            for (int i = 0; i < 10; i++)
+                if (Matrix[Highest][i] != Piece.EMPTY)
+                    return;
+            Highest++;
+        }
+    }
+
+    public void CheckHeight()
+    {
+        Highest = 0;
+        while (Highest < Matrix.Length)
+        {
+            for (int i = 0; i < 10; i++)
+                if (Matrix[Highest][i] != Piece.EMPTY)
+                    return;
+            Highest++;
+        }
     }
 
     public GameBase Clone()
     {
         GameBase clone = new(Next.Length, 0);
         for (int i = 0; i < 40; i++) clone.Matrix[i] = (int[])Matrix[i].Clone();
+        clone.Highest = Highest;
         clone.X = X;
         clone.Y = Y;
         clone.Current = Current;
@@ -797,6 +844,7 @@ public sealed class Game : GameBase
     public void Restart()
     {
         for (int i = 0; i < Matrix.Length; i++) Matrix[i] = new int[Matrix[i].Length];
+        CheckHeight();
         BagIndex = Bag.Length;
         for (int i = 0; i < Next.Length; i++) Next[i] = NextPiece();
         Hold = Piece.EMPTY;
@@ -1128,6 +1176,7 @@ public sealed class Game : GameBase
             for (int y = 39; y > 19; y--)
                 WriteAt(12 + x * 2, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);
 
+        CheckHeight();
         SpawnNextPiece();
     }
 
