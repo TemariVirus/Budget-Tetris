@@ -146,7 +146,7 @@ public class NN
     public const int SPECIES_TARGET = 6, SPECIES_TRY_TIMES = 20;
     public const double COMPAT_MOD = 1.1;
     public const double WEIGHT_DIFF_COE = 1, EXCESS_COE = 2;
-    public const double ELITE_PERCENT = 0.3;
+    public const double ELITE_PERCENT = 0.4;
     // Population
     public const double FITNESS_TARGET = double.PositiveInfinity;
     public const int MAX_GENERATIONS = -1; // Leave maxgen as -1 for unlimited

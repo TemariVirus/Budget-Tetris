@@ -686,7 +686,7 @@ public sealed class Game : GameBase
     public static Game[] Games { get; private set; }
     public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
     private static bool _IsPaused = false;
-    public static bool IsPaused 
+    public static bool IsPaused
     {
         get => _IsPaused;
         set
@@ -776,12 +776,12 @@ public sealed class Game : GameBase
     public int B2B { get; internal set; } = -1;
     public int Combo { get; internal set; } = -1;
 
-    public double G = 0.03, SoftG = 1;
+    public double G = 0.05, SoftG = 1;
     double Vel = 0;
     readonly Queue<Moves> MoveQueue = new Queue<Moves>();
 
     double LastFrameTime;
-    public int LockDelay = 500, EraseDelay = 1000, GarbageDelay = 500; // In miliseconds
+    public int LockDelay = 1000, EraseDelay = 1000, GarbageDelay = 500; // In miliseconds
     public int AutoLockGrace = 15;
     int MoveCount = 0;
     bool IsLastMoveRotate = false, AlreadyHeld = false;
@@ -789,7 +789,6 @@ public sealed class Game : GameBase
                        EraseT = new Stopwatch();
 
     readonly Random GarbageRand;
-    int GarbageLock = 0;
     readonly List<(int, long)> Garbage = new List<(int, long)>();
 
     int GameIndex;
@@ -826,7 +825,7 @@ public sealed class Game : GameBase
         get
         {
             if (PiecesPlaced == 0) return 0;
-            return KeysPressed / PiecesPlaced;
+            return (double)KeysPressed / PiecesPlaced;
         }
     }
     #endregion
@@ -988,7 +987,7 @@ public sealed class Game : GameBase
     public void Play(Moves move)
     {
         if (IsDead || IsPaused) return;
-        
+
         MoveQueue.Enqueue(move);
         KeysPressed++;
     }
@@ -1109,7 +1108,7 @@ public sealed class Game : GameBase
         if (pc) WriteAt(0, 18, ConsoleColor.White, "ALL CLEAR!");
 
         // Trash sent
-        int trash = pc ?         PCTrash[cleared] :
+        int trash = pc ? PCTrash[cleared] :
                     tspin == 3 ? TSpinTrash[cleared] :
                                  LinesTrash[cleared];
         if (Combo > 0) trash += ComboTrash[Math.Min(Combo, ComboTrash.Length) - 1];
@@ -1120,55 +1119,45 @@ public sealed class Game : GameBase
         PiecesPlaced++;
 
         // Garbage
-        try
+        // Garbage cancelling
+        while (Garbage.Count != 0 && trash != 0)
         {
-            // Aquire lock
-            while (1 == Interlocked.Exchange(ref GarbageLock, 1)) Thread.Sleep(0);
-            // Garbage cancelling
-            while (Garbage.Count != 0 && trash != 0)
+            if (Garbage[0].Item1 <= trash)
             {
-                if (Garbage[0].Item1 <= trash)
-                {
-                    trash -= Garbage[0].Item1;
-                    Garbage.RemoveAt(0);
-                }
-                else
-                {
-                    Garbage[0] = (Garbage[0].Item1 - trash, Garbage[0].Item2);
-                    trash = 0;
-                }
+                trash -= Garbage[0].Item1;
+                Garbage.RemoveAt(0);
             }
-            // Dump the trash
-            if (cleared == 0)
+            else
             {
-                while (Garbage.Count != 0)
-                {
-                    if (GlobalTime.ElapsedMilliseconds - Garbage[0].Item2 <= GarbageDelay) break;
+                Garbage[0] = (Garbage[0].Item1 - trash, Garbage[0].Item2);
+                trash = 0;
+            }
+        }
+        // Dump the trash
+        if (cleared == 0)
+        {
+            while (Garbage.Count > 0)
+            {
+                if (GlobalTime.ElapsedMilliseconds - Garbage[0].Item2 <= GarbageDelay) break;
 
-                    int linesToAdd = Garbage[0].Item1;
-                    Garbage.RemoveAt(0);
-                    int hole = GarbageRand.Next(10);
-                    int bedrock_height = Matrix.Length - 1;
-                    while (Matrix[bedrock_height].All(x => x == Piece.Bedrock)) bedrock_height--;
-                    bedrock_height++;
-                    for (int y = 17; y < bedrock_height; y++) Matrix[y - linesToAdd] = Matrix[y]; // Move stuff up
-                    for (int y = bedrock_height - linesToAdd; y < bedrock_height; y++)
-                    {
-                        // Make row of trash
-                        Matrix[y] = new int[10];
-                        Buffer.BlockCopy(GarbageLine, 0, Matrix[y], 0, 10 * sizeof(int));
-                        // Add hole
-                        Matrix[y][hole] = Piece.EMPTY;
-                    }
+                int linesToAdd = Garbage[0].Item1;
+                Garbage.RemoveAt(0);
+                int hole = GarbageRand.Next(10);
+                int bedrock_height = Matrix.Length - 1;
+                while (Matrix[bedrock_height].All(x => x == Piece.Bedrock)) bedrock_height--;
+                bedrock_height++;
+                for (int y = 17; y < bedrock_height; y++) Matrix[y - linesToAdd] = Matrix[y]; // Move stuff up
+                for (int y = bedrock_height - linesToAdd; y < bedrock_height; y++)
+                {
+                    // Make row of trash
+                    Matrix[y] = new int[10];
+                    Buffer.BlockCopy(GarbageLine, 0, Matrix[y], 0, 10 * sizeof(int));
+                    // Add hole
+                    Matrix[y][hole] = Piece.EMPTY;
                 }
             }
-            DrawTrashMeter();
         }
-        finally
-        {
-            // Release lock
-            Interlocked.Exchange(ref GarbageLock, 0);
-        }
+        DrawTrashMeter();
         if (trash > 0) SendTrash(trash);
 
         // Redraw screen

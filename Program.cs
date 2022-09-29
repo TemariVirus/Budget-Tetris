@@ -8,14 +8,15 @@ using Tetris;
 // Inputs: standard height, caves, pillars, row transitions, col transitions, trash, cleared, intent
 // Outputs: score of state, intent(don't search further if it drops below a treshold)
 // TODO:
+//- change erase timer to use delayed task + field for erase time
+//- proper implementation of KPP?
 //- optimise GameBase
-//- check for places whese matrix is changed outside of gamebase's control (and maybe make a setter/getter that resets height every time it's changed by smth outside
 //- add height of trash as a feature
 //- add a featrue for t-spins
 class Program
 {
     const int MAX_LINES = 250;
-    const int THINK_TIME_IN_MILLIS = 100, MOVE_DELAY_IN_MILLIS = 100;
+    const int THINK_TIME_IN_MILLIS = 150, MOVE_DELAY_IN_MILLIS = 50;
     const int PLAY_TIMES = 4;
     const double DELTA_TRESH = 0.0487; // Just less than 5% error (e^0.0487 ~ 1.0499)
     static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\double out.json";
@@ -24,21 +25,22 @@ class Program
     {
         // Set up console
         Console.Title = "Tetris NEAT AI Training";
-        FConsole.Framerate = 12;
+        FConsole.Framerate = 30;
         FConsole.CursorVisible = false;
         FConsole.SetFont("Consolas", 16);
         //FConsole.SetFont("Consolas", 40); // Biggest
-        FConsole.Initialise();
+        FConsole.Initialise(FrameEndCallback);
 
-        int seed = new Random().Next();
-        Game[] games = new Game[2].Select(x => new Game(8, seed)).ToArray();
-        Game.SetGames(games);
-        FConsole.Set(FConsole.Width, FConsole.Height + 2);
-        new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[1]).Start(150, 0);
-        new NewBot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\double out.txt"), games[0]).Start(150, 0);
+        //int seed = new Random().Next();
+        //Game[] games = new Game[2].Select(x => new Game(8, seed)).ToArray();
+        //Game.SetGames(games);
+        //FConsole.Set(FConsole.Width, FConsole.Height + 2);
+        ////new Bot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[1]).Start(150, 0);
+        //SetupPlayerInput(games[1]);
+        //new NewBot(NN.LoadNN(AppContext.BaseDirectory + @"NNs\double out.txt"), games[0]).Start(150, 0);
 
         // Train NNs
-        //NN.Train(Population_path, FitnessFunction, 8, 2, 50);
+        NN.Train(Population_path, FitnessFunction, 8, 2, 50);
     }
 
     static void SetupPlayerInput(Game player_game)
