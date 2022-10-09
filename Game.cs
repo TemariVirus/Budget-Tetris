@@ -2,6 +2,9 @@
 
 using FastConsole;
 using System.Diagnostics;
+using System.IO;
+using System.Text;
+using System.Text.Json;
 
 public enum Moves
 {
@@ -666,6 +669,23 @@ public class GameBase
 
 public sealed class Game : GameBase
 {
+    public struct GameSettings
+    {
+        public static readonly string DefaultPath = AppContext.BaseDirectory + "Settings.json";
+
+        public int[] LinesTrash;
+        public int[] TSpinTrash;
+        public int[] ComboTrash;
+        public int[] PCTrash;
+
+        public double G;
+        public double SoftG;
+
+        public int LockDelay, EraseDelay, GarbageDelay; // In miliseconds
+        public int AutoLockGrace;
+        public int TargetChangeInteval;
+    }
+
     public const int GAMEWIDTH = 44, GAMEHEIGHT = 24;
     const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
     static readonly string[] ClearText = { "SINGLE", "DOUBLE", "TRIPLE", "TETRIS" };
@@ -682,6 +702,8 @@ public sealed class Game : GameBase
         ConsoleColor.Gray,          // Garbage
         ConsoleColor.DarkGray       // Bedrock
     };
+
+    public static GameSettings Settings { get; private set; }
 
     public static Game[] Games { get; private set; }
     public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
@@ -781,7 +803,7 @@ public sealed class Game : GameBase
     readonly Queue<Moves> MoveQueue = new Queue<Moves>();
 
     double LastFrameTime;
-    public int LockDelay = 1000, EraseDelay = 1000, GarbageDelay = 500; // In miliseconds
+    public int LockDelay = 1000, EraseDelay = 1000, GarbageDelay = 200; // In miliseconds
     public int AutoLockGrace = 15;
     int MoveCount = 0;
     bool IsLastMoveRotate = false, AlreadyHeld = false;
@@ -791,7 +813,6 @@ public sealed class Game : GameBase
     readonly Random GarbageRand;
     readonly List<(int, long)> Garbage = new List<(int, long)>();
 
-    int GameIndex;
     long TargetChangeInteval = 500, LastTargetChangeTime; // In miliseconds
     public TargetModes TargetMode = TargetModes.Random;
     List<Game> Targets = new List<Game>();
@@ -968,19 +989,25 @@ public sealed class Game : GameBase
         {
             Games[i].XOffset = (i % width) * (GAMEWIDTH + 1) + 1;
             Games[i].YOffset = (i / width) * GAMEHEIGHT + 1;
-            Games[i].GameIndex = i;
             if (Games[i].IsDead) Games[i].Restart();
             Games[i].DrawAll();
         }
     }
 
-    public static List<Game> GetAliveGames()
+    public static void LoadSettings(string path = null)
     {
-        List<Game> games = new List<Game>();
-        foreach (Game g in Games)
-            if (!g.IsDead)
-                games.Add(g);
-        return games;
+        path = path ?? GameSettings.DefaultPath;
+        string jsonString = File.ReadAllText(path);
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        Settings = JsonSerializer.Deserialize<GameSettings>(jsonString, options);
+    }
+
+    public static void SaveSettings(string path = null)
+    {
+        path = path ?? GameSettings.DefaultPath;
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        string json = JsonSerializer.Serialize(Settings, options);
+        File.WriteAllText(path, json, Encoding.UTF8);
     }
 
     #region // Player methods
@@ -994,6 +1021,9 @@ public sealed class Game : GameBase
 
     void Slide(int dx)
     {
+        if (dx > 0 && X == Current.MaxX) return;
+        if (dx < 0 && X == Current.MinX) return;
+        
         DrawCurrent(true);
         if (TrySlide(dx))
         {
@@ -1043,7 +1073,7 @@ public sealed class Game : GameBase
 
             // Undraw
             DrawCurrent(true);
-            DrawPiece(Hold, 3, 3, true);
+            DrawPieceAt(Hold, 3, 3, true);
 
             Piece oldhold = Hold.PieceType;
             Hold = Current.PieceType;
@@ -1057,7 +1087,7 @@ public sealed class Game : GameBase
             }
 
             // Redraw
-            DrawPiece(Hold, 3, 3, false);
+            DrawPieceAt(Hold, 3, 3, false);
             DrawCurrent(false);
             LockT.Restart();
         }
@@ -1180,16 +1210,15 @@ public sealed class Game : GameBase
                 {
                     LastTargetChangeTime = time;
                     Targets.Clear();
-                    List<Game> aliveGames = GetAliveGames();
+                    List<Game> aliveGames = Games.Where(x => !x.IsDead).ToList();
                     if (aliveGames.Count <= 1) break;
                     int i = new Random().Next(aliveGames.Count - 1);
-                    GameIndex = aliveGames.IndexOf(this);
-                    if (i >= GameIndex) i = (i + 1) % aliveGames.Count;
+                    if (i >= aliveGames.IndexOf(this)) i = (i + 1) % aliveGames.Count;
                     Targets.Add(aliveGames[i]);
                 }
                 break;
             case TargetModes.All:
-                Targets = GetAliveGames();
+                Targets = Games.Where(x => !x.IsDead).ToList();
                 break;
             case TargetModes.Self:
                 Targets.Clear();
@@ -1212,7 +1241,7 @@ public sealed class Game : GameBase
     {
         // Undraw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 37, 3 + 3 * i, true);
+            DrawPieceAt(Next[i], 37, 3 + 3 * i, true);
         // Update current and next
         Current = Next[0];
         for (int i = 1; i < Next.Length; i++) Next[i - 1] = Next[i];
@@ -1236,7 +1265,7 @@ public sealed class Game : GameBase
         //IsDead |= isDead;
         // Draw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 37, 3 + 3 * i, false);
+            DrawPieceAt(Next[i], 37, 3 + 3 * i, false);
         // Draw current
         DrawCurrent(false);
     }
@@ -1260,7 +1289,7 @@ public sealed class Game : GameBase
                 WriteAt(BlockX(i) * 2 + 12, BlockY(i) - 18, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKSOLID);
     }
 
-    void DrawPiece(Piece piece, int x, int y, bool black)
+    void DrawPieceAt(Piece piece, int x, int y, bool black)
     {
         for (int i = 0; i < 4; i++)
             WriteAt(piece.X[i] * 2 + x, piece.Y[i] + y, black ? ConsoleColor.Black : PieceColors[piece.PieceType], BLOCKSOLID);
@@ -1342,9 +1371,9 @@ public sealed class Game : GameBase
 
         // Draw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPiece(Next[i], 37, 3 + 3 * i, false);
+            DrawPieceAt(Next[i], 37, 3 + 3 * i, false);
         // Draw hold
-        DrawPiece(Hold, 3, 3, false);
+        DrawPieceAt(Hold, 3, 3, false);
         // Draw board
         for (int x = 0; x < 10; x++)
             for (int y = 20; y < 40; y++)

@@ -211,6 +211,8 @@ static class FConsole
                 int[] the_void = new int[width * height];
                 Rect void_rect = new Rect(0, 0, width, height);
                 WriteConsoleOutputW(ConoutHandle, the_void, new Coord((short)width, (short)height), Coord.Zero, ref void_rect);
+                // Reset cursor visibility
+                Console.CursorVisible = CursorVisible;
             }
             ForceRender();
 

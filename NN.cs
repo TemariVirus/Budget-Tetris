@@ -158,12 +158,12 @@ public class NN
     #endregion
 
     static readonly Random Rand = new();
-    private static readonly List<int> InNodes = new List<int>(), OutNodes = new List<int>();
+    static readonly List<int> InNodes = new List<int>(), OutNodes = new List<int>();
 
-    public string Name = GenerateName();
+    public readonly string Name = GenerateName();
     public bool Played = false;
-    public int InputCount { get; private set; }
-    public int OutputCount { get; private set; }
+    public readonly int InputCount;
+    public readonly int OutputCount;
     public int Age { get; private set; } = 0;
     public double Fitness = 0;
     public double Mu, Delta;
@@ -329,7 +329,9 @@ public class NN
             // Enable/disable connection
             if (Rand.NextDouble() < CON_ENABLE_CHANCE) c.Enabled = !c.Enabled;
             // Keep weight within bounds
-            if (BOUND_WEIGHTS) c.Weight = c.Weight < 0 ? Math.Max(c.Weight, -MUTATE_POW * 2) : Math.Min(c.Weight, MUTATE_POW * 2);
+            #if BOUND_WEIGHTS
+            c.Weight = c.Weight < 0 ? Math.Max(c.Weight, -MUTATE_POW * 2) : Math.Min(c.Weight, MUTATE_POW * 2);
+            #endif
         }
 
         // Add connection between existing nodes
@@ -405,7 +407,6 @@ public class NN
         var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
         string json = JsonSerializer.Serialize(data, options);
         File.WriteAllText(path, json, Encoding.UTF8);
-        return;
     }
 
     public static void SaveNNs(string path, NN[] networks, int gen, double compat_tresh)
@@ -420,7 +421,6 @@ public class NN
         var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
         string json = JsonSerializer.Serialize(training_data, options);
         File.WriteAllText(path, json, Encoding.UTF8);
-        return;
     }
 
     public static NN LoadNN(string path)
@@ -616,7 +616,7 @@ public class NN
     static double UniformRand() => Math.FusedMultiplyAdd(Rand.NextDouble(), 2, -1);
     // Most activation functions here may not be so useful as there were made with the vanishing/exploding gradient problem in mind
     // But hey, no harm having them at our disposal
-    #region // Activation functions
+#region // Activation functions
     static Func<double, double> ToFunc(ActivationTypes type)
     {
         MethodInfo[] methods = typeof(NN).GetMethods(BindingFlags.Static | BindingFlags.NonPublic);
@@ -653,5 +653,5 @@ public class NN
         return 0.5D * x * (1 + Math.Tanh(C * Math.FusedMultiplyAdd(0.044715D, Math.Pow(x, 3), x)));
     }
     static double SoftPlus(double x) => Math.Log(1 + Math.Exp(x));
-    #endregion
+#endregion
 }
