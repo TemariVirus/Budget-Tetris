@@ -3,6 +3,9 @@
 using FastConsole;
 using System.Diagnostics;
 using System.IO;
+using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 
@@ -29,59 +32,516 @@ public enum TargetModes
     None
 }
 
-// TODO: change callbacks to events or use tasks?
+[StructLayout(LayoutKind.Sequential)]
+public readonly struct MatrixMask
+{
+    public const ulong FULL_LINE = (1 << 10) - 1;
+
+    public static readonly MatrixMask[] HeightMasks = new MatrixMask[25].Select((m, i) =>
+    {
+        m = ~new MatrixMask();
+        m <<= i * 10;
+        return ~m << 10;
+    }).ToArray();
+    public static readonly MatrixMask[] InverseHeightMasks = HeightMasks.Select((m) => ~m & HeightMasks[^1]).ToArray();
+
+    public ulong LowLow { get; init; }
+    public ulong LowHigh { get; init; }
+    public ulong HighLow { get; init; }
+    public ulong HighHigh { get; init; }
+
+    #region // Logical operators
+    public static MatrixMask operator ~(MatrixMask value) =>
+        new MatrixMask()
+        {
+            LowLow = ~value.LowLow,
+            LowHigh = ~value.LowHigh,
+            HighLow = ~value.HighLow,
+            HighHigh = ~value.HighHigh
+        };
+    public static MatrixMask operator &(MatrixMask matrix, PieceMask piece)
+    {
+        return piece.Offset switch
+        {
+            0 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow & piece.Low,
+                LowHigh = matrix.LowHigh & piece.High,
+                HighLow = matrix.HighLow,
+                HighHigh = matrix.HighHigh
+            },
+            1 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow,
+                LowHigh = matrix.LowHigh & piece.Low,
+                HighLow = matrix.HighLow & piece.High,
+                HighHigh = matrix.HighHigh
+            },
+            2 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow,
+                LowHigh = matrix.LowHigh,
+                HighLow = matrix.HighLow & piece.Low,
+                HighHigh = matrix.HighHigh & piece.High
+            },
+            3 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow,
+                LowHigh = matrix.LowHigh,
+                HighLow = matrix.HighLow,
+                HighHigh = matrix.HighHigh & piece.Low
+            },
+            _ => matrix
+        };
+    }
+    public static MatrixMask operator &(MatrixMask left, MatrixMask right) =>
+        new MatrixMask()
+        {
+            LowLow = left.LowLow & right.LowLow,
+            LowHigh = left.LowHigh & right.LowHigh,
+            HighLow = left.HighLow & right.HighLow,
+            HighHigh = left.HighHigh & right.HighHigh
+        };
+    public static MatrixMask operator |(MatrixMask matrix, PieceMask piece)
+    {
+        return piece.Offset switch
+        {
+            0 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow | piece.Low,
+                LowHigh = matrix.LowHigh | piece.High,
+                HighLow = matrix.HighLow,
+                HighHigh = matrix.HighHigh
+            },
+            1 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow,
+                LowHigh = matrix.LowHigh | piece.Low,
+                HighLow = matrix.HighLow | piece.High,
+                HighHigh = matrix.HighHigh
+            },
+            2 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow,
+                LowHigh = matrix.LowHigh,
+                HighLow = matrix.HighLow | piece.Low,
+                HighHigh = matrix.HighHigh | piece.High
+            },
+            3 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow,
+                LowHigh = matrix.LowHigh,
+                HighLow = matrix.HighLow,
+                HighHigh = matrix.HighHigh | piece.Low
+            },
+            _ => matrix
+        };
+    }
+    public static MatrixMask operator |(MatrixMask left, MatrixMask right) =>
+        new MatrixMask() 
+        {
+            LowLow = left.LowLow | right.LowLow,
+            LowHigh = left.LowHigh | right.LowHigh,
+            HighLow = left.HighLow | right.HighLow,
+            HighHigh = left.HighHigh | right.HighHigh
+        };
+    public static MatrixMask operator ^(MatrixMask matrix, PieceMask piece)
+    {
+        return piece.Offset switch
+        {
+            0 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow ^ piece.Low,
+                LowHigh = matrix.LowHigh ^ piece.High,
+                HighLow = matrix.HighLow,
+                HighHigh = matrix.HighHigh
+            },
+            1 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow,
+                LowHigh = matrix.LowHigh ^ piece.Low,
+                HighLow = matrix.HighLow ^ piece.High,
+                HighHigh = matrix.HighHigh
+            },
+            2 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow,
+                LowHigh = matrix.LowHigh,
+                HighLow = matrix.HighLow ^ piece.Low,
+                HighHigh = matrix.HighHigh ^ piece.High
+            },
+            3 => new MatrixMask()
+            {
+                LowLow = matrix.LowLow,
+                LowHigh = matrix.LowHigh,
+                HighLow = matrix.HighLow,
+                HighHigh = matrix.HighHigh ^ piece.Low
+            },
+            _ => matrix
+        };
+    }
+    public static MatrixMask operator ^(MatrixMask left, MatrixMask right) =>
+        new MatrixMask()
+        {
+            LowLow = left.LowLow ^ right.LowLow,
+            LowHigh = left.LowHigh ^ right.LowHigh,
+            HighLow = left.HighLow ^ right.HighLow,
+            HighHigh = left.HighHigh ^ right.HighHigh
+        };
+    public static MatrixMask operator <<(MatrixMask value, int shift)
+    {
+        if (shift < 0) return value >> -shift;
+        
+        // Special treatment for multiples of 64
+        if ((shift & 63) == 0)
+        {
+            return (shift & 192) switch
+            {
+                192 => new MatrixMask()
+                {
+                    HighHigh = value.LowLow
+                },
+                128 => new MatrixMask()
+                {
+                    HighLow = value.LowLow,
+                    HighHigh = value.LowHigh
+                },
+                64 => new MatrixMask()
+                {
+                    LowHigh = value.LowLow,
+                    HighLow = value.LowHigh,
+                    HighHigh = value.HighLow
+                },
+                _ => value
+            };
+        }
+        
+        shift &= 255;
+        return shift switch
+        {
+            > 192 => new MatrixMask()
+            {
+                HighHigh = value.LowLow << (shift - 192)
+            },
+            > 128 => new MatrixMask()
+            {
+                HighLow = value.LowLow << (shift - 128),
+                HighHigh = (value.LowHigh << (shift - 128)) | (value.LowLow >> (192 - shift))
+            },
+            > 64 => new MatrixMask()
+            {
+                LowHigh = value.LowLow << (shift - 64),
+                HighLow = (value.LowHigh << (shift - 64)) | (value.LowLow >> (128 - shift)),
+                HighHigh = (value.HighLow << (shift - 64)) | (value.LowHigh >> (128 - shift))
+            },
+            _ => new MatrixMask()
+            {
+                LowLow = value.LowLow << shift,
+                LowHigh = (value.LowHigh << shift) | (value.LowLow >> (64 - shift)),
+                HighLow = (value.HighLow << shift) | (value.LowHigh >> (64 - shift)),
+                HighHigh = (value.HighHigh << shift) | (value.HighLow >> (64 - shift))
+            }
+        };
+        
+        //shift &= 255;
+        //return shift switch
+        //{
+        //    >= 192 => new MatrixMask()
+        //    {
+        //        HighHigh = value.LowLow << (shift - 192)
+        //    },
+        //    >= 128 => new MatrixMask()
+        //    {
+        //        HighLow = value.LowLow << (shift - 128),
+        //        HighHigh = (value.LowHigh << (shift - 128)) | (value.LowLow >> (191 - shift) >> 1)
+        //    },
+        //    >= 64 => new MatrixMask()
+        //    {
+        //        LowHigh = value.LowLow << (shift - 64),
+        //        HighLow = (value.LowHigh << (shift - 64)) | (value.LowLow >> (127 - shift) >> 1),
+        //        HighHigh = (value.HighLow << (shift - 64)) | (value.LowHigh >> (127 - shift) >> 1)
+        //    },
+        //    _ => new MatrixMask()
+        //    {
+        //        LowLow = value.LowLow << shift,
+        //        LowHigh = (value.LowHigh << shift) | (value.LowLow >> (63 - shift) >> 1),
+        //        HighLow = (value.HighLow << shift) | (value.LowHigh >> (63 - shift) >> 1),
+        //        HighHigh = (value.HighHigh << shift) | (value.HighLow >> (63 - shift) >> 1)
+        //    }
+        //};
+    }
+    public static MatrixMask operator >>(MatrixMask value, int shift)
+    {
+        if (shift < 0) return value << -shift;
+
+        // Special treatment for multiples of 64
+        if ((shift & 63) == 0)
+        {
+            return (shift & 192) switch
+            {
+                192 => new MatrixMask()
+                {
+                    LowLow = value.HighHigh
+                },
+                128 => new MatrixMask()
+                {
+                    LowLow = value.HighLow,
+                    LowHigh = value.HighHigh
+                },
+                64 => new MatrixMask()
+                {
+                    LowLow = value.LowHigh,
+                    LowHigh = value.HighLow,
+                    HighLow = value.HighHigh
+                },
+                _ => value
+            };
+        }
+
+        shift &= 255;
+        return shift switch
+        {
+            > 192 => new MatrixMask()
+            {
+                LowLow = value.HighHigh >> (shift - 192)
+            },
+            > 128 => new MatrixMask()
+            {
+                LowLow = (value.HighLow >> (shift - 128)) | (value.HighHigh << (192 - shift)),
+                LowHigh = value.HighHigh >> (shift - 128)
+            },
+            > 64 => new MatrixMask()
+            {
+                LowLow = (value.LowHigh >> (shift - 64)) | (value.HighLow << (128 - shift)),
+                LowHigh = (value.HighLow >> (shift - 64)) | (value.HighHigh << (128 - shift)),
+                HighLow = value.HighHigh >> (shift - 64)
+            },
+            _ => new MatrixMask()
+            {
+                LowLow = (value.LowLow >> shift) | (value.LowHigh << (64 - shift)),
+                LowHigh = (value.LowHigh >> shift) | (value.HighLow << (64 - shift)),
+                HighLow = (value.HighLow >> shift) | (value.HighHigh << (64 - shift)),
+                HighHigh = value.HighHigh >> shift
+            }
+        };
+
+        //shift &= 255;
+        //return shift switch
+        //{
+        //    >= 192 => new MatrixMask()
+        //    {
+        //        LowLow = value.HighHigh >> (shift - 192)
+        //    },
+        //    >= 128 => new MatrixMask()
+        //    {
+        //        LowLow = (value.HighLow >> (shift - 128)) | (value.HighHigh << (191 - shift) << 1),
+        //        LowHigh = value.HighHigh >> (shift - 128)
+        //    },
+        //    >= 64 => new MatrixMask()
+        //    {
+        //        LowLow = (value.LowHigh >> (shift - 64)) | (value.HighLow << (127 - shift) << 1),
+        //        LowHigh = (value.HighLow >> (shift - 64)) | (value.HighHigh << (127 - shift) << 1),
+        //        HighLow = value.HighHigh >> (shift - 64)
+        //    },
+        //    _ => new MatrixMask()
+        //    {
+        //        LowLow = (value.LowLow >> shift) | (value.LowHigh << (63 - shift) << 1),
+        //        LowHigh = (value.LowHigh >> shift) | (value.HighLow << (63 - shift) << 1),
+        //        HighLow = (value.HighLow >> shift) | (value.HighHigh << (63 - shift) << 1),
+        //        HighHigh = value.HighHigh >> shift
+        //    }
+        //};
+    }
+    #endregion
+    public static bool operator ==(MatrixMask left, MatrixMask right) =>
+        left.LowLow == right.LowLow &&
+        left.LowHigh == right.LowHigh &&
+        left.HighLow == right.HighLow &&
+        left.HighHigh == right.HighHigh;
+    public static bool operator !=(MatrixMask left, MatrixMask right) =>
+        left.LowLow != right.LowLow ||
+        left.LowHigh != right.LowHigh ||
+        left.HighLow != right.HighLow ||
+        left.HighHigh != right.HighHigh;
+
+    public int PopCount() =>
+        BitOperations.PopCount(HighHigh & 0x03FFFFFFFFFFFFFFUL) + // Exclude top 6 bits
+        BitOperations.PopCount(HighLow) +
+        BitOperations.PopCount(LowHigh) +
+        BitOperations.PopCount(LowLow & 0xFFFFFFFFFFFFFC00UL); // Exclude bottom 10 bits
+
+    public ulong GetRow(int row) =>
+        ((++row) switch
+        {
+            < 6 => LowLow >> (row * 10),
+            6 => (LowLow >> 60) | (LowHigh << 4),
+            < 12 => LowHigh >> ((row - 6) * 10 - 4),
+            12 => (LowHigh >> 56) | (HighLow << 8),
+            < 19 => HighLow >> ((row - 12) * 10 - 8),
+            19 => (HighLow >> 62) | (HighHigh << 2),
+            < 25 => HighHigh >> ((row - 19) * 10 - 2),
+            _ => throw new ArgumentOutOfRangeException(nameof(row))
+        }) & FULL_LINE;
+
+    public uint[] GetRows()
+    {
+        uint[] rows = new uint[24];
+        int i = 0, shift;
+        for (shift = 10; i < 5; i++, shift += 10)
+            rows[i] = (uint)((LowLow >> shift) & FULL_LINE);
+        rows[i++] = (uint)((LowLow >> 60) | (LowHigh << 4) & FULL_LINE);
+
+        for (shift = 6; i < 11; i++, shift += 10)
+            rows[i] = (uint)((LowHigh >> shift) & FULL_LINE);
+        rows[i++] = (uint)((LowHigh >> 56) | (HighLow << 8) & FULL_LINE);
+
+        for (shift = 2; i < 18; i++, shift += 10)
+            rows[i] = (uint)((HighLow >> shift) & FULL_LINE);
+        rows[i++] = (uint)((HighLow >> 62) | (HighHigh << 2) & FULL_LINE);
+
+        for (shift = 8; i < 24; i++, shift += 10)
+            rows[i] = (uint)((HighHigh >> shift) & FULL_LINE);
+
+        return rows;
+    }
+
+    public static explicit operator MatrixMask(PieceMask value) => value.Offset switch
+    {
+        0 => new MatrixMask() { LowLow = value.Low, LowHigh = value.High },
+        1 => new MatrixMask() { LowHigh = value.Low, HighLow = value.High },
+        2 => new MatrixMask() { HighLow = value.Low, HighHigh = value.High },
+        3 => new MatrixMask() { HighHigh = value.Low },
+        _ => new MatrixMask()
+    };
+
+    //public unsafe ReadOnlySpan<ulong> ToSpan()
+    //{
+    //    fixed (void* ptr = &this)
+    //    {
+    //        return new ReadOnlySpan<ulong>(ptr, 4);
+    //    }
+    //}
+    
+    public ulong[] ToArray() => new ulong[] { LowLow, LowHigh, HighLow, HighHigh };
+
+    #nullable enable
+    public override bool Equals(object? obj) =>
+        obj is MatrixMask value && this == value;
+
+    public override string ToString()
+    {
+        StringBuilder sb = new StringBuilder(275);
+        for (int i = 249; i >= 10; i--)
+        {
+            sb.Append((this >> i).LowLow & 1);
+            if (i % 10 == 0) sb.Append(' ');
+        }
+        return sb.ToString();
+    }
+    
+    public override int GetHashCode() =>
+        (LowLow.GetHashCode() * 397) ^
+        (LowHigh.GetHashCode() * 113) ^
+        (HighLow.GetHashCode() / 239) ^
+        ((HighHigh.GetHashCode() >> 7) + 43);
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public readonly struct PieceMask
+{
+    public ulong Low { get; init; }
+    public ulong High { get; init; }
+    public int Offset { get; init; }
+
+    public static PieceMask operator ~(PieceMask value) =>
+        new PieceMask()
+        {
+            Low = ~value.Low,
+            High = ~value.High,
+            Offset = value.Offset
+        };
+    
+    public static bool operator ==(PieceMask left, PieceMask right) =>
+        left.Low == right.Low &&
+        left.High == right.High &&
+        left.Offset == right.Offset;
+    public static bool operator !=(PieceMask left, PieceMask right) =>
+        left.Low != right.Low ||
+        left.High != right.High ||
+        left.Offset != right.Offset;
+
+    public override bool Equals(object? obj) =>
+        obj is PieceMask value && this == value;
+
+    public override int GetHashCode() =>
+       (Low.GetHashCode() * 397) ^
+       ((High.GetHashCode() >> 7) + 43);
+
+    public override string ToString()
+    {
+        MatrixMask mask = new MatrixMask() { LowLow = Low, LowHigh = High };
+        mask <<= 64 * Offset;
+        return mask.ToString();
+    }
+
+}
+
+// Try out having the mask left and bottom alligned to avoid some branches
 public sealed class Piece
 {
-    private static readonly int[] KicksX = { 0, -1, -1, 0, -1 }, IKicksX = { 0, -2, 1, -2, 1 };
-    private static readonly int[] KicksY = { 0, 0, -1, 2, 2 }, IKicksY = { 0, 0, 0, 1, -2 };
-
-    // [piece][rot][layer]
-    private static readonly int[][][] PieceX = { new int[][] { new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 } }, //empty
-                                      new int[][] { new int[] { 0, 0, -1, 1}, new int[] { 0, 0, 1, 0 }, new int[] { 0, -1, 1, 0 }, new int[] { 0, 0, -1, 0 } }, //T
-                                      new int[][] { new int[] { 0, -1, 1, 2 }, new int[] { 1, 1, 1, 1 }, new int[] { -1, 0, 1, 2 }, new int[] { 0, 0, 0, 0 } }, //I
-                                      new int[][] { new int[] { 1, -1, 1, 0 }, new int[] { 0, 0, 0, 1 }, new int[] { 0, -1, 1, -1 }, new int[] { 0, -1, 0, 0 } }, //L
-                                      new int[][] { new int[] { -1, -1, 1, 0 }, new int[] { 0, 1, 0, 0 }, new int[] { 0, -1, 1, 1 }, new int[] { 0, 0, 0, -1 } }, //J
-                                      new int[][] { new int[] { 0, 1, 0, -1 }, new int[] { 0, 0, 1, 1 }, new int[] { 0, 1, 0, -1 }, new int[] { -1, 0, -1, 0 } }, //S
-                                      new int[][] { new int[] { -1, 0, 0, 1 }, new int[] { 1, 1, 0, 0 }, new int[] { 0, -1, 0, 1 }, new int[] { 0, 0, -1, -1 } }, //Z
-                                      new int[][] { new int[] { 0, 1, 0, 1 }, new int[] { 0, 1, 0, 1 }, new int[] { 0, 1, 0, 1 }, new int[] { 0, 1, 0, 1 } } }; //O
-    // Must be sorted in ascending order
-    private static readonly int[][][] PieceY = { new int[][] { new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 }, new int[] { 0, 0, 0, 0 } }, //empty
-                                      new int[][] { new int[] { -1, 0, 0, 0 }, new int[] { -1, 0, 0, 1 }, new int[] { 0, 0, 0, 1 }, new int[] { -1, 0, 0, 1 } }, //T
-                                      new int[][] { new int[] { 0, 0, 0, 0 }, new int[] { -1, 0, 1, 2 }, new int[] { 1, 1, 1, 1 }, new int[] { -1, 0, 1, 2 } }, //I
-                                      new int[][] { new int[] { -1, 0, 0, 0 }, new int[] { -1, 0, 1, 1 }, new int[] { 0, 0, 0, 1 }, new int[] { -1, -1, 0, 1 } }, //L
-                                      new int[][] { new int[] { -1, 0, 0, 0 }, new int[] { -1, -1, 0, 1 }, new int[] { 0, 0, 0, 1 }, new int[] { -1, 0, 1, 1 } }, //J
-                                      new int[][] { new int[] { -1 ,-1, 0, 0 }, new int[] { -1, 0, 0, 1 }, new int[] { 0, 0, 1, 1 }, new int[] { -1, 0, 0, 1 } }, //S
-                                      new int[][] { new int[] { -1, -1, 0, 0 }, new int[] { -1, 0, 0, 1 }, new int[] { 0, 0, 1, 1 }, new int[] { -1, 0, 0, 1 } }, //Z
-                                      new int[][] { new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 } } }; //O
-
-    public const int PIECE_BITS = 0x7, ROTATION_BITS = 0x18;
-    public const int EMPTY = 0x0,
-                     T = 0x1,
-                     I = 0x2,
-                     L = 0x3,
-                     J = 0x4,
-                     S = 0x5,
-                     Z = 0x6,
-                     O = 0x7;
-    public const int ROTATION_NONE = 0x0,
-                     ROTATION_CW = 0x8,
-                     ROTATION_180 = 0x10,
-                     ROTATION_CCW = 0x18;
+    public const int PIECE_BITS = 7, ROTATION_BITS = 24;
+    public const int EMPTY = 0,
+                     T = 1,
+                     I = 2,
+                     L = 3,
+                     J = 4,
+                     S = 5,
+                     Z = 6,
+                     O = 7;
+    public const int ROTATION_NONE = 0,
+                     ROTATION_CW = 8,
+                     ROTATION_180 = 16,
+                     ROTATION_CCW = 24;
     public const int Garbage = 8,
                      Bedrock = 9; // Trash that can't get cleared
 
+    // [piece][rot][layer]
+    private static readonly int[][][] PieceX = {
+        new int[][] { new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 } }, // Empty
+        new int[][] { new int[] { -1, -1, -2,  0 }, new int[] { -1, -1,  0, -1 }, new int[] { -1, -2,  0, -1 }, new int[] { -1, -1, -2, -1 } }, // T
+        new int[][] { new int[] { -1, -2,  0,  1 }, new int[] {  0,  0,  0,  0 }, new int[] { -2, -1,  0,  1 }, new int[] { -1, -1, -1, -1 } }, // I
+        new int[][] { new int[] {  0, -2,  0, -1 }, new int[] { -1, -1, -1,  0 }, new int[] { -1, -2,  0, -2 }, new int[] { -1, -2, -1, -1 } }, // L
+        new int[][] { new int[] { -2, -2,  0, -1 }, new int[] { -1,  0, -1, -1 }, new int[] { -1, -2,  0,  0 }, new int[] { -1, -1, -1, -2 } }, // J
+        new int[][] { new int[] { -1,  0, -1, -2 }, new int[] { -1, -1,  0,  0 }, new int[] { -1,  0, -1, -2 }, new int[] { -2, -1, -2, -1 } }, // S
+        new int[][] { new int[] { -2, -1, -1,  0 }, new int[] {  0,  0, -1, -1 }, new int[] { -1, -2, -1,  0 }, new int[] { -1, -1, -2, -2 } }, // Z
+        new int[][] { new int[] { -1,  0, -1,  0 }, new int[] { -1,  0, -1,  0 }, new int[] { -1,  0, -1,  0 }, new int[] { -1,  0, -1,  0 } }  // O
+    };
+    // Must be sorted in ascending order
+    private static readonly int[][][] PieceY = {
+        new int[][] { new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 } }, // Empty
+        new int[][] { new int[] { -2, -1, -1, -1 }, new int[] { -2, -1, -1,  0 }, new int[] { -1, -1, -1,  0 }, new int[] { -2, -1, -1,  0 } }, // T
+        new int[][] { new int[] { -1, -1, -1, -1 }, new int[] { -2, -1,  0,  1 }, new int[] {  0,  0,  0,  0 }, new int[] { -2, -1,  0,  1 } }, // I
+        new int[][] { new int[] { -2, -1, -1, -1 }, new int[] { -2, -1,  0,  0 }, new int[] { -1, -1, -1,  0 }, new int[] { -2, -2, -1,  0 } }, // L
+        new int[][] { new int[] { -2, -1, -1, -1 }, new int[] { -2, -2, -1,  0 }, new int[] { -1, -1, -1,  0 }, new int[] { -2, -1,  0,  0 } }, // J
+        new int[][] { new int[] { -2, -2, -1, -1 }, new int[] { -2, -1, -1,  0 }, new int[] { -1, -1,  0,  0 }, new int[] { -2, -1, -1,  0 } }, // S
+        new int[][] { new int[] { -2, -2, -1, -1 }, new int[] { -2, -1, -1,  0 }, new int[] { -1, -1,  0,  0 }, new int[] { -2, -1, -1,  0 } }, // Z
+        new int[][] { new int[] { -2, -2, -1, -1 }, new int[] { -2, -2, -1, -1 }, new int[] { -2, -2, -1, -1 }, new int[] { -2, -2, -1, -1 } }  // O
+    };
+
+    private static readonly int[] KicksX = { 0, -1, -1, 0, -1 }, IKicksX = { 0, -2, 1, -2, 1 };
+    private static readonly int[] KicksY = { 0, 0, 1, -2, -2 }, IKicksY = { 0, 0, 0, -1, 2 };
+
     private static readonly Piece[] Pieces = GetPieces();
+
 
     public readonly int Id;
     public readonly int PieceType, R;
-    public readonly int[] X, Y;
     public readonly int Highest, Lowest, Height;
-    public readonly int MinX, MaxX, MaxY;
-    internal readonly int[] KicksCWX, KicksCWY;
-    internal readonly int[] KicksCCWX, KicksCCWY;
-    internal readonly int Kick180X = 0, Kick180Y = 0;
-
-    public readonly ulong Mask;
+    public readonly int MinX, MaxX, MinY;
+    private readonly PieceMask _Mask;
+    private readonly int[] _X, _Y;
+    private readonly int[] _KicksCWX, _KicksCWY;
+    private readonly int[] _KicksCCWX, _KicksCCWY;
 
     private Piece(int id)
     {
@@ -89,23 +549,27 @@ public sealed class Piece
         PieceType = id & PIECE_BITS;
         R = id & ROTATION_BITS;
 
-        X = PieceX[PieceType][R >> 3];
-        Y = PieceY[PieceType][R >> 3];
+        _X = PieceX[PieceType][R >> 3];
+        _Y = PieceY[PieceType][R >> 3];
 
-        MinX = -X.Min();
-        MaxX = 9 - X.Max();
-        MaxY = 39 - Y.Max();
-        Highest = Y.Min();
-        Lowest = Y.Max();
-        Height = Lowest - Highest;
+        MinX = -_X.Min();
+        MaxX = 9 - _X.Max();
+        MinY = _Y.Max();
+        Highest = -_Y.Min();
+        Lowest = -_Y.Max();
+        Height = Highest - Lowest;
 
-        GetKicksTable(true, this, out KicksCWX, out KicksCWY);
-        GetKicksTable(false, this, out KicksCCWX, out KicksCCWY);
+        GetKicksTable(true, this, out _KicksCWX, out _KicksCWY);
+        GetKicksTable(false, this, out _KicksCCWX, out _KicksCCWY);
 
-        // Center at (7, 37); Mask shows a view of the last 4 rows
-        Mask = 0;
+        // Center at (0, 1)
+        ulong mask = 0;
         for (int i = 0; i < 4; i++)
-            Mask |= 1UL << ((2 - X[i]) + 10 * (2 - Y[i]));
+        {
+            int pos = -_X[i] + 10 * (1 - _Y[i]) + 9;
+            mask |= 1UL << pos;
+        }
+        _Mask = new PieceMask() { Low = mask };
     }
 
     private static Piece[] GetPieces()
@@ -136,9 +600,16 @@ public sealed class Piece
         }
     }
 
-    public static implicit operator Piece(int i) =>
-        Pieces[i & (PIECE_BITS | ROTATION_BITS)];
-
+    public int X(int i) => _X[i];
+    public int Y(int i) => _Y[i];
+    public int KicksCWX(int i) => _KicksCWX[i];
+    public int KicksCWY(int i) => _KicksCWY[i];
+    //public int Kicks180X(int i) => 0;
+    //public int Kicks180Y(int i) => 0;
+    public int KicksCCWX(int i) => _KicksCCWX[i];
+    public int KicksCCWY(int i) => _KicksCCWY[i];
+    
+    public static implicit operator Piece(int i) => Pieces[i & (PIECE_BITS | ROTATION_BITS)];
     public static implicit operator int(Piece i) => i.Id;
 
     public override string ToString()
@@ -186,30 +657,53 @@ public sealed class Piece
 
         return name;
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public PieceMask GetMask(int x, int y)
+    {
+        int shift = 10 * y - x;
+
+        // Note: offset and high should always be zero for Mask
+        if (shift <= 0)
+        {
+            return new PieceMask() { Low = _Mask.Low >> -shift };
+        }
+        else
+        {
+            int offset = shift >> 6;
+            shift &= 63;
+            ulong low = _Mask.Low << shift;
+            ulong high = shift == 0 ? 0 : _Mask.Low >> (64 - shift);
+            //ulong high = Mask.Low >> (63 - shift);
+            //high >>= 1;
+
+            //return low == 0 ? new PieceMask() { Low = high, Offset = offset + 1 } :
+            //                  new PieceMask() { Low = low, High = high, Offset = offset };
+            return new PieceMask() { Low = low, High = high, Offset = offset }; // Always keeping low non-zero results in more conditionals
+        }
+    }
 }
 
 public class GameBase
 {
-    protected static readonly int[] GarbageLine = { Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage, Piece.Garbage };
+    public const int START_X = 5, START_Y = 19;
 
     // Try out array of heights as well
-    public int Highest { get; private set; }
-    public readonly int[][] Matrix = new int[40][]; // [y][x]
+    public int Highest { get; private set; } = 0;
+    public MatrixMask Matrix = new MatrixMask();
     internal int X, Y;
 
-    public Piece Current { get; internal set; }
+    public Piece Current { get; internal set; } = Piece.EMPTY;
     public Piece Hold { get; internal set; } = Piece.EMPTY;
-    public Piece[] Next { get; protected set; }
+    public Piece[] Next { get; protected set; } = Array.Empty<Piece>();
 
-    protected Random PieceRand;
+    protected Random PieceRand = new Random();
     protected int BagIndex;
     protected Piece[] Bag = new Piece[] { Piece.T, Piece.I, Piece.L, Piece.J, Piece.S, Piece.Z, Piece.O };
 
     protected GameBase()
     {
         BagIndex = Bag.Length;
-        for (int i = 0; i < 40; i++) Matrix[i] = new int[10];
-        Highest = Matrix.Length;
     }
 
     public GameBase(int next_length, int seed) : this()
@@ -219,10 +713,6 @@ public class GameBase
 
         for (int i = 0; i < Next.Length; i++) Next[i] = NextPiece();
     }
-
-    protected int BlockX(int i) => X + Current.X[i];
-
-    protected int BlockY(int i) => Y + Current.Y[i];
 
     protected Piece NextPiece()
     {
@@ -243,65 +733,173 @@ public class GameBase
         return Bag[BagIndex++];
     }
 
+    public bool Intersects(int x, int y)
+    {
+        // if (Y + Current.Lowest > Highest) return false; // Ald checked in most cases, wouldn't speed things up
+
+        ulong low, high;
+        PieceMask mask = Current.GetMask(x, y);
+        switch (mask.Offset)
+        {
+            case 0:
+                low = mask.Low & Matrix.LowLow;
+                high = mask.High & Matrix.LowHigh;
+                //return (low | high) != 0;
+                return low != 0 || high != 0;
+            case 1:
+                low = mask.Low & Matrix.LowHigh;
+                high = mask.High & Matrix.HighLow;
+                //return (low | high) != 0;
+                return low != 0 || high != 0;
+            case 2:
+                low = mask.Low & Matrix.HighLow;
+                high = mask.High & Matrix.HighHigh;
+                //return (low | high) != 0;
+                return low != 0 || high != 0;
+            case 3:
+                return (mask.Low & Matrix.HighHigh) != 0;
+            default:
+                return false;
+        }
+    }
+
+    public bool Intersects(Piece piece, int x, int y)
+    {
+        // if (Y + Current.Lowest > Highest) return false; // Ald checked in most cases, wouldn't speed things up
+
+        ulong low, high;
+        PieceMask mask = piece.GetMask(x, y);
+        switch (mask.Offset)
+        {
+            case 0:
+                low = mask.Low & Matrix.LowLow;
+                high = mask.High & Matrix.LowHigh;
+                //return (low | high) != 0;
+                return low != 0 || high != 0;
+            case 1:
+                low = mask.Low & Matrix.LowHigh;
+                high = mask.High & Matrix.HighLow;
+                //return (low | high) != 0;
+                return low != 0 || high != 0;
+            case 2:
+                low = mask.Low & Matrix.HighLow;
+                high = mask.High & Matrix.HighHigh;
+                //return (low | high) != 0;
+                return low != 0 || high != 0;
+            case 3:
+                return (mask.Low & Matrix.HighHigh) != 0;
+            default:
+                return false;
+        }
+    }
+
+    public bool Fits(int x, int y)
+    {
+        if (x < Current.MinX || x > Current.MaxX || y < Current.MinY) return false;
+        // if (Y + Current.Lowest > Highest) return true;
+
+        ulong low, high;
+        PieceMask mask = Current.GetMask(x, y);
+        switch (mask.Offset)
+        {
+            case 0:
+                low = mask.Low & Matrix.LowLow;
+                high = mask.High & Matrix.LowHigh;
+                //return (low | high) == 0;
+                return low == 0 && high == 0;
+            case 1:
+                low = mask.Low & Matrix.LowHigh;
+                high = mask.High & Matrix.HighLow;
+                //return (low | high) == 0;
+                return low == 0 && high == 0;
+            case 2:
+                low = mask.Low & Matrix.HighLow;
+                high = mask.High & Matrix.HighHigh;
+                //return (low | high) == 0;
+                return low == 0 && high == 0;
+            case 3:
+                return (mask.Low & Matrix.HighHigh) == 0;
+            default:
+                return false;
+        }
+    }
+
+    public bool Fits(Piece piece, int x, int y)
+    {
+        if (x < piece.MinX || x > piece.MaxX || y < piece.MinY) return false;
+        // if (Y + piece.Lowest > Highest) return true;
+
+            ulong low, high;
+        PieceMask mask = piece.GetMask(x, y);
+        switch (mask.Offset)
+        {
+            case 0:
+                low = mask.Low & Matrix.LowLow;
+                high = mask.High & Matrix.LowHigh;
+                //return (low | high) == 0;
+                return low == 0 && high == 0;
+            case 1:
+                low = mask.Low & Matrix.LowHigh;
+                high = mask.High & Matrix.HighLow;
+                //return (low | high) == 0;
+                return low == 0 && high == 0;
+            case 2:
+                low = mask.Low & Matrix.HighLow;
+                high = mask.High & Matrix.HighHigh;
+                //return (low | high) == 0;
+                return low == 0 && high == 0;
+            case 3:
+                return (mask.Low & Matrix.HighHigh) == 0;
+            default:
+                return false;
+        }
+    }
+
     public bool OnGround()
     {
-        // if (Y + Current.Lowest < Highest) return false; // Ald checked in most cases, wouldn't speed things up
-        if (Y >= Current.MaxY) return true;
-        for (int i = 0; i < 4; i++)
-            if (Matrix[BlockY(i) + 1][BlockX(i)] != Piece.EMPTY)
-                return true;
+        // if (Y + Current.Lowest > Highest) return false; // Ald checked in most cases, wouldn't speed things up
+        if (Y <= Current.MinY) return true;
 
-        return false;
+        return Intersects(X, Y - 1);
     }
 
     public int TSpinType(bool rotatedLast)
     {
-        if (rotatedLast && Current.PieceType == Piece.T)
-        {
-            // 3 corner rule
-            int count = 0;
-            // Top and bottom left
-            if (X - 1 < 0) count += 2;
-            else
-            {
-                // Top left
-                if (Matrix[Y - 1][X - 1] != Piece.EMPTY) count++;
-                // Bottom left
-                if (Y + 1 > 39) count++;
-                else if (Matrix[Y + 1][X - 1] != Piece.EMPTY) count++;
-            }
-            // Top and bottom right
-            if (X + 1 > 9) count += 2;
-            else
-            {
-                // Top right
-                if (Matrix[Y - 1][X + 1] != Piece.EMPTY) count++;
-                // Bottom right
-                if (Y + 1 > 39) count++;
-                else if (Matrix[Y + 1][X + 1] != Piece.EMPTY) count++;
-            }
+        const int ALL_CORNERS = (0b101 << 20) | 0b101;
+        const int NO_BR = (0b101 << 20) | 0b100;
+        const int NO_BL = (0b101 << 20) | 0b001;
+        const int NO_TL = (0b001 << 20) | 0b101;
+        const int NO_TR = (0b100 << 20) | 0b101;
 
-            if (count > 2)
-            {
-                // Check if mini
-                switch (Current.R)
-                {
-                    case Piece.ROTATION_NONE:
-                        if (Matrix[Y - 1][X - 1] == Piece.EMPTY || Matrix[Y - 1][X + 1] == Piece.EMPTY) return 2;
-                        break;
-                    case Piece.ROTATION_CW:
-                        if (Matrix[Y + 1][X + 1] == Piece.EMPTY || Matrix[Y - 1][X + 1] == Piece.EMPTY) return 2;
-                        break;
-                    case Piece.ROTATION_180:
-                        if (Matrix[Y + 1][X - 1] == Piece.EMPTY || Matrix[Y + 1][X + 1] == Piece.EMPTY) return 2;
-                        break;
-                    case Piece.ROTATION_CCW:
-                        if (Matrix[Y - 1][X - 1] == Piece.EMPTY || Matrix[Y + 1][X - 1] == Piece.EMPTY) return 2;
-                        break;
-                }
-                return 3;
-            }
+        if (!rotatedLast || (Current.PieceType != Piece.T)) return 0;
+
+        int i = 10 * Y - X + 19; // 19 = 10 + T.MaxX
+        ulong corners = (Matrix >> i).LowLow & ALL_CORNERS;
+
+        if (corners == ALL_CORNERS) return 3;
+        switch (Current.R)
+        {
+            case Piece.ROTATION_NONE:
+                if (Y == Current.MinY) corners |= 0b101;
+                if (corners == NO_BR || corners == NO_BL) return 3;
+                if (corners == NO_TR || corners == NO_TL) return 2;
+                break;
+            case Piece.ROTATION_CW:
+                if (X == Current.MinX) corners |= (0b100 << 20) | 0b100;
+                if (corners == NO_TL || corners == NO_BL) return 3;
+                if (corners == NO_TR || corners == NO_BR) return 2;
+                break;
+            case Piece.ROTATION_180:
+                if (corners == NO_TR || corners == NO_TL) return 3;
+                if (corners == NO_BR || corners == NO_BL) return 2;
+                break;
+            case Piece.ROTATION_CCW:
+                if (X == Current.MaxX) corners |= (0b001 << 20) | 0b001;
+                if (corners == NO_TR || corners == NO_BR) return 3;
+                if (corners == NO_TL || corners == NO_BL) return 2;
+                break;
         }
+
         return 0;
     }
 
@@ -310,24 +908,17 @@ public class GameBase
         Piece rotated = Current + Piece.ROTATION_CW;
         for (int i = 0; i < 5; i++)
         {
-            bool pass = true;
-            int x = X + Current.KicksCWX[i];
-            int y = Y + Current.KicksCWY[i];
+            int new_x = X + Current.KicksCWX(i);
+            int new_y = Y + Current.KicksCWY(i);
 
-            if (x < rotated.MinX || x > rotated.MaxX || y > rotated.MaxY)
-                continue;
-            for (int j = 0; j < 4 && pass; j++)
-                if (Matrix[y + rotated.Y[j]][x + rotated.X[j]] != Piece.EMPTY)
-                    pass = false;
-            if (!pass)
+            if (!Fits(rotated, new_x, new_y))
                 continue;
 
-            X = x;
-            Y = y;
+            X = new_x;
+            Y = new_y;
             Current = rotated;
             return true;
         }
-
         return false;
     }
 
@@ -336,24 +927,17 @@ public class GameBase
         Piece rotated = Current + Piece.ROTATION_CCW;
         for (int i = 0; i < 5; i++)
         {
-            bool pass = true;
-            int x = X + Current.KicksCCWX[i];
-            int y = Y + Current.KicksCCWY[i];
+            int new_x = X + Current.KicksCCWX(i);
+            int new_y = Y + Current.KicksCCWY(i);
 
-            if (x < rotated.MinX || x > rotated.MaxX || y > rotated.MaxY)
-                continue;
-            for (int j = 0; j < 4 && pass; j++)
-                if (Matrix[y + rotated.Y[j]][x + rotated.X[j]] != Piece.EMPTY)
-                    pass = false;
-            if (!pass)
+            if (!Fits(rotated, new_x, new_y))
                 continue;
 
-            X = x;
-            Y = y;
+            X = new_x;
+            Y = new_y;
             Current = rotated;
             return true;
         }
-
         return false;
     }
 
@@ -361,18 +945,15 @@ public class GameBase
     {
         Piece rotated = Current + Piece.ROTATION_180;
 
-        if (X < rotated.MinX || X > rotated.MaxX || Y > rotated.MaxY)
+        if (!Fits(rotated, X, Y))
             return false;
-        for (int j = 0; j < 4; j++)
-            if (Matrix[Y + rotated.Y[j]][X + rotated.X[j]] != Piece.EMPTY)
-                return false;
 
         Current = rotated;
         return true;
     }
-
-    // Returns true if the piece was rotated; Otherwise, returns false
-    // Currently no 180 kicks
+    
+    /// <returns>true if the piece was rotated; Otherwise, false.</returns> 
+    /// <remarks>Currently no 180 kicks.</remarks>
     public bool TryRotate(int dr)
     {
         dr &= 3;
@@ -392,9 +973,8 @@ public class GameBase
         {
             if (X < Current.MaxX)
             {
-                for (int i = 0; i < 4; i++)
-                    if (Matrix[BlockY(i)][BlockX(i) + 1] != Piece.EMPTY)
-                        return false;
+                if (Intersects(X + 1, Y))
+                    return false;
                 X++;
                 return true;
             }
@@ -403,9 +983,8 @@ public class GameBase
         {
             if (X > Current.MinX)
             {
-                for (int i = 0; i < 4; i++)
-                    if (Matrix[BlockY(i)][BlockX(i) - 1] != Piece.EMPTY)
-                        return false;
+                if (Intersects(X - 1, Y))
+                    return false;
                 X--;
                 return true;
             }
@@ -414,14 +993,15 @@ public class GameBase
         return false;
     }
 
-    // Returns true if the piece was moved; Otherwise, returns false
+    /// <returns>true if the piece was moved; Otherwise, false.</returns> 
     public bool TrySlide(int dx)
     {
-        if (Y + Current.Lowest < Highest)
+        if (Y + Current.Lowest > Highest)
         {
+            int old_x = X;
             X += dx;
             X = Math.Clamp(X, Current.MinX, Current.MaxX);
-            return dx != 0;
+            return X != old_x;
         }
 
         bool right = dx > 0, moved = false;
@@ -435,135 +1015,129 @@ public class GameBase
         return moved;
     }
 
-    // Returns number of blocks moved down by
+    /// <returns>The number of blocks moved down by.</returns> 
     public int TryDrop(int dy)
     {
-        int diff = Highest - Y - Current.Lowest - 1;
-        if (diff > dy)
+        int diff = Y + Current.Lowest - Highest - 1;
+        if (diff >= dy)
         {
-            Y += dy;
+            Y -= dy;
             return dy;
         }
-        dy = Math.Min(dy, dy - diff);
         int moved = Math.Max(0, diff);
-        Y += moved;
-        for (; dy > 0 && !OnGround(); dy--, Y++) moved++;
+        dy -= moved;
+        Y -= moved;
+        for (; dy > 0 && !OnGround(); dy--, Y--) moved++;
         return moved;
     }
 
     public void ResetPiece()
     {
         // Move new piece to top
-        X = 4; Y = 19;
+        X = START_X; Y = START_Y;
         Current = Current.PieceType;
         // Drop immediately if possible
-        if (!OnGround()) Y++;
+        if (!OnGround()) Y--;
     }
 
     public int[] Place(out int cleared)
     {
         // Put piece into matrix
-        Highest = Math.Min(Highest, Y + Current.Highest);
-        for (int i = 0; i < 4; i++) Matrix[BlockY(i)][BlockX(i)] = Current.PieceType;
+        Highest = Math.Max(Highest, Y + Current.Highest);
+        Matrix |= Current.GetMask(X, Y);
 
         // Find cleared lines
         cleared = 0;
+        int index = 0;
         int[] clears = new int[4];
-        for (int i = 0; i < 4; i++)
+        int end = Y + Current.Lowest;
+        for (int y = Y + Current.Highest; y >= end; y--)
         {
-            // Skip if this Y level has already been checked
-            if (i > 0)
-                if (Current.Y[i] == Current.Y[i - 1])
-                    continue;
-
-            int y = BlockY(i);
-            bool clear = true;
-            for (int x = 0; x < 10 && clear; x++)
-                if (Matrix[y][x] == Piece.EMPTY)
-                    clear = false;
-            if (clear) clears[cleared++] = y;
+            // List clears as chunks as they usually aren't split up
+            int old_y = y;
+            while (Matrix.GetRow(y) == MatrixMask.FULL_LINE && y >= end) y--;
+            if (old_y == y) continue;
+            
+            int dy = old_y - y;
+            cleared += dy;
+            clears[index++] = y + 1;
+            clears[index++] = dy;
         }
 
-        // Clear and move lines down
-        if (cleared != 0)
+        // Clear chunks and move lines down
+        if (clears[1] > 0)
         {
-            int movedown = 1;
-            for (int y = clears[cleared - 1] - 1; y >= 17; y--)
-            {
-                if (movedown == cleared) Matrix[y + movedown] = Matrix[y];
-                else if (clears[cleared - movedown - 1] == y) movedown++;
-                else Matrix[y + movedown] = Matrix[y];
-            }
-            // Add new empty rows
-            for (; movedown > 0; movedown--) Matrix[16 + movedown] = new int[10];
+            MatrixMask top = (Matrix >> (clears[1] * 10)) & MatrixMask.InverseHeightMasks[clears[0]];
+            Matrix = (Matrix & MatrixMask.HeightMasks[clears[0]]) | top;
         }
-        Highest += cleared;
+        if (clears[3] > 0)
+        {
+            MatrixMask top = (Matrix >> (clears[3] * 10)) & MatrixMask.InverseHeightMasks[clears[2]];
+            Matrix = (Matrix & MatrixMask.HeightMasks[clears[2]]) | top;
+        }
+
+        Highest -= cleared;
 
         return clears;
     }
 
-    public void Unplace(int[] clears, int cleared)
+    public void Unplace(int[] clears)
     {
         // Add back cleared lines
-        if (cleared != 0)
+        if (clears[3] > 0)
         {
-            int moveup = cleared;
-            for (int y = 16; moveup != 0; y++)
-            {
-                if (y == clears[cleared - moveup])
-                {
-                    moveup--;
-                    Matrix[y] = new int[10];
-                    Buffer.BlockCopy(GarbageLine, 0, Matrix[y], 0, 10 * sizeof(int));
-                }
-                else Matrix[y] = Matrix[y + moveup];
-            }
-            Highest -= cleared;
+            MatrixMask bottom = (Matrix & MatrixMask.HeightMasks[clears[2]]) |
+                     (MatrixMask.InverseHeightMasks[clears[2]] & MatrixMask.HeightMasks[clears[2] + clears[3]]);
+            Matrix = ((Matrix & MatrixMask.InverseHeightMasks[clears[2]]) << (clears[3] * 10)) | bottom;
         }
-
-        // Remove piece
-        for (int i = 0; i < 4; i++) Matrix[BlockY(i)][BlockX(i)] = Piece.EMPTY;
-
-        while (Highest < 40)
+        if (clears[1] > 0)
         {
-            for (int i = 0; i < 10; i++)
-                if (Matrix[Highest][i] != Piece.EMPTY)
-                    return;
-            Highest++;
+            MatrixMask bottom = (Matrix & MatrixMask.HeightMasks[clears[0]]) |
+                     (MatrixMask.InverseHeightMasks[clears[0]] & MatrixMask.HeightMasks[clears[0] + clears[1]]);
+            Matrix = ((Matrix & MatrixMask.InverseHeightMasks[clears[0]]) << (clears[1] * 10)) | bottom;
+        }
+        
+        // Remove piece
+        Matrix &= ~Current.GetMask(X, Y);
+
+        while (Highest >= 0)
+        {
+            if (Matrix.GetRow(Highest) != 0) break;
+            Highest--;
         }
     }
 
     public void CheckHeight()
     {
         Highest = 0;
-        while (Highest < Matrix.Length)
+        while (Matrix.GetRow(Highest) != 0)
         {
-            for (int i = 0; i < 10; i++)
-                if (Matrix[Highest][i] != Piece.EMPTY)
-                    return;
             Highest++;
+            if (Highest >= 24) break;
         }
+        Highest--;
     }
 
-    public GameBase Clone()
-    {
-        GameBase clone = new(Next.Length, 0);
-        for (int i = 0; i < 40; i++) clone.Matrix[i] = (int[])Matrix[i].Clone();
-        clone.Highest = Highest;
-        clone.X = X;
-        clone.Y = Y;
-        clone.Current = Current;
-        clone.Hold = Hold;
-        clone.Next = (Piece[])Next.Clone();
-        return clone;
-    }
+    public GameBase Clone() => 
+        new GameBase(Next.Length, 0)
+        {
+            Matrix = Matrix,
+            Highest = Highest,
+            X = X,
+            Y = Y,
+            Current = Current,
+            Hold = Hold,
+            Next = (Piece[])Next.Clone()
+        };
 
     public bool PathFind(Piece end_piece, int end_x, int end_y, out List<Moves> moves)
     {
-        moves = null;
+        moves = new List<Moves>();
         // No possible route if piece is out of bounds
-        if (end_x < end_piece.MinX || end_x > end_piece.MaxX || end_y < 0 || end_y > end_piece.MaxY)
+        if (end_x < end_piece.MinX || end_x > end_piece.MaxX || end_y < end_piece.MinY || end_y >= 24)
             return false;
+
+        PieceMask end_piece_mask = end_piece.GetMask(end_x, end_y);
 
         GameBase clone = Clone();
         // Check if hold is needed
@@ -623,7 +1197,7 @@ public class GameBase
             clone.X = x;
             clone.Y = y;
             clone.TryDrop(40);
-            if (MaskMatch(piece, clone.X, clone.Y))
+            if (piece.GetMask(clone.X, clone.Y) == end_piece_mask)
             {
                 moves = m;
                 moves.Add(Moves.HardDrop);
@@ -642,54 +1216,20 @@ public class GameBase
             if (!seen.Contains(hash))
             {
                 seen.Add(hash);
-                List<Moves> new_m = new List<Moves>(m);
-                new_m.Add(move);
+                List<Moves> new_m = new List<Moves>(m) { move };
                 nodes.Enqueue((clone.Current, clone.X, clone.Y, new_m));
             }
-        }
-
-        bool MaskMatch(Piece p, int x, int y)
-        {
-            ulong end_piece_mask = end_piece.Mask;
-            ulong p_mask = p.Mask;
-
-            int x_shift = Math.Abs(x - end_x);
-            if (x < end_x) p_mask <<= x_shift;
-            else end_piece_mask <<= x_shift;
-
-            int y_shift = Math.Abs(y - end_y) * 10;
-            if (y_shift >= 64) return false;
-            if (y < end_y) p_mask <<= y_shift;
-            else end_piece_mask <<= y_shift;
-
-            return end_piece_mask == p_mask;
         }
     }
 }
 
+// TODO: change callbacks to events or use tasks?
 public sealed class Game : GameBase
 {
-    public struct GameSettings
-    {
-        public static readonly string DefaultPath = AppContext.BaseDirectory + "Settings.json";
-
-        public int[] LinesTrash;
-        public int[] TSpinTrash;
-        public int[] ComboTrash;
-        public int[] PCTrash;
-
-        public double G;
-        public double SoftG;
-
-        public int LockDelay, EraseDelay, GarbageDelay; // In miliseconds
-        public int AutoLockGrace;
-        public int TargetChangeInteval;
-    }
-
     public const int GAMEWIDTH = 44, GAMEHEIGHT = 24;
     const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
     static readonly string[] ClearText = { "SINGLE", "DOUBLE", "TRIPLE", "TETRIS" };
-    static readonly ConsoleColor[] PieceColors =
+    public static readonly ConsoleColor[] PieceColors =
     {
         ConsoleColor.Black,         // Empty
         ConsoleColor.Magenta,       // T
@@ -703,7 +1243,7 @@ public sealed class Game : GameBase
         ConsoleColor.DarkGray       // Bedrock
     };
 
-    public static GameSettings Settings { get; private set; }
+    static readonly ConsoleColor[] GarbageLineColor = new ConsoleColor[10].Select(x => PieceColors[Piece.Garbage]).ToArray();
 
     public static Game[] Games { get; private set; }
     public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
@@ -745,6 +1285,8 @@ public sealed class Game : GameBase
     #region // Fields and Properties
     int XOffset = 0;
     int YOffset = 0;
+
+    public readonly ConsoleColor[][] MatrixColors = new ConsoleColor[24][]; // [y][x]
 
     private string _Name = "";
     public string Name
@@ -811,7 +1353,7 @@ public sealed class Game : GameBase
                        EraseT = new Stopwatch();
 
     readonly Random GarbageRand;
-    readonly List<(int, long)> Garbage = new List<(int, long)>();
+    readonly List<(int Lines, long Time)> Garbage = new List<(int, long)>();
 
     long TargetChangeInteval = 500, LastTargetChangeTime; // In miliseconds
     public TargetModes TargetMode = TargetModes.Random;
@@ -853,18 +1395,21 @@ public sealed class Game : GameBase
 
     public Game() : base(6, Guid.NewGuid().GetHashCode())
     {
+        for (int i = 0; i < MatrixColors.Length; i++) MatrixColors[i] = new ConsoleColor[10];
         GarbageRand = new Random(Guid.NewGuid().GetHashCode());
     }
 
     public Game(int next_length, int seed) : base(next_length, seed)
     {
+        for (int i = 0; i < MatrixColors.Length; i++) MatrixColors[i] = new ConsoleColor[10];
         GarbageRand = new Random(seed.GetHashCode());
     }
 
     public void Restart()
     {
-        for (int i = 0; i < Matrix.Length; i++) Matrix[i] = new int[Matrix[i].Length];
+        Matrix = new MatrixMask();
         CheckHeight();
+        for (int i = 0; i < MatrixColors.Length; i++) MatrixColors[i] = new ConsoleColor[MatrixColors[i].Length];
         BagIndex = Bag.Length;
         for (int i = 0; i < Next.Length; i++) Next[i] = NextPiece();
         Hold = Piece.EMPTY;
@@ -954,15 +1499,16 @@ public sealed class Game : GameBase
         if (OnGround())
         {
             Vel = 0;
-            if (MoveCount > AutoLockGrace) PlacePiece(); // Lock piece
             LockT.Start();
+            // Lock piece
+            if ((MoveCount > AutoLockGrace) || (LockT.ElapsedMilliseconds > LockDelay))
+                PlacePiece();
         }
         else
         {
             if (MoveCount < AutoLockGrace) LockT.Reset();
             Vel -= Drop((int)Vel, softDrop ? 1 : 0); // Round Vel down
         }
-        if (LockT.ElapsedMilliseconds > LockDelay && OnGround()) PlacePiece();
 
         // Write stats
         WriteAt(0, 20, ConsoleColor.White, $"Sent:{Sent}".PadRight(11));
@@ -994,22 +1540,6 @@ public sealed class Game : GameBase
         }
     }
 
-    public static void LoadSettings(string path = null)
-    {
-        path = path ?? GameSettings.DefaultPath;
-        string jsonString = File.ReadAllText(path);
-        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
-        Settings = JsonSerializer.Deserialize<GameSettings>(jsonString, options);
-    }
-
-    public static void SaveSettings(string path = null)
-    {
-        path = path ?? GameSettings.DefaultPath;
-        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
-        string json = JsonSerializer.Serialize(Settings, options);
-        File.WriteAllText(path, json, Encoding.UTF8);
-    }
-
     #region // Player methods
     public void Play(Moves move)
     {
@@ -1021,9 +1551,6 @@ public sealed class Game : GameBase
 
     void Slide(int dx)
     {
-        if (dx > 0 && X == Current.MaxX) return;
-        if (dx < 0 && X == Current.MinX) return;
-        
         DrawCurrent(true);
         if (TrySlide(dx))
         {
@@ -1043,7 +1570,6 @@ public sealed class Game : GameBase
         {
             //Playsfx(Sounds.smth);
             IsLastMoveRotate = false;
-            //if (MoveCount < AutoLockGrace) LockT.Restart(); // Kinda pointless tbh
         }
         DrawCurrent(false);
 
@@ -1052,76 +1578,86 @@ public sealed class Game : GameBase
 
     void Rotate(int dr)
     {
-        if (Current.PieceType != Piece.O)
+        DrawCurrent(true);
+        if (TryRotate(dr))
         {
-            DrawCurrent(true);
-            if (TryRotate(dr))
-            {
-                IsLastMoveRotate = true;
-                if (MoveCount++ < AutoLockGrace) LockT.Restart();
-            }
-            DrawCurrent(false);
+            IsLastMoveRotate = true;
+            if (MoveCount++ < AutoLockGrace) LockT.Restart();
         }
+        DrawCurrent(false);
     }
 
     void HoldPiece()
     {
-        if (!AlreadyHeld)
+        if (AlreadyHeld) return;
+
+        AlreadyHeld = true;
+        IsLastMoveRotate = false;
+
+        // Undraw
+        DrawCurrent(true);
+        DrawPieceAt(Hold, 5, 4, true);
+
+        Piece oldhold = Hold.PieceType;
+        Hold = Current.PieceType;
+        MoveCount = 0;
+        if (oldhold.PieceType == Piece.EMPTY)
+            SpawnNextPiece();
+        else
         {
-            AlreadyHeld = true;
-            IsLastMoveRotate = false;
-
-            // Undraw
-            DrawCurrent(true);
-            DrawPieceAt(Hold, 3, 3, true);
-
-            Piece oldhold = Hold.PieceType;
-            Hold = Current.PieceType;
-            MoveCount = 0;
-            if (oldhold.PieceType == Piece.EMPTY)
-                SpawnNextPiece();
-            else
-            {
-                Current = oldhold;
-                ResetPiece();
-            }
-
-            // Redraw
-            DrawPieceAt(Hold, 3, 3, false);
-            DrawCurrent(false);
-            LockT.Restart();
+            Current = oldhold;
+            ResetPiece();
         }
+
+        // Redraw
+        DrawPieceAt(Hold, 5, 4, false);
+        DrawCurrent(false);
+        LockT.Reset();
     }
 
     void PlacePiece()
     {
         int tspin = TSpinType(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
+        // Place piece in MatrixColors
+        for (int i = 0; i < 4; i++)
+            MatrixColors[Y - Current.Y(i)][X + Current.X(i)] = PieceColors[Current.PieceType];
         // Clear lines
-        Place(out int cleared);
+        int[] clears = Place(out int cleared);
+        for (int i = 0; i < clears.Length; i += 2)
+        {
+            if (clears[i + 1] == 0) break;
+            for (int j = clears[i]; j < MatrixColors.Length - clears[i + 1]; j++)
+            {
+                MatrixColors[j] = MatrixColors[j + clears[i + 1]];
+            }
+        }
+        // Add new empty rows
+        for (int i = MatrixColors.Length - cleared; i < MatrixColors.Length; i++)
+            MatrixColors[i] = new ConsoleColor[10].Select(x => ConsoleColor.Black).ToArray();
         // Line clears
-        int scoreadd = 0;
-        scoreadd += new int[] { 0, 100, 300, 500, 800 }[cleared];
+        int score_add = 0;
+        score_add += new int[] { 0, 100, 300, 500, 800 }[cleared];
         // T-spins
-        if (tspin == 3) scoreadd += new int[] { 400, 700, 900, 1100 }[cleared];
-        if (tspin == 2) scoreadd += 100;
+        if (tspin == 3) score_add += new int[] { 400, 700, 900, 1100 }[cleared];
+        if (tspin == 2) score_add += 100;
         // Perfect clear
-        bool pc = true;
-        for (int x = 0; x < 10 && pc; x++) if (Matrix[^1][x] != 0) pc = false;
-        if (pc) scoreadd += new int[] { 800, 1200, 1800, 2000 }[cleared - 1];
+        bool pc = Matrix.GetRow(0) == 0;
+        if (pc) score_add += new int[] { 800, 1200, 1800, 2000 }[cleared - 1];
         // B2B
         bool is_hard_clear = tspin + cleared > 3;
         if (tspin == 0 && cleared != 4 && cleared != 0) B2B = -1; // Reset B2B
         else if (is_hard_clear) B2B++;
         bool b2b_active = is_hard_clear && B2B > 0;
-        if (b2b_active) scoreadd += scoreadd / 2; //B2B bonus
+        if (b2b_active) score_add += score_add / 2; //B2B bonus
         // Combo
         Combo = cleared == 0 ? -1 : Combo + 1;
-        if (Combo > -1) scoreadd += 50 * Combo;
+        if (Combo > -1) score_add += 50 * Combo;
         // Score
-        Score += scoreadd * Level;
+        Score += score_add * Level;
         // Check if leveled up
+        int old_level = Level;
         Lines += cleared;
-        if (Level % 10 < cleared) // Assumes cleared < 10
+        if (old_level < Level)
         {
 
         }
@@ -1152,14 +1688,14 @@ public sealed class Game : GameBase
         // Garbage cancelling
         while (Garbage.Count != 0 && trash != 0)
         {
-            if (Garbage[0].Item1 <= trash)
+            if (Garbage[0].Lines <= trash)
             {
-                trash -= Garbage[0].Item1;
+                trash -= Garbage[0].Lines;
                 Garbage.RemoveAt(0);
             }
             else
             {
-                Garbage[0] = (Garbage[0].Item1 - trash, Garbage[0].Item2);
+                Garbage[0] = (Garbage[0].Lines - trash, Garbage[0].Time);
                 trash = 0;
             }
         }
@@ -1168,32 +1704,38 @@ public sealed class Game : GameBase
         {
             while (Garbage.Count > 0)
             {
-                if (GlobalTime.ElapsedMilliseconds - Garbage[0].Item2 <= GarbageDelay) break;
+                if (GlobalTime.ElapsedMilliseconds - Garbage[0].Time <= GarbageDelay) break;
 
-                int linesToAdd = Garbage[0].Item1;
+                int lines_to_add = Garbage[0].Lines;
                 Garbage.RemoveAt(0);
                 int hole = GarbageRand.Next(10);
-                int bedrock_height = Matrix.Length - 1;
-                while (Matrix[bedrock_height].All(x => x == Piece.Bedrock)) bedrock_height--;
-                bedrock_height++;
-                for (int y = 17; y < bedrock_height; y++) Matrix[y - linesToAdd] = Matrix[y]; // Move stuff up
-                for (int y = bedrock_height - linesToAdd; y < bedrock_height; y++)
+                int bedrock_height = 0;
+                while (Matrix.GetRow(bedrock_height) == MatrixMask.FULL_LINE) bedrock_height++;
+                bedrock_height--;
+                // Move stuff up
+                MatrixMask top = (Matrix & MatrixMask.InverseHeightMasks[bedrock_height + 1]) << (lines_to_add * 10);
+                Matrix = top | (Matrix & MatrixMask.HeightMasks[bedrock_height + 1]);
+                for (int y = MatrixColors.Length - lines_to_add - 1; y > bedrock_height; y--)
+                    MatrixColors[y + lines_to_add] = MatrixColors[y];
+                // Add garbage
+                for (int y = bedrock_height + 1; y < bedrock_height + lines_to_add + 1; y++)
                 {
-                    // Make row of trash
-                    Matrix[y] = new int[10];
-                    Buffer.BlockCopy(GarbageLine, 0, Matrix[y], 0, 10 * sizeof(int));
+                    MatrixMask garbage_line = new MatrixMask() { LowLow = ~(1UL << (9 - hole)) << 10 } & MatrixMask.HeightMasks[1];
+                    garbage_line <<= y * 10;
+                    Matrix |= garbage_line;
+                    
+                    MatrixColors[y] = new ConsoleColor[10];
+                    Buffer.BlockCopy(GarbageLineColor, 0, MatrixColors[y], 0, 10 * sizeof(ConsoleColor));
                     // Add hole
-                    Matrix[y][hole] = Piece.EMPTY;
+                    MatrixColors[y][hole] = PieceColors[Piece.EMPTY];
                 }
             }
         }
         DrawTrashMeter();
         if (trash > 0) SendTrash(trash);
 
-        // Redraw screen
-        for (int x = 0; x < 10; x++)
-            for (int y = 39; y > 19; y--)
-                WriteAt(12 + x * 2, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);
+        // Redraw matrix
+        DrawMatrix();
 
         CheckHeight();
         SpawnNextPiece();
@@ -1241,31 +1783,25 @@ public sealed class Game : GameBase
     {
         // Undraw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPieceAt(Next[i], 37, 3 + 3 * i, true);
+            DrawPieceAt(Next[i], 39, 4 + 3 * i, true);
         // Update current and next
         Current = Next[0];
         for (int i = 1; i < Next.Length; i++) Next[i - 1] = Next[i];
-        Next[Next.Length - 1] = NextPiece();
+        Next[^1] = NextPiece();
         // Reset piece
         ResetPiece();
         IsLastMoveRotate = false;
         AlreadyHeld = false;
         Vel = 0;
         MoveCount = 0;
-        LockT.Restart();
+        LockT.Reset();
         // Check for block out
-        for (int i = 0; i < 4; i++)
-            if (Matrix[BlockY(i)][BlockX(i)] != 0)
-                IsDead = true;
+        if (Intersects(X, Y)) IsDead = true;
         // Check for lock out
-        //bool isDead = true;
-        //for (int i = 0; i < 4; i++)
-        //    if (BlockY(i) > 19)
-        //        isDead = false;
-        //IsDead |= isDead;
+        //if (Y + Current.Lowest >= 20) IsDead = true;
         // Draw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPieceAt(Next[i], 37, 3 + 3 * i, false);
+            DrawPieceAt(Next[i], 39, 4 + 3 * i, false);
         // Draw current
         DrawCurrent(false);
     }
@@ -1278,23 +1814,30 @@ public sealed class Game : GameBase
     void DrawCurrent(bool black)
     {
         // Ghost
-        int movedown = TryDrop(40);
+        GameBase clone = this.Clone();
+        clone.TryDrop(40);
         for (int i = 0; i < 4; i++)
-            if (BlockY(i) > 19) // If visible
-                WriteAt(BlockX(i) * 2 + 12, BlockY(i) - 18, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKGHOST);
-        Y -= movedown;
+            if (clone.Y - Current.Y(i) < 20) // If visible
+                WriteAt((clone.X + Current.X(i)) * 2 + 12, -clone.Y + Current.Y(i) + 21, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKGHOST);
         // Piece
         for (int i = 0; i < 4; i++)
-            if (BlockY(i) > 19) // If visible
-                WriteAt(BlockX(i) * 2 + 12, BlockY(i) - 18, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKSOLID);
+            if (Y - Current.Y(i) < 20) // If visible
+                WriteAt((X + Current.X(i)) * 2 + 12, -Y + Current.Y(i) + 21, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKSOLID);
     }
 
     void DrawPieceAt(Piece piece, int x, int y, bool black)
     {
         for (int i = 0; i < 4; i++)
-            WriteAt(piece.X[i] * 2 + x, piece.Y[i] + y, black ? ConsoleColor.Black : PieceColors[piece.PieceType], BLOCKSOLID);
+            WriteAt(piece.X(i) * 2 + x, piece.Y(i) + y, black ? ConsoleColor.Black : PieceColors[piece.PieceType], BLOCKSOLID);
     }
 
+    void DrawMatrix()
+    {
+        for (int x = 0; x < 10; x++)
+            for (int y = 0; y < 20; y++)
+                WriteAt(x * 2 + 12, 21 - y, MatrixColors[y][x], BLOCKSOLID);
+    }
+    
     void DrawTrashMeter()
     {
         int y = 21;
@@ -1302,8 +1845,8 @@ public sealed class Game : GameBase
         {
             for (int i = 0; i < Garbage.Count; i++)
             {
-                ConsoleColor color = GlobalTime.ElapsedMilliseconds - Garbage[i].Item2 > GarbageDelay ? ConsoleColor.Red : ConsoleColor.Gray;
-                for (int j = y; y > j - Garbage[i].Item1 && y > 1; y--)
+                ConsoleColor color = GlobalTime.ElapsedMilliseconds - Garbage[i].Time > GarbageDelay ? ConsoleColor.Red : ConsoleColor.Gray;
+                for (int j = y; y > j - Garbage[i].Lines && y > 1; y--)
                 {
                     WriteAt(33, y, color, "█");
                 }
@@ -1325,7 +1868,7 @@ public sealed class Game : GameBase
             WriteAt(0, i, ConsoleColor.White, "".PadLeft(GAMEWIDTH));
     }
 
-    void DrawAll()
+    public void DrawAll()
     {
         ClearScreen();
         #region // Draw outlines
@@ -1371,17 +1914,53 @@ public sealed class Game : GameBase
 
         // Draw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPieceAt(Next[i], 37, 3 + 3 * i, false);
+            DrawPieceAt(Next[i], 39, 4 + 3 * i, false);
         // Draw hold
-        DrawPieceAt(Hold, 3, 3, false);
+        DrawPieceAt(Hold, 5, 4, false);
         // Draw board
-        for (int x = 0; x < 10; x++)
-            for (int y = 20; y < 40; y++)
-                WriteAt(x * 2 + 12, y - 18, PieceColors[Matrix[y][x]], BLOCKSOLID);
+        DrawMatrix();
         // Draw current piece
         DrawCurrent(false);
         // Draw trash meter
         DrawTrashMeter();
     }
     #endregion
+}
+
+public static class GameManager
+{
+    public struct GameSettings
+    {
+        public static readonly string DefaultPath = AppContext.BaseDirectory + "Settings.json";
+
+        public int[] LinesTrash;
+        public int[] TSpinTrash;
+        public int[] ComboTrash;
+        public int[] PCTrash;
+
+        public double G;
+        public double SoftG;
+
+        public int LockDelay, EraseDelay, GarbageDelay; // In miliseconds
+        public int AutoLockGrace;
+        public int TargetChangeInteval;
+    }
+
+    public static GameSettings Settings { get; private set; } = LoadSettings();
+
+    public static GameSettings LoadSettings(string? path = null)
+    {
+        path ??= GameSettings.DefaultPath;
+        string jsonString = File.ReadAllText(path);
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        return JsonSerializer.Deserialize<GameSettings>(jsonString, options);
+    }
+
+    public static void SaveSettings(string? path = null)
+    {
+        path ??= GameSettings.DefaultPath;
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        string json = JsonSerializer.Serialize(Settings, options);
+        File.WriteAllText(path, json, Encoding.UTF8);
+    }
 }

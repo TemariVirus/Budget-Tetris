@@ -1,8 +1,8 @@
-﻿namespace TetrisAI;
+﻿namespace Tetris;
 
-using System.Collections.Generic;
+using NEAT;
 using System.Diagnostics;
-using Tetris;
+using System.Numerics;
 
 public abstract class Bot
 {
@@ -26,7 +26,8 @@ public abstract class Bot
 
     protected readonly Dictionary<ulong, double> CachedValues = new Dictionary<ulong, double>();
     protected readonly Dictionary<ulong, double> CachedStateValues = new Dictionary<ulong, double>();
-    protected readonly ulong[][] MatrixHashTable = RandomArray(10, 40), NextHashTable;
+    protected readonly ulong[][] MatrixHashTable = RandomArray(32, 256), NextHashTable;
+    //protected readonly ulong[][] MatrixHashTable = RandomArray(16, 65536), NextHashTable;
     protected readonly ulong[] PieceHashTable = RandomArray(8), HoldHashTable = RandomArray(8);
     protected readonly double[] Discounts;
 
@@ -55,7 +56,7 @@ public abstract class Bot
         Network = network;
         game.Name = network.Name ?? "Bot";
     }
-    
+
     public Bot(string filePath, Game game) : this(NN.LoadNN(filePath), game)
     {
         string name = filePath.Substring(Math.Max(0, filePath.LastIndexOf('\\')));
@@ -142,7 +143,7 @@ public abstract class Bot
     }
 
     protected abstract List<Moves> FindMoves();
-    
+
     protected virtual int[] SearchScore(bool last_rot, ref int combo, ref int b2b, out double trash, out int cleared)
     {
         // { scoreadd, B2B, T - spin, combo, clears } //first bit of B2B = B2B chain status
@@ -153,8 +154,7 @@ public abstract class Bot
         // Combo
         combo = cleared == 0 ? -1 : combo + 1;
         // Perfect clear
-        bool pc = true;
-        for (int x = 0; x < 10; x++) if (Sim.Matrix[39][x] != 0) pc = false;
+        bool pc = Sim.Matrix.GetRow(0) == 0;
         // Compute score
         if (tspin == 0 && cleared != 4 && cleared != 0) b2b = -1;
         else if (tspin + cleared > 3) b2b++;
@@ -171,7 +171,7 @@ public abstract class Bot
         //// Modify _trash(use trash sent * APL and offset it slightly)
         ////if (cleared != 0 && comb > 1) _trash = Math.FusedMultiplyAdd(_trash, _trash / cleared, -1.5);
 
-        trash = pc ? Game.PCTrash[cleared] :
+        trash = pc         ? Game.PCTrash[cleared] :
                 tspin == 3 ? Game.TSpinTrash[cleared] :
                              Game.LinesTrash[cleared];
         if (combo > 0) trash += Game.ComboTrash[Math.Min(combo, Game.ComboTrash.Length) - 1];
@@ -179,30 +179,22 @@ public abstract class Bot
 
         return clears;
     }
-        
+
     protected virtual ulong HashBoard(Piece piece, Piece _hold, int nexti, int depth)
     {
         ulong hash = PieceHashTable[piece.PieceType] ^ HoldHashTable[_hold.PieceType];
         for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++)
             hash ^= NextHashTable[i][Sim.Next[nexti + i]];
-        for (int x = 0; x < 10; x++)
-            for (int y = Sim.Highest; y < 40; y++)
-                if (Sim.Matrix[y][x] != Piece.EMPTY)
-                    hash ^= MatrixHashTable[x][y];
+        for (int i = 0, shift = 0; i < 8; i++)
+        {
+            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.LowHigh >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 16][(Sim.Matrix.HighLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 24][(Sim.Matrix.HighHigh >> shift) & 0xFF];
+            shift += 8;
+        }
 
         return hash;
-    }
-
-    protected virtual bool MatrixToUlong(int[][] matrix, out ulong ulong_matrix)
-    {
-        //pc_moves = null;
-        ulong_matrix = 0;
-        for (int y = 17; y < matrix.Length - 4; y++) for (int x = 0; x < matrix[0].Length; x++) if (matrix[y][x] != 0) return false;
-        for (int i = 0; i < 40; i++)
-        {
-            if (matrix[(i / 10) + matrix.Length - 4][i % 10] != 0) ulong_matrix |= 1ul << (39 - i);
-        }
-        return true;
     }
 }
 
@@ -266,7 +258,7 @@ public class BotOld : Bot
 
                         Sim.Current = piece;
                         Sim.X = orix;
-                        Sim.Y = 19;
+                        Sim.Y = GameBase.START_Y;
                         // Hard drop
                         Sim.TryDrop(40);
                         int oriy = Sim.Y;
@@ -289,7 +281,7 @@ public class BotOld : Bot
                         Sim.Current = piece;
                         Sim.X = orix;
                         Sim.Y = oriy;
-                        Sim.Unplace(clears, cleared);
+                        Sim.Unplace(clears);
                         // Only vertical pieces can be spun
                         if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
                         {
@@ -324,7 +316,7 @@ public class BotOld : Bot
                                     Sim.Current = rotated;
                                     Sim.X = x;
                                     Sim.Y = y;
-                                    Sim.Unplace(clears, cleared);
+                                    Sim.Unplace(clears);
 
                                     // Only try to spin T pieces twice (for TSTs)
                                     if (piece.PieceType != Piece.T) break;
@@ -377,10 +369,14 @@ public class BotOld : Bot
             NodeCounts[0]++;
 
             ulong hash = BitConverter.DoubleToUInt64Bits(_trash);
-            for (int x = 0; x < 10; x++)
-                for (int y = 20; y < 40; y++)
-                    if (Sim.Matrix[y][x] != Piece.EMPTY)
-                        hash ^= MatrixHashTable[x][y];
+            for (int i = 0, shift = 0; i < 8; i++)
+            {
+                hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFF];
+                hash ^= MatrixHashTable[i + 8][(Sim.Matrix.LowHigh >> shift) & 0xFF];
+                hash ^= MatrixHashTable[i + 16][(Sim.Matrix.HighLow >> shift) & 0xFF];
+                hash ^= MatrixHashTable[i + 24][(Sim.Matrix.HighHigh >> shift) & 0xFF];
+                shift += 8;
+            }
             if (CachedStateValues.ContainsKey(hash))
                 return CachedStateValues[hash];
 
@@ -401,10 +397,14 @@ public class BotOld : Bot
             if (outs[0] - prevstate < MoveTresh)
             {
                 ulong statehash = BitConverter.DoubleToUInt64Bits(_trash);
-                for (int x = 0; x < 10; x++)
-                    for (int y = 20; y < 40; y++)
-                        if (Sim.Matrix[y][x] != Piece.EMPTY)
-                            statehash ^= MatrixHashTable[x][y];
+                for (int i = 0, shift = 0; i < 8; i++)
+                {
+                    hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFF];
+                    hash ^= MatrixHashTable[i + 8][(Sim.Matrix.LowHigh >> shift) & 0xFF];
+                    hash ^= MatrixHashTable[i + 16][(Sim.Matrix.HighLow >> shift) & 0xFF];
+                    hash ^= MatrixHashTable[i + 24][(Sim.Matrix.HighHigh >> shift) & 0xFF];
+                    shift += 8;
+                }
                 if (!CachedStateValues.ContainsKey(statehash))
                     CachedStateValues.Add(statehash, outs[0]);
                 return outs[0];
@@ -428,7 +428,7 @@ public class BotOld : Bot
                     if (TimesUp) break;
 
                     Sim.X = orix;
-                    Sim.Y = 19;
+                    Sim.Y = GameBase.START_Y;
                     Sim.Current = piece;
                     Sim.TryDrop(40);
                     int oriy = Sim.Y;
@@ -444,7 +444,7 @@ public class BotOld : Bot
                         Sim.X = orix;
                         Sim.Y = oriy;
                         Sim.Current = piece;
-                        Sim.Unplace(clears, cleared);
+                        Sim.Unplace(clears);
                     }
                     // Only vertical pieces can be spun
                     if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
@@ -471,7 +471,7 @@ public class BotOld : Bot
                                 Sim.X = x;
                                 Sim.Y = y;
                                 Sim.Current = rotated;
-                                Sim.Unplace(clears, cleared);
+                                Sim.Unplace(clears);
 
                                 // Only try to spin T pieces twice(for TSTs)
                                 if (current.PieceType != Piece.T) break;
@@ -479,8 +479,8 @@ public class BotOld : Bot
                         }
                     }
                 }
-                //o pieces can't be rotated
-                if (current == 7) break;
+                // O pieces can't be rotated
+                if (current == Piece.O) break;
             }
 
             CachedValues.Add(hash, _value);
@@ -498,8 +498,7 @@ public class BotOld : Bot
         // Combo
         combo = cleared == 0 ? -1 : combo + 1;
         // Perfect clear
-        bool pc = true;
-        for (int x = 0; x < 10; x++) if (Sim.Matrix[39][x] != 0) pc = false;
+        bool pc = Sim.Matrix.GetRow(0) == 0;
         // Compute score
         if (tspin == 0 && cleared != 4 && cleared != 0) b2b = -1;
         else if (tspin + cleared > 3) b2b++;
@@ -519,46 +518,55 @@ public class BotOld : Bot
         return clears;
     }
 
+    [Obsolete]
     private double[] ExtrFeat(double _trash)
     {
+        // TODO: check impact of using ulong
+        uint[] rows = Sim.Matrix.GetRows();
+        uint[] block_bits = new uint[10];
         // Find heightest block in each column
         double[] heights = new double[10];
         for (int x = 0; x < 10; x++)
         {
-            double height = 40 - Sim.Highest;
-            if (Sim.Highest < 40)
+            double height = Sim.Highest + 1;
+            block_bits[x] = 1U << (9 - x);
+            for (int y = Sim.Highest; y >= 0; y--)
             {
-                for (int y = Sim.Highest; Sim.Matrix[y][x] == Piece.EMPTY; y++)
-                {
-                    height--;
-                    if (y == 39) break;
-                }
+                if ((rows[y] & block_bits[x]) != 0) break;
+                height--;
             }
             heights[x] = height;
         }
+        
         // Standard height
         double h = 0;
         if (Network.Visited[0])
         {
-            foreach (double height in heights) h += height * height;
+            foreach (double height in heights)
+                h = Math.FusedMultiplyAdd(height, height, h);
             h = Math.Sqrt(h);
         }
-        // "caves"
+        // "Caves"
         double caves = 0;
         if (Network.Visited[1])
         {
-            for (int y = 39 - (int)heights[0]; y < 40; y++)
-                if (Sim.Matrix[y][0] == 0 && Sim.Matrix[y - 1][0] != 0)
-                    if (y < 39 - heights[1])
-                        caves += heights[0] + y - 39;
+            for (int y = (int)heights[0] - 2; y >= 0; y--)
+                if ((rows[y] & block_bits[0]) == 0 && (rows[y + 1] & block_bits[0]) != 0)
+                    if (y < heights[1])
+                        caves += heights[0] - y;
             for (int x = 1; x < 9; x++)
-                for (int y = 39 - (int)heights[x]; y < 40; y++)
-                    if (Sim.Matrix[y][x] == 0 && Sim.Matrix[y - 1][x] != 0)
-                        if (y <= Math.Min(39 - heights[x - 1], 39 - heights[x + 1]))
-                            caves += heights[x] + y - 39;
-            for (int y = 39 - (int)heights[9]; y < 40; y++)
-                if (Sim.Matrix[y][9] == 0 && Sim.Matrix[y - 1][9] != 0) if (y <= 39 - heights[8])
-                        caves += heights[9] + y - 39;
+            {
+                for (int y = (int)heights[x] - 2; y >= 0; y--)
+                {
+                    if ((rows[y] & block_bits[x]) == 0 && (rows[y + 1] & block_bits[x]) != 0)
+                        if (y <= Math.Max(heights[x - 1], heights[x + 1]))
+                            caves += heights[x] - y;
+                }
+            }
+            for (int y = (int)heights[9] - 2; y >= 0; y--)
+                if ((rows[y] & block_bits[9]) == 0 && (rows[y + 1] & block_bits[9]) != 0)
+                    if (y <= heights[8])
+                        caves += heights[9] - y;
         }
         // Pillars
         double pillars = 0;
@@ -578,36 +586,24 @@ public class BotOld : Bot
         double rowtrans = 0;
         if (Network.Visited[3])
         {
-            for (int y = Sim.Highest; y < 40; y++)
+            MatrixMask mask = new MatrixMask()
             {
-                bool empty = Sim.Matrix[y][0] == 0;
-                for (int x = 1; x < 10; x++)
-                {
-                    bool isempty = Sim.Matrix[y][x] == 0;
-                    if (empty ^ isempty)
-                    {
-                        rowtrans++;
-                        empty = isempty;
-                    }
-                }
-            }
+                HighHigh = 0b000000_1111111110_1111111110_1111111110_1111111110_1111111110_11111111,
+                HighLow = 0b10_1111111110_1111111110_1111111110_1111111110_1111111110_1111111110_11,
+                LowHigh = 0b11111110_1111111110_1111111110_1111111110_1111111110_1111111110_111111,
+                LowLow = 0b1110_1111111110_1111111110_1111111110_1111111110_1111111110_0000000000
+            };
+            rowtrans = ((Sim.Matrix ^ (Sim.Matrix << 1)) & mask).PopCount();
         }
         // Column trasitions
         double coltrans = 0;
         if (Network.Visited[4])
         {
-            for (int x = 0; x < 10; x++)
+            uint prev_row = 0;
+            for (int y = Sim.Highest; y >= 0; y--)
             {
-                bool empty = Sim.Matrix[Sim.Highest - 1][x] == 0;
-                for (int y = Sim.Highest - 1; y < 40; y++)
-                {
-                    bool isempty = Sim.Matrix[y][x] == 0;
-                    if (empty ^ isempty)
-                    {
-                        coltrans++;
-                        empty = isempty;
-                    }
-                }
+                coltrans += BitOperations.PopCount(prev_row ^ rows[y]);
+                prev_row = rows[y];
             }
         }
 
@@ -678,7 +674,7 @@ public class BotFixedTresh : Bot
 
                         Sim.Current = piece;
                         Sim.X = orix;
-                        Sim.Y = 19;
+                        Sim.Y = GameBase.START_Y;
                         // Hard drop
                         Sim.TryDrop(40);
                         int oriy = Sim.Y;
@@ -701,7 +697,7 @@ public class BotFixedTresh : Bot
                         Sim.Current = piece;
                         Sim.X = orix;
                         Sim.Y = oriy;
-                        Sim.Unplace(clears, cleared);
+                        Sim.Unplace(clears);
                         // Only vertical pieces can be spun
                         if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
                         {
@@ -736,7 +732,7 @@ public class BotFixedTresh : Bot
                                     Sim.Current = rotated;
                                     Sim.X = x;
                                     Sim.Y = y;
-                                    Sim.Unplace(clears, cleared);
+                                    Sim.Unplace(clears);
 
                                     // Only try to spin T pieces twice (for TSTs)
                                     if (piece.PieceType != Piece.T) break;
@@ -835,7 +831,7 @@ public class BotFixedTresh : Bot
                     if (TimesUp) break;
 
                     Sim.X = orix;
-                    Sim.Y = 19;
+                    Sim.Y = GameBase.START_Y;
                     Sim.Current = piece;
                     Sim.TryDrop(40);
                     int oriy = Sim.Y;
@@ -851,7 +847,7 @@ public class BotFixedTresh : Bot
                         Sim.X = orix;
                         Sim.Y = oriy;
                         Sim.Current = piece;
-                        Sim.Unplace(clears, _cleared);
+                        Sim.Unplace(clears);
                     }
                     // Only vertical pieces can be spun
                     if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
@@ -878,7 +874,7 @@ public class BotFixedTresh : Bot
                                 Sim.X = x;
                                 Sim.Y = y;
                                 Sim.Current = rotated;
-                                Sim.Unplace(clears, _cleared);
+                                Sim.Unplace(clears);
 
                                 // Only try to spin T pieces twice(for TSTs)
                                 if (current.PieceType != Piece.T) break;
@@ -886,8 +882,8 @@ public class BotFixedTresh : Bot
                         }
                     }
                 }
-                //o pieces can't be rotated
-                if (current == 7) break;
+                // O pieces can't be rotated
+                if (current == Piece.O) break;
             }
 
             CachedValues.Add(hash, _value);
@@ -897,44 +893,51 @@ public class BotFixedTresh : Bot
 
     private double[] ExtrFeat(double cleared, double sent, double intent)
     {
+        uint[] rows = Sim.Matrix.GetRows();
+        uint[] block_bits = new uint[10];
         // Find heightest block in each column
         double[] heights = new double[10];
         for (int x = 0; x < 10; x++)
         {
-            double height = 40 - Sim.Highest;
-            if (Sim.Highest < 40)
+            double height = Sim.Highest + 1;
+            block_bits[x] = 1U << (9 - x);
+            for (int y = Sim.Highest; y >= 0; y--)
             {
-                for (int y = Sim.Highest; Sim.Matrix[y][x] == Piece.EMPTY; y++)
-                {
-                    height--;
-                    if (y == 39) break;
-                }
+                if ((rows[y] & block_bits[x]) != 0) break;
+                height--;
             }
             heights[x] = height;
         }
+
         // Standard height
         double h = 0;
         if (Network.Visited[0])
         {
-            foreach (double height in heights) h += height * height;
+            foreach (double height in heights)
+                h = Math.FusedMultiplyAdd(height, height, h);
             h = Math.Sqrt(h);
         }
         // "caves"
         double caves = 0;
         if (Network.Visited[1])
         {
-            for (int y = 39 - (int)heights[0]; y < 40; y++)
-                if (Sim.Matrix[y][0] == 0 && Sim.Matrix[y - 1][0] != 0)
-                    if (y < 39 - heights[1])
-                        caves += heights[0] + y - 39;
+            for (int y = (int)heights[0] - 2; y >= 0; y--)
+                if ((rows[y] & block_bits[0]) == 0 && (rows[y + 1] & block_bits[0]) != 0)
+                    if (y < heights[1])
+                        caves += heights[0] - y;
             for (int x = 1; x < 9; x++)
-                for (int y = 39 - (int)heights[x]; y < 40; y++)
-                    if (Sim.Matrix[y][x] == 0 && Sim.Matrix[y - 1][x] != 0)
-                        if (y <= Math.Min(39 - heights[x - 1], 39 - heights[x + 1]))
-                            caves += heights[x] + y - 39;
-            for (int y = 39 - (int)heights[9]; y < 40; y++)
-                if (Sim.Matrix[y][9] == 0 && Sim.Matrix[y - 1][9] != 0) if (y <= 39 - heights[8])
-                        caves += heights[9] + y - 39;
+            {
+                for (int y = (int)heights[x] - 2; y >= 0; y--)
+                {
+                    if ((rows[y] & block_bits[x]) == 0 && (rows[y + 1] & block_bits[x]) != 0)
+                        if (y < Math.Min(heights[x - 1], heights[x + 1]))
+                            caves += heights[x] - y;
+                }
+            }
+            for (int y = (int)heights[9] - 2; y >= 0; y--)
+                if ((rows[y] & block_bits[9]) == 0 && (rows[y + 1] & block_bits[9]) != 0)
+                    if (y < heights[8])
+                        caves += heights[9] - y;
         }
         // Pillars
         double pillars = 0;
@@ -954,36 +957,24 @@ public class BotFixedTresh : Bot
         double rowtrans = 0;
         if (Network.Visited[3])
         {
-            for (int y = Sim.Highest; y < 40; y++)
+            MatrixMask mask = new MatrixMask()
             {
-                bool empty = Sim.Matrix[y][0] == 0;
-                for (int x = 1; x < 10; x++)
-                {
-                    bool isempty = Sim.Matrix[y][x] == 0;
-                    if (empty ^ isempty)
-                    {
-                        rowtrans++;
-                        empty = isempty;
-                    }
-                }
-            }
+                HighHigh = 0b000000_1111111110_1111111110_1111111110_1111111110_1111111110_11111111,
+                HighLow = 0b10_1111111110_1111111110_1111111110_1111111110_1111111110_1111111110_11,
+                LowHigh = 0b11111110_1111111110_1111111110_1111111110_1111111110_1111111110_111111,
+                LowLow = 0b1110_1111111110_1111111110_1111111110_1111111110_1111111110_0000000000
+            };
+            rowtrans = ((Sim.Matrix ^ (Sim.Matrix << 1)) & mask).PopCount();
         }
         // Column trasitions
         double coltrans = 0;
         if (Network.Visited[4])
         {
-            for (int x = 0; x < 10; x++)
+            uint prev_row = 0;
+            for (int y = Sim.Highest; y >= 0; y--)
             {
-                bool empty = Sim.Matrix[Sim.Highest - 1][x] == 0;
-                for (int y = Sim.Highest - 1; y < 40; y++)
-                {
-                    bool isempty = Sim.Matrix[y][x] == 0;
-                    if (empty ^ isempty)
-                    {
-                        coltrans++;
-                        empty = isempty;
-                    }
-                }
+                coltrans += BitOperations.PopCount(prev_row ^ rows[y]);
+                prev_row = rows[y];
             }
         }
 
@@ -994,7 +985,14 @@ public class BotFixedTresh : Bot
     {
         ulong hash = PieceHashTable[piece.PieceType] ^ HoldHashTable[_hold.PieceType];
         for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++) hash ^= NextHashTable[i][Sim.Next[nexti + i]];
-        for (int x = 0; x < 10; x++) for (int y = Sim.Highest; y < 40; y++) if (Sim.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
+        for (int i = 0, shift = 0; i < 8; i++)
+        {
+            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.LowHigh >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 16][(Sim.Matrix.HighLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 24][(Sim.Matrix.HighHigh >> shift) & 0xFF];
+            shift += 8;
+        }
         hash ^= BitConverter.DoubleToUInt64Bits(trash) << 3;
         hash ^= BitConverter.DoubleToUInt64Bits(cleared) >> 5;
         hash ^= BitConverter.DoubleToUInt64Bits(intent);
@@ -1004,7 +1002,14 @@ public class BotFixedTresh : Bot
     protected ulong HashState(double cleared, double trash, double intent)
     {
         ulong hash = 0;
-        for (int x = 0; x < 10; x++) for (int y = Sim.Highest; y < 40; y++) if (Sim.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
+        for (int i = 0, shift = 0; i < 8; i++)
+        {
+            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.LowHigh >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 16][(Sim.Matrix.HighLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 24][(Sim.Matrix.HighHigh >> shift) & 0xFF];
+            shift += 8;
+        }
         hash ^= BitConverter.DoubleToUInt64Bits(trash) << 3;
         hash ^= BitConverter.DoubleToUInt64Bits(cleared) >> 5;
         hash ^= BitConverter.DoubleToUInt64Bits(intent);
@@ -1075,7 +1080,7 @@ public class BotByIntent : Bot
 
                         Sim.Current = piece;
                         Sim.X = orix;
-                        Sim.Y = 19;
+                        Sim.Y = GameBase.START_Y;
                         // Hard drop
                         Sim.TryDrop(40);
                         int oriy = Sim.Y;
@@ -1098,7 +1103,7 @@ public class BotByIntent : Bot
                         Sim.Current = piece;
                         Sim.X = orix;
                         Sim.Y = oriy;
-                        Sim.Unplace(clears, cleared);
+                        Sim.Unplace(clears);
                         // Only vertical pieces can be spun
                         if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
                         {
@@ -1133,7 +1138,7 @@ public class BotByIntent : Bot
                                     Sim.Current = rotated;
                                     Sim.X = x;
                                     Sim.Y = y;
-                                    Sim.Unplace(clears, cleared);
+                                    Sim.Unplace(clears);
 
                                     // Only try to spin T pieces twice (for TSTs)
                                     if (piece.PieceType != Piece.T) break;
@@ -1229,7 +1234,7 @@ public class BotByIntent : Bot
                     if (TimesUp) break;
 
                     Sim.X = orix;
-                    Sim.Y = 19;
+                    Sim.Y = GameBase.START_Y;
                     Sim.Current = piece;
                     Sim.TryDrop(40);
                     int oriy = Sim.Y;
@@ -1245,7 +1250,7 @@ public class BotByIntent : Bot
                         Sim.X = orix;
                         Sim.Y = oriy;
                         Sim.Current = piece;
-                        Sim.Unplace(clears, _cleared);
+                        Sim.Unplace(clears);
                     }
                     // Only vertical pieces can be spun
                     if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
@@ -1272,7 +1277,7 @@ public class BotByIntent : Bot
                                 Sim.X = x;
                                 Sim.Y = y;
                                 Sim.Current = rotated;
-                                Sim.Unplace(clears, _cleared);
+                                Sim.Unplace(clears);
 
                                 // Only try to spin T pieces twice(for TSTs)
                                 if (current.PieceType != Piece.T) break;
@@ -1280,8 +1285,8 @@ public class BotByIntent : Bot
                         }
                     }
                 }
-                //o pieces can't be rotated
-                if (current == 7) break;
+                // O pieces can't be rotated
+                if (current == Piece.O) break;
             }
 
             CachedValues.Add(hash, _value);
@@ -1291,44 +1296,51 @@ public class BotByIntent : Bot
 
     private double[] ExtrFeat(double cleared, double sent, double intent)
     {
+        uint[] rows = Sim.Matrix.GetRows();
+        uint[] block_bits = new uint[10];
         // Find heightest block in each column
         double[] heights = new double[10];
         for (int x = 0; x < 10; x++)
         {
-            double height = 40 - Sim.Highest;
-            if (Sim.Highest < 40)
+            double height = Sim.Highest + 1;
+            block_bits[x] = 1U << (9 - x);
+            for (int y = Sim.Highest; y >= 0; y--)
             {
-                for (int y = Sim.Highest; Sim.Matrix[y][x] == Piece.EMPTY; y++)
-                {
-                    height--;
-                    if (y == 39) break;
-                }
+                if ((rows[y] & block_bits[x]) != 0) break;
+                height--;
             }
             heights[x] = height;
         }
+
         // Standard height
         double h = 0;
         if (Network.Visited[0])
         {
-            foreach (double height in heights) h += height * height;
+            foreach (double height in heights)
+                h = Math.FusedMultiplyAdd(height, height, h);
             h = Math.Sqrt(h);
         }
         // "caves"
         double caves = 0;
         if (Network.Visited[1])
         {
-            for (int y = 39 - (int)heights[0]; y < 40; y++)
-                if (Sim.Matrix[y][0] == 0 && Sim.Matrix[y - 1][0] != 0)
-                    if (y < 39 - heights[1])
-                        caves += heights[0] + y - 39;
+            for (int y = (int)heights[0] - 2; y >= 0; y--)
+                if ((rows[y] & block_bits[0]) == 0 && (rows[y + 1] & block_bits[0]) != 0)
+                    if (y < heights[1])
+                        caves += heights[0] - y - 1;
             for (int x = 1; x < 9; x++)
-                for (int y = 39 - (int)heights[x]; y < 40; y++)
-                    if (Sim.Matrix[y][x] == 0 && Sim.Matrix[y - 1][x] != 0)
-                        if (y <= Math.Min(39 - heights[x - 1], 39 - heights[x + 1]))
-                            caves += heights[x] + y - 39;
-            for (int y = 39 - (int)heights[9]; y < 40; y++)
-                if (Sim.Matrix[y][9] == 0 && Sim.Matrix[y - 1][9] != 0) if (y <= 39 - heights[8])
-                        caves += heights[9] + y - 39;
+            {
+                for (int y = (int)heights[x] - 2; y >= 0; y--)
+                {
+                    if ((rows[y] & block_bits[x]) == 0 && (rows[y + 1] & block_bits[x]) != 0)
+                        if (y < Math.Min(heights[x - 1], heights[x + 1]))
+                            caves += heights[x] - y - 1;
+                }
+            }
+            for (int y = (int)heights[9] - 2; y >= 0; y--)
+                if ((rows[y] & block_bits[9]) == 0 && (rows[y + 1] & block_bits[9]) != 0)
+                    if (y < heights[8])
+                        caves += heights[9] - y - 1;
         }
         // Pillars
         double pillars = 0;
@@ -1339,7 +1351,7 @@ public class BotByIntent : Bot
                 double diff;
                 // Don't punish for tall towers at the side
                 if (x != 0 && x != 9) diff = Math.Min(Math.Abs(heights[x - 1] - heights[x]), Math.Abs(heights[x + 1] - heights[x]));
-                else diff = x == 0 ? Math.Max(0, heights[1] - heights[0]) : Math.Min(0, heights[8] - heights[9]);
+                else diff = x == 0 ? Math.Max(0, heights[1] - heights[0]) : Math.Max(0, heights[8] - heights[9]);
                 if (diff > 2) pillars += diff * diff;
                 else pillars += diff;
             }
@@ -1348,36 +1360,24 @@ public class BotByIntent : Bot
         double rowtrans = 0;
         if (Network.Visited[3])
         {
-            for (int y = Sim.Highest; y < 40; y++)
+            MatrixMask mask = new MatrixMask()
             {
-                bool empty = Sim.Matrix[y][0] == 0;
-                for (int x = 1; x < 10; x++)
-                {
-                    bool isempty = Sim.Matrix[y][x] == 0;
-                    if (empty ^ isempty)
-                    {
-                        rowtrans++;
-                        empty = isempty;
-                    }
-                }
-            }
+                HighHigh = 0b000000_1111111110_1111111110_1111111110_1111111110_1111111110_11111111,
+                HighLow = 0b10_1111111110_1111111110_1111111110_1111111110_1111111110_1111111110_11,
+                LowHigh = 0b11111110_1111111110_1111111110_1111111110_1111111110_1111111110_111111,
+                LowLow = 0b1110_1111111110_1111111110_1111111110_1111111110_1111111110_0000000000
+            };
+            rowtrans = ((Sim.Matrix ^ (Sim.Matrix << 1)) & mask).PopCount();
         }
         // Column trasitions
         double coltrans = 0;
         if (Network.Visited[4])
         {
-            for (int x = 0; x < 10; x++)
+            uint prev_row = 0;
+            for (int y = Sim.Highest; y >= 0; y--)
             {
-                bool empty = Sim.Matrix[Sim.Highest - 1][x] == 0;
-                for (int y = Sim.Highest - 1; y < 40; y++)
-                {
-                    bool isempty = Sim.Matrix[y][x] == 0;
-                    if (empty ^ isempty)
-                    {
-                        coltrans++;
-                        empty = isempty;
-                    }
-                }
+                coltrans += BitOperations.PopCount(prev_row ^ rows[y]);
+                prev_row = rows[y];
             }
         }
 
@@ -1388,7 +1388,14 @@ public class BotByIntent : Bot
     {
         ulong hash = PieceHashTable[piece.PieceType] ^ HoldHashTable[_hold.PieceType];
         for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++) hash ^= NextHashTable[i][Sim.Next[nexti + i]];
-        for (int x = 0; x < 10; x++) for (int y = Sim.Highest; y < 40; y++) if (Sim.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
+        for (int i = 0, shift = 0; i < 8; i++)
+        {
+            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.LowHigh >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 16][(Sim.Matrix.HighLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 24][(Sim.Matrix.HighHigh >> shift) & 0xFF];
+            shift += 8;
+        }
         hash ^= BitConverter.DoubleToUInt64Bits(trash) << 3;
         hash ^= BitConverter.DoubleToUInt64Bits(cleared) >> 5;
         hash ^= BitConverter.DoubleToUInt64Bits(intent);
@@ -1398,7 +1405,14 @@ public class BotByIntent : Bot
     protected ulong HashState(double cleared, double trash, double intent)
     {
         ulong hash = 0;
-        for (int x = 0; x < 10; x++) for (int y = Sim.Highest; y < 40; y++) if (Sim.Matrix[y][x] != Piece.EMPTY) hash ^= MatrixHashTable[x][y];
+        for (int i = 0, shift = 0; i < 8; i++)
+        {
+            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.LowHigh >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 16][(Sim.Matrix.HighLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 24][(Sim.Matrix.HighHigh >> shift) & 0xFF];
+            shift += 8;
+        }
         hash ^= BitConverter.DoubleToUInt64Bits(trash) << 3;
         hash ^= BitConverter.DoubleToUInt64Bits(cleared) >> 5;
         hash ^= BitConverter.DoubleToUInt64Bits(intent);

@@ -1,4 +1,4 @@
-﻿namespace TetrisAI;
+﻿namespace NEAT;
 
 using System.Reflection;
 using System.IO;

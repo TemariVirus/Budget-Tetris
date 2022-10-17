@@ -1,7 +1,5 @@
-﻿namespace TetrisAI;
-
-using FastConsole;
-using System;
+﻿using FastConsole;
+using NEAT;
 using System.Windows.Input;
 using Tetris;
 
@@ -28,22 +26,22 @@ class Program
     {
         // Set up console
         Console.Title = "Tetris NEAT AI Training";
-        FConsole.Framerate = 18;
+        FConsole.Framerate = 30;
         FConsole.CursorVisible = false;
         FConsole.SetFont("Consolas", 16);
         //FConsole.SetFont("Consolas", 40); // Biggest
-        FConsole.Initialise();
-
+        FConsole.Initialise(FrameEndCallback);
+        
         int seed = new Random().Next();
-        Game[] games = new Game[2].Select(x => new Game(6, seed)).ToArray();
+        Game[] games = new Game[2].Select(x => new Game(5, seed)).ToArray();
         Game.SetGames(games);
         FConsole.Set(FConsole.Width, FConsole.Height + 2);
         Game.IsPaused = true;
-        //Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        //left.Start(150, 0);
+        Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
+        left.Start(70, 0);
         //SetupPlayerInput(games[0]);
         Bot right = new BotFixedTresh(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
-        right.Start(150, 0);
+        right.Start(70, 0);
         Game.IsPaused = false;
 
         // Train NNs
@@ -118,7 +116,7 @@ class Program
                 trainee.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);
 
                 // Wait until one dies or game takes too long
-                while (games.All(x => !x.IsDead) 
+                while (games.All(x => !x.IsDead)
                     && total_pieces + games[1].PiecesPlaced < MAX_PIECES
                     && total_lines + games[1].Lines < MAX_LINES)
                     Thread.Sleep(THINK_TIME_IN_MILLIS / 2);
@@ -308,7 +306,7 @@ class Program
                 {
                     double apl_sum = games.Sum(x => x.APL);
                     if (apl_sum == 0) left_score += 0.5;
-                    else 
+                    else
                     {
                         left_score += (double)games[0].APL / apl_sum;
                     }
@@ -348,7 +346,7 @@ class Program
         }
         return;
 
-        
+
         static double Decay(double x) => Math.Exp(-x) / (C + Math.Exp(A * x));
 
         static int WeightedRandom(double[] weights)
@@ -369,14 +367,17 @@ class Program
 
     static void HalfHeight()
     {
+        ConsoleColor[] bedrock_row = new ConsoleColor[10].Select(x => Game.PieceColors[Piece.Bedrock]).ToArray();
         foreach (Game g in Game.Games)
         {
-            int[] full_row = new int[10].Select(x => Piece.Bedrock).ToArray();
-            for (int j = 30; j < 40; j++)
+            for (int j = 0; j < 10; j++)
             {
-                full_row.CopyTo(g.Matrix[j], 0);
-                g.CheckHeight();
+                g.Matrix |= new MatrixMask() { LowLow = MatrixMask.FULL_LINE };
+                g.Matrix <<= 10;
+                bedrock_row.CopyTo(g.MatrixColors[j], 0);
             }
+            g.CheckHeight();
+            g.DrawAll();
         }
     }
 }

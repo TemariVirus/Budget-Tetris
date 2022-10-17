@@ -298,11 +298,24 @@ static class FConsole
         WriteAt(text, CursorLeft, CursorTop);
     }
 
+    public static void Write(object obj)
+    {
+        WriteAt(obj.ToString(), CursorLeft, CursorTop);
+    }
+
+    public static void WriteLine()
+    {
+        Write("\n");
+    }
+
     public static void WriteLine(string text)
     {
-        WriteAt(text, CursorLeft, CursorTop);
-        CursorLeft = 0;
-        CursorTop = Math.Min(CursorTop + 1, Width - 1);
+        Write(text + '\n');
+    }
+
+    public static void WriteLine(object obj)
+    {
+        Write(obj.ToString() + '\n');
     }
 
     public static void WriteAt(string text, int x, int y, ConsoleColor foreground = ConsoleColor.White, ConsoleColor background = ConsoleColor.Black)
@@ -334,6 +347,11 @@ static class FConsole
         int cursor_pos = Math.Min(pos, ConsoleBuffer.Length - 1);
         CursorLeft = cursor_pos % Width;
         CursorTop = cursor_pos / Width;
+    }
+
+    public static void WriteAt(object obj, int x, int y, ConsoleColor foreground = ConsoleColor.White, ConsoleColor background = ConsoleColor.Black) 
+    {
+        WriteAt(obj.ToString(), x, y, foreground, background);
     }
 
     public static void Clear()
