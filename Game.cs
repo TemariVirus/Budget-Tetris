@@ -1100,6 +1100,7 @@ public class GameBase
         // Remove piece
         Matrix &= ~Current.GetMask(X, Y);
 
+        Highest += clears[1] + clears[3];
         while (Highest >= 0)
         {
             if (Matrix.GetRow(Highest) != 0) break;
@@ -1614,7 +1615,7 @@ public sealed class Game : GameBase
         DrawCurrent(false);
         LockT.Reset();
     }
-
+    
     void PlacePiece()
     {
         int tspin = TSpinType(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
@@ -1733,7 +1734,7 @@ public sealed class Game : GameBase
         }
         DrawTrashMeter();
         if (trash > 0) SendTrash(trash);
-
+        
         // Redraw matrix
         DrawMatrix();
 
@@ -1837,7 +1838,7 @@ public sealed class Game : GameBase
             for (int y = 0; y < 20; y++)
                 WriteAt(x * 2 + 12, 21 - y, MatrixColors[y][x], BLOCKSOLID);
     }
-    
+
     void DrawTrashMeter()
     {
         int y = 21;

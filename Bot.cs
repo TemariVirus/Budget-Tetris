@@ -930,13 +930,13 @@ public class BotFixedTresh : Bot
                 for (int y = (int)heights[x] - 2; y >= 0; y--)
                 {
                     if ((rows[y] & block_bits[x]) == 0 && (rows[y + 1] & block_bits[x]) != 0)
-                        if (y < Math.Min(heights[x - 1], heights[x + 1]))
+                        if (y <= Math.Max(heights[x - 1], heights[x + 1]))
                             caves += heights[x] - y;
                 }
             }
             for (int y = (int)heights[9] - 2; y >= 0; y--)
                 if ((rows[y] & block_bits[9]) == 0 && (rows[y + 1] & block_bits[9]) != 0)
-                    if (y < heights[8])
+                    if (y <= heights[8])
                         caves += heights[9] - y;
         }
         // Pillars
@@ -1327,20 +1327,20 @@ public class BotByIntent : Bot
             for (int y = (int)heights[0] - 2; y >= 0; y--)
                 if ((rows[y] & block_bits[0]) == 0 && (rows[y + 1] & block_bits[0]) != 0)
                     if (y < heights[1])
-                        caves += heights[0] - y - 1;
+                        caves += heights[0] - y;
             for (int x = 1; x < 9; x++)
             {
                 for (int y = (int)heights[x] - 2; y >= 0; y--)
                 {
                     if ((rows[y] & block_bits[x]) == 0 && (rows[y + 1] & block_bits[x]) != 0)
                         if (y < Math.Min(heights[x - 1], heights[x + 1]))
-                            caves += heights[x] - y - 1;
+                            caves += heights[x] - y;
                 }
             }
             for (int y = (int)heights[9] - 2; y >= 0; y--)
                 if ((rows[y] & block_bits[9]) == 0 && (rows[y + 1] & block_bits[9]) != 0)
                     if (y < heights[8])
-                        caves += heights[9] - y - 1;
+                        caves += heights[9] - y;
         }
         // Pillars
         double pillars = 0;

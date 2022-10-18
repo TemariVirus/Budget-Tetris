@@ -38,10 +38,10 @@ class Program
         FConsole.Set(FConsole.Width, FConsole.Height + 2);
         Game.IsPaused = true;
         Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        left.Start(70, 0);
-        //SetupPlayerInput(games[0]);
+        left.Start(100, 0);
+        SetupPlayerInput(games[1]);
         Bot right = new BotFixedTresh(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
-        right.Start(70, 0);
+        right.Start(100, 0);
         Game.IsPaused = false;
 
         // Train NNs
