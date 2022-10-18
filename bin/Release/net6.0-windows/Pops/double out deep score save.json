@@ -1,0 +1,7310 @@
+﻿{
+  "Gen": 9,
+  "CompatTresh": 2.1288193972551137,
+  "NNData": [
+    {
+      "Name": "Myryda",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 3.402768085012344,
+      "Mu": 1.2245892430384464,
+      "Delta": 0.04502444401973494,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.3121388130226599
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.3889319184456973
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.3369502866395685
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.14305866470765816
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.14178533009841995
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.10598883152754915
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.14302181325857757
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.15632087095360206
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.3938797076100018
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.1939921975446629
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.31970046695291393
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.2453556309984499
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.10390736123321598
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.2621301339772705
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.3981916750790607
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.1296386919674108
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.24774207296850873
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.05492519047915211
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.3120803380826181
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Zhery",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 4,
+      "Fitness": 2.9066929740019485,
+      "Mu": 1.067015999900565,
+      "Delta": 0.021810288151026588,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6049319124875779
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.11252756520839152
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.04168426724347127
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.18653075140153888
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.34949888170011756
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.096132856965197
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.27184273797013014
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.22533170461951962
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.005766216749315538
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.08763603418938118
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.17089223974631998
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.20734366069581772
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.16868382161962392
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.23257432416950127
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.49325514322127373
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.05910015787644518
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.04523040043782798
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.0800165846701356
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 11,
+          "Weight": -0.04869727932437481
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 9,
+          "Weight": -0.004189746690616428
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 8,
+          "Weight": -0.2755210214981024
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Mematu",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 2.6390531190494406,
+      "Mu": 0.9704201857950957,
+      "Delta": 0.041290716031900584,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": 0.29682333476404443
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": -0.005432277022072181
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.41134049611962503
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.12402148365764247
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.04299411975152235
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.385555761326224
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.2045038699113412
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.13721910112012323
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.15083274461651086
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.023441099962282913
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.2513018741013871
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.03984223673273461
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.09932093478510857
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.26436542944577723
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": -0.3301774275405596
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.04139968841065143
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.143105074537157
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.07335983749488725
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.1699541662936198
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Laebunae",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 2.6076128454137955,
+      "Mu": 0.9584351842003827,
+      "Delta": 0.04441598463124604,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.2929055825741116
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.4558787120080316
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.2237864999339811
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.09455039829331245
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.2538950035306203
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.10038302044085678
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.17108253473359492
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.31551708693710045
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.21506057398738718
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.12077667899595462
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.32719882198504346
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.16504019051956437
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.1456192859349739
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.2830425790303945
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": -0.13485191413933403
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.16705643944185972
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.09451247324155596
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.026444417991555644
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": -0.002923422044591374
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Gyfi",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 2.5207660885225858,
+      "Mu": 0.9245628587056453,
+      "Delta": 0.04042020829767329,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.19556829289236188
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.24275264392320303
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": 0.04288658972308067
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.14670509418119157
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.02360283275627314
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.2018835778600578
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.17327284001880322
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.34195202129781965
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.17478297735868573
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": 0.233161312836884
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.24886393325418382
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.20794229107681017
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.2637490543837038
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.031454738709902355
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.3500138161033248
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.011931797699083474
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.14246201189424718
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.10756796407883162
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.21221177006798647
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Nexodexyke",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 2.3847013794562995,
+      "Mu": 0.8690739087260202,
+      "Delta": 0.02499059589793018,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.4594118160748574
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.414060855038924
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.09350258274490417
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.11822439867404162
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.170556818889598
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.2573629388205923
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.17108253473359492
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.34848326671769414
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.17498736280197777
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.25070210179075103
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.4764030257833667
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.17744913738991092
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.017327582286502337
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.10248494078827793
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": -0.1264065555480568
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.15084875955557697
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.13898153729315602
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.05874049966106364
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.2455162342316682
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Wolytepetu",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 2.2311084491444957,
+      "Mu": 0.8024985243740705,
+      "Delta": 0.03809050369531096,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.30100627338475744
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.4242319679359633
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.36078807352201575
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.07086784933466177
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.04057014257708815
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.28113856996632874
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.3558875864448907
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.2034440370040075
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.17165581111286657
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.10607071543298335
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.39287614741611426
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.35686371064643563
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.1481408587003795
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.09567334908484551
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": -0.13680242373156326
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.16409558786190062
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.13207173945449552
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.02978572573145006
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.20087569698492327
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Waehae",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 2.2298466019791485,
+      "Mu": 0.8019327947558427,
+      "Delta": 0.04310072498165191,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.18832511378651456
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.2585740111470034
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.094771477247819
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.02650937449025796
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.086357825929563
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.13743526413422083
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.20034685760048532
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.3533500273623707
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": 0.1706821642218896
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.23793325323043626
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.4714172511475329
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.1512566139064363
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.13140649413455352
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.04215249255008354
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.3875248937001827
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.03896446765481562
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.24339887813671052
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.511264681650209
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.17867672305278084
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 6,
+          "Weight": -0.396514682659784
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Temare",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 3,
+      "Fitness": 2.21894059294243,
+      "Mu": 0.797029871596781,
+      "Delta": 0.026909951993839547,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6644378427787093
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.30541171615324086
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.30325256617528273
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.33810210391514695
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.013546027187976142
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.1537842147601847
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.3926332680148851
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.05890955287188697
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.3081245379480395
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.07863703938435765
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.16469090906197587
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.1199801886967085
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.23207872685165776
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.28325730561083184
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.0857139193196431
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.0649220753291985
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.08895618750089883
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.04264629190672098
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 3,
+          "Weight": -0.2918416450161186
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.32662761859082967
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 3,
+          "Weight": 0.9628875879477545
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 12,
+          "Weight": -0.32662761859082967
+        },
+        {
+          "Enabled": true,
+          "Input": 12,
+          "Output": 11,
+          "Weight": 1
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2,
+        2
+      ]
+    },
+    {
+      "Name": "Zhafymehy",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 2.1789273097740236,
+      "Mu": 0.7788326959631914,
+      "Delta": 0.030266061624274584,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6842509463992392
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.3346684032981565
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.3110437422291403
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.22312711214185713
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.01299639240896946
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.03633323870178646
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.40311533690044526
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.1049157673166616
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.3418430290175067
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.06757190177033404
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.36927081975634823
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.1696236818703196
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.04491432470370602
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.373982362158283
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.07763087059607533
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.013689599717579243
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.09500587291850411
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.15492708108798964
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 3,
+          "Weight": 0.005025775745406061
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.3214464746315507
+        },
+        {
+          "Enabled": true,
+          "Input": 11,
+          "Output": 3,
+          "Weight": -0.0120251011309006
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Nepilae",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 2.0993625427693177,
+      "Mu": 0.7416337475861984,
+      "Delta": 0.035819884851229916,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.22257177702988318
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.1654632339194601
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": 0.026948606880476768
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.03359935032726073
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.19758071933227803
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.024094930059973707
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.24292157276838475
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.18623847114871173
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.2708686319282362
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.22393435891584132
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.2174395456825883
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.2600215126130644
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.1008862754527928
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.053896998744948216
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.16016190109949244
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.01259069076157794
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.14873712577412773
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.004077137279078359
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.23482682670972066
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Bysygaliti",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 3,
+      "Fitness": 2.0861536156031346,
+      "Mu": 0.7353219950959304,
+      "Delta": 0.019214529827808455,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.04498704762487081
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.18591979345874493
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.3999636966484581
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.13397833895365246
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.027378132271184588
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.3685667861535279
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.2848228836384454
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.2883357426618541
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.17243856130782476
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": 0.25183540678735267
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.34931139888657525
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.15879634275983445
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.04133237223432195
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.20328380133538632
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.18471296179056718
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.030840439672946283
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.14536682373072005
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.08026187780649838
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.20418720123262638
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Cinyshe",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 2.076937896246352,
+      "Mu": 0.7308946437470616,
+      "Delta": 0.028861382799309526,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.5689919346653443
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.23264364960685935
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.13810780138433443
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.025172893528437462
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.3378949558764966
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.08915323758211488
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.36433563239334454
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.3507907377879564
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.0484576167782683
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.05931356948573682
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.2270394024717437
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.20734366069581772
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.16615183189171276
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.23869943420304993
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.10525033251780877
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.1066479469880084
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.07762610632248304
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.009999154759279733
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 11,
+          "Weight": -0.04794307973390373
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 9,
+          "Weight": -0.004008551067556648
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 8,
+          "Weight": -0.16493454690893833
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Bushejupaeta",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.901308832754868,
+      "Mu": 0.6425425083623684,
+      "Delta": 0.0446307221746209,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6271211072112307
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.4393609955635939
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.04168426724347127
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.11197178254126211
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.34949888170011756
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.020128969556533455
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.32311448079250255
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.24041133919346802
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": 0.008139949971401349
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.08134185073659127
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.16660788374030622
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.1948417631022306
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.04948106573289207
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.2054745349284884
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.5283711370799606
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.04050813788030459
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.04523040043782798
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.08330141709306575
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 11,
+          "Weight": -0.0505910359309432
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 9,
+          "Weight": -0.004189746690616428
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 8,
+          "Weight": -0.2755210214981024
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Befisoshae",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.7923729243197524,
+      "Mu": 0.5835403979910259,
+      "Delta": 0.02065817260571743,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.5421685187172972
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.2905314077994608
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.3199482966174195
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.23361174960816503
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.012016003538698604
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.10530618712261652
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.41722507592109237
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.11622269865686313
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.22717714370559594
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.07986853781240266
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.0839421810781269
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.15815452242121406
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.04235775073657034
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.30485814683762874
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.033830560669849005
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.0013830598498322923
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.09301269181645914
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.04327323311869587
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 3,
+          "Weight": -0.24638146710145237
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.32037188222014196
+        },
+        {
+          "Enabled": true,
+          "Input": 11,
+          "Output": 3,
+          "Weight": -0.010720232483447723
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Zhokary",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.697150872817773,
+      "Mu": 0.5289508879088074,
+      "Delta": 0.04663668502522197,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6941183663266562
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.25853439297927766
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.0304740183296604
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.12520163811485271
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.3450744850598104
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.021119538850284947
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.2841899928556237
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.22139746955507625
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.02853710796781146
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.05449474649288915
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.31389770167609726
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.23417885520116993
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.18083280172408267
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.13925983081691418
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.4030426489601298
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.13403428930071937
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.020690764588104135
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.009999154759279733
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 11,
+          "Weight": -0.04794307973390373
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 9,
+          "Weight": 0.9731885829692805
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 8,
+          "Weight": -0.2302003379080297
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Junoshubyqo",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.6929046786341546,
+      "Mu": 0.526445798337415,
+      "Delta": 0.04430228325509363,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.7291912645037835
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.030553822926181654
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.04218094400804742
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.03231965850570803
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.3043040887900656
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.10434759434752051
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.31469859305711695
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.2215112928052942
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": 0.0064780554170280474
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.12218608547476942
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.28027481906249263
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.20734366069581772
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.17830731998192265
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.2782646859203206
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.49325514322127373
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.2791183257564595
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.05409814629314075
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.08329561892923666
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 11,
+          "Weight": -0.12825198416535624
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 9,
+          "Weight": -0.004003175128607329
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 8,
+          "Weight": -0.24831464602052483
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Masiti",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.6768661422010431,
+      "Mu": 0.5169266598586673,
+      "Delta": 0.03324730473256271,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6049319124875779
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.10554603257137747
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.04168426724347127
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.18653075140153888
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.33967435706660093
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.11858590423888005
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.2872027522100151
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.2097534789145181
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": 0.0033064393683102282
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.09051572825745596
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.17114707763570833
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.09634674496775526
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.1878375519508961
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.23257432416950127
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.49325514322127373
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.09707161894420674
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.0478274123944388
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.031609428915670285
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 11,
+          "Weight": -0.04869727932437481
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 9,
+          "Weight": -0.004189746690616428
+        },
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 8,
+          "Weight": -0.2755210214981024
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Pudeho",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.6347238072420673,
+      "Mu": 0.49147386484553274,
+      "Delta": 0.024510906441726692,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6322869844906178
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.043661057738200434
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.04168426724347127
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.1759252593140447
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.12288596432804605
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.29145965519484757
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.3748048205173174
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.22533170461951962
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.03789990438158742
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.09204163432541233
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.17089223974631998
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.19888671449964485
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.17235385106973347
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.11875190806693588
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.4776045844597809
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.06100376159973293
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.04498135654443739
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.08493977874753818
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 11,
+          "Weight": -0.04869727932437481
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 9,
+          "Weight": -0.0042517702025043295
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 8,
+          "Weight": 0.20283078985432698
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Wubajezha",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.5864622446585328,
+      "Mu": 0.46150653387488383,
+      "Delta": 0.035677158899894895,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.4466119155467868
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.38359423120058633
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.32336983232805283
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.04653050160273477
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.17698370329797966
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.02159342225412795
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.17442352973688807
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.1983002441651322
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.09015407571171331
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.0703937060497319
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.36790379303158877
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.2744945785117017
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.046751215548232465
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.05582872708470307
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.40009591768303615
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.15514985519423335
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.13415302744107083
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.5167925180216196
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.20780686549374058
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Wopokugate",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.5391063069963715,
+      "Mu": 0.4312019278424102,
+      "Delta": 0.04758398855627993,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.34658682975939353
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.42618272313666206
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": 0.3568060588362789
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.13215647624315005
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.25529949678845126
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.06451900994331883
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.3327936226027486
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.33365268055567837
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.0835793305726973
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.17269594571679037
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.392962007427491
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.2137363509592602
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.12067744914127221
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.1064378771589533
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.4199978458254808
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.13876653334301606
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.23895053421431214
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.5916286802058552
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.2585943366978335
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Jezhaeshovu",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.5310059689444553,
+      "Mu": 0.4259250153906477,
+      "Delta": 0.043480306449530104,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6438245481001752
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.3764608148441506
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.3110437422291403
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.23914175893527856
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.08516222460347211
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.024197006439362047
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.4113683869877263
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.11668566731559162
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.3039611848547762
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.06200675617881445
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.21240330974761906
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.22494004367752565
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.0744998541696196
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.3261015919218077
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.08418674631428963
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.041139401864010404
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.14693214465627882
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.15160003085770415
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 3,
+          "Weight": -0.23155583950824873
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.3081406357925389
+        },
+        {
+          "Enabled": true,
+          "Input": 11,
+          "Output": 3,
+          "Weight": -0.06288033964693236
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 0,
+          "Weight": -0.013004012115258349
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Bekeki",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.5276266889905108,
+      "Mu": 0.42371534740704114,
+      "Delta": 0.027571650184743467,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6478004658638961
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.29696630068979674
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.3110437422291403
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.23205369655485117
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.013546027187976142
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.03378472403594973
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.3926332680148851
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.12002226291689291
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.21309678207219918
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": 0.04091764231986378
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.1726003039364629
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.1199801886967085
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.04058813127937046
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.2782887885861164
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.08480556454089487
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.0598760086795496
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.15352308129356546
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.03995229725652892
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 3,
+          "Weight": -0.2918416450161186
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.3624999879146722
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 3,
+          "Weight": -0.04919336010726499
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 12,
+          "Weight": -0.32662761859082967
+        },
+        {
+          "Enabled": true,
+          "Input": 12,
+          "Output": 11,
+          "Weight": 0.8816335465309342
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2,
+        2
+      ]
+    },
+    {
+      "Name": "Xobovigi",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.5161667481695966,
+      "Mu": 0.4161852733677856,
+      "Delta": 0.025271893820221696,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.3994862826468863
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.40243071296449895
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.37126073274851223
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.1286522125965927
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.08593905963104516
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.059687010058050716
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.18549351322610771
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.3553201654794805
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.17243856130782476
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.141982967397862
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.3203657959508145
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.225166214332399
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.043337159583963954
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.21110211276025073
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.17769495747605263
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.11146316579523581
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.24643563437579938
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.08353604013578306
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.2228788832653038
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Cogeqyba",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.4828586226084521,
+      "Mu": 0.39397172658743856,
+      "Delta": 0.0407629262916374,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.07865908845317127
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.2889808407385337
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.21052937745433364
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.04290466552460376
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.07361871258139092
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.15254261944267897
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.1271160044445208
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.25448574111808947
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.1901147277909066
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.12087864057050889
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.19467968245340145
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.3058933083055245
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.1774490670178242
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.016763340181643917
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.4223717183851252
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.18342193254992306
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.13439715362366195
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.07011477027244205
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.1960332616545341
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Jekoxa",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.4630620878265714,
+      "Mu": 0.3805315598432813,
+      "Delta": 0.04808687175282267,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6049319124875779
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.11252756520839152
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.045775595280720616
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.009627793037835508
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.35339861986733173
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.09265807759129556
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.2576747442666944
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.03676911868626122
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": 0.11217086676039542
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.05776476715466322
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.39250150027743735
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.178199889605078
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.21991298179983454
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.38826081915765465
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.5123905426668787
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.060097474206331714
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.13127469953970516
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.008936208844751159
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 11,
+          "Weight": -0.04794307973390373
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 9,
+          "Weight": 0.9949581545799027
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 8,
+          "Weight": -0.2755210214981024
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Xibizharae",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.3628986977578292,
+      "Mu": 0.30961382695731543,
+      "Delta": 0.03761158721521337,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.732323496770219
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": -0.01797572002858608
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.049298328372903905
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.22018004266357877
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.17207600068627746
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.032565415791002014
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.15503889291418144
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.06713541382484761
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.18520626171572047
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.11622537253859351
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.19532865963881857
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.22960489724509503
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.3144001375000359
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.2621301339772705
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.4064069968488006
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.2151475894545915
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.08175310880709993
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.06106971230657906
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.21095596499614286
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Witu",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.3197402847260902,
+      "Mu": 0.27743496324428657,
+      "Delta": 0.04087773400246699,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6438245481001752
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.23681392820805547
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.28688043958669324
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.17095821540612027
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.013476330622815164
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.03633323870178646
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.37281534053931553
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.12276610935562215
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.26146835494929216
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.06758920102723294
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.31752536772013396
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.18061070906032284
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.05094286288969022
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.3287521294744644
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.08765071106589226
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.06808598377233661
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.1484064397547042
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.07409426861122534
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 3,
+          "Weight": -0.20449186254917406
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.3081406357925389
+        },
+        {
+          "Enabled": true,
+          "Input": 11,
+          "Output": 3,
+          "Weight": -0.011465618263613043
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Lixacewaqy",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.235426301984245,
+      "Mu": 0.21141609431063232,
+      "Delta": 0.047166940718304885,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6524881909861607
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.30541171615324086
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.30325256617528273
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.21964677733722043
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.01299639240896946
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.14776391291636806
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.400100799456438
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.12002226291689291
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.3081245379480395
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.06814438906008086
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.16469090906197587
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.16931711076727898
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.05530600786198312
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.30208232898003173
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.0584028137346673
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.13187788876246254
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.1445989658365578
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.04364751040918753
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 3,
+          "Weight": -0.2879559189221208
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.09182068748834446
+        },
+        {
+          "Enabled": true,
+          "Input": 11,
+          "Output": 3,
+          "Weight": 0.24108981467063634
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 12,
+          "Weight": -0.2688452814716087
+        },
+        {
+          "Enabled": true,
+          "Input": 12,
+          "Output": 11,
+          "Weight": 0.9990762865781161
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2,
+        2
+      ]
+    },
+    {
+      "Name": "Zhoxawatoly",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.147154090818087,
+      "Mu": 0.13728417159844813,
+      "Delta": 0.03582929612590278,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.591904980385752
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.25769745829414437
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.2354795225174708
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.2213349150915711
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.03003837838969356
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.03844569847318053
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.49680452487013627
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.12022068845842003
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.23325676624778582
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.03880262991081447
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": -0.03725186867651381
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.12761305220867578
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.04216319021220406
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.08380051724165824
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.08104047494200156
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.0015287507715675275
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.1445989658365578
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.09064556012165338
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 3,
+          "Weight": -0.24784321096157436
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.2477743134003219
+        },
+        {
+          "Enabled": true,
+          "Input": 11,
+          "Output": 3,
+          "Weight": -0.009963552383652147
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Cizhaquzhu",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 1.07951102943041,
+      "Mu": 0.07650818808626417,
+      "Delta": 0.04832990720437916,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.2929055825741116
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.38230046225135855
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.5050412870340606
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.12206296777923158
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.1662672605288415
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.10571724814997521
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.15728173820792335
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.07745504874588167
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.2184272777149029
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.1744203771562634
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.38845889446680376
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.261916017988674
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.06011559225519084
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.2621301339772705
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": -0.1264065555480568
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.0741893291868955
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.06499263469371123
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.052019078585187783
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.11643907855603544
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Qefime",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.9896598332180823,
+      "Mu": -0.01039399770849059,
+      "Delta": 0.04359352929576424,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6372239046089974
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.3889319184456973
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.20631273472655215
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.1289810617008264
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.006491452280656542
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.12463161153637027
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.20171534824643678
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.3348446849403154
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.011338811801741497
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.13367089454260933
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.24303648436156994
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.12331660699656967
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.13111891384840915
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.2667570109897425
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.3760326022746777
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.1653818281466599
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.13251880887328352
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.5055866337687944
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.197826362134961
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Mawataelari",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.9853231299478723,
+      "Mu": -0.01478564089841694,
+      "Delta": 0.0380804727823782,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.2929055825741116
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.18591979345874493
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.32336983232805283
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.14059255377407107
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.29237204472162764
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.3311476944891003
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.16760967774653268
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.16868815386150943
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.21905314581502208
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": 0.1374528697520027
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.43421292949199314
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.14846664872439616
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.045961291487924535
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.19958168346101074
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": -0.2142128600249089
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.22956193665033225
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.1516506131734785
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.04623385972838937
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.19796642669809647
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Lidadi",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.887580131156459,
+      "Mu": -0.11925647308134293,
+      "Delta": 0.04423390898783645,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.35553125651243456
+        },
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.40365504641944494
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": 0.01717508067977344
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.10557623974623952
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.29525131283296524
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.19025059590479962
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.1550517108004913
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.1432315629830006
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.1911908247375623
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.12880715556489442
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.3095033725966368
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.38525581126046926
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.046706595627205895
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.10263886346033943
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.3749671982521953
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.24642952523616857
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.16892346655175242
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.05492519047915211
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.20087569698492327
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Jajibaesehe",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 3,
+      "Fitness": 0.7382636745972615,
+      "Mu": -0.303454235539797,
+      "Delta": 0.03669141826506461,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.22320304700747973
+        },
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 10,
+          "Weight": -0.04141329121457554
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.3784944613842197
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.41918503477756275
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.21532459836219547
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.22484065117600432
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.24865824999266908
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.08367494518854089
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.04725387577693741
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.05865357402777077
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.2177875847044362
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.48523853439070685
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.07955053304419248
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.48024505127467537
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.3553471654382234
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.24455984691985244
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.09664744975560868
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.216434589187542
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 7,
+          "Weight": 0.08606627104523426
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 7,
+          "Weight": 0.09634058575437392
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Siqebelaxae",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.6587661312879775,
+      "Mu": -0.4173866917026994,
+      "Delta": 0.0326910519589469,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.22320304700747973
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": -0.042354334444583065
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.33268918002719805
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.39070954895946525
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.23137670680776912
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.2692246290792314
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.31526997842974736
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.016597089938264684
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.04981780520359491
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.05865357402777077
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.16356059157495312
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.467561246467863
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.07584153659336819
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.5105029512677233
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.35357747675740714
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.18264986476192346
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.017795682931154327
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.11624533421315218
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 7,
+          "Weight": 0.08386802166864583
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 7,
+          "Weight": 0.023738952470349434
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Qufiqeka",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.6192982404864696,
+      "Mu": -0.47916831217493727,
+      "Delta": 0.042546137107471224,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6150471532045965
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.24816899350795907
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.043677211329144844
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.1287268536156167
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.45244362679926997
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.09793817536412422
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.2841899928556237
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.34733667490779624
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.07060173274191851
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.058375733493285696
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.2926476717567319
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.24952193553980598
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.18083280172408267
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.2847045549629497
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.5030880185156855
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.1646148374062391
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.04419898343552048
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.009428177140269356
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 11,
+          "Weight": -0.2238804889866986
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 9,
+          "Weight": 1.000059888085471
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 8,
+          "Weight": -0.2541231681537851
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 0,
+          "Weight": -0.08572468562734538
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Lepita",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.39446673449250325,
+      "Mu": -0.9302204654645296,
+      "Delta": 0.0437576699641264,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": 0.013488166751930744
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.07599434196465911
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.1625052118708165
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.1237438639201067
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.09049384202027853
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.2087813742386695
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.2155535797225698
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.194365783737151
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": 0.05657610707759773
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.09341603737361787
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.18457544018246383
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.34037767504454897
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.05153692681553441
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.26200083600193874
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.4528049640205092
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.0741893291868955
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.009504507379394588
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.07460179090963513
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.15195972059190294
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Huvonudotae",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.3257920779005452,
+      "Mu": -1.121495898946091,
+      "Delta": 0.03822697087857902,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.06866949268747852
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.18591979345874493
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.4112094808942738
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.12469581922752113
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.3182751310029963
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.15146814826174104
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.27357176129540994
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.2883357426618541
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.17243856130782476
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.2597538630423115
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.33214379763775587
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.07355207143037028
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.05334898631087686
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.0791122468766522
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.19512049652535662
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.22713761533649965
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.07471366002218857
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.11050280408795655
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.1916699131632465
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Xeshiqy",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.31801429326220937,
+      "Mu": -1.1456589498466245,
+      "Delta": 0.0465988340341625,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.37950997014271304
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.1456012726362244
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.42311471370782205
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.22226841581679524
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.13975749858843878
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.0998707330891085
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": 0.2792554090233636
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.25067422062125766
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.1181896593268238
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.17207074774717077
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.09346006239746724
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.2709431268059906
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.049800193619509374
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.2621301339772705
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.24017125864970928
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.0822358484238484
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.055690599726164525
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.11424813375521092
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.22550600417063993
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 6,
+          "Weight": 0.3222873743690529
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Famiwomyvata",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.2990688640386007,
+      "Mu": -1.2070814175993956,
+      "Delta": 0.04650224478127904,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": 0.17692460432135487
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.1478124418753477
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": 0.44266094227665503
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.14625007080652605
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.2659353316985105
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.1957951969188288
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.33969124984096344
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.13814505642235475
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": 0.3910425991425097
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.12168387660867176
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.3410514489617657
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.020919139876625917
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.11943588734418786
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.2701904135099872
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": -0.3278831428900986
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.0939421639533848
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.13906428310090288
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.04693758997465307
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.07995543491622792
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Lovy",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.2964110012641339,
+      "Mu": -1.2160082699732417,
+      "Delta": 0.03486982090381663,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.30736903904693047
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": -0.04937121151729423
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.4789072272611686
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.11758268879988622
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.17734913610214864
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.09960189697009426
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.16651176663433842
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.16492795871622218
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.26748919002202554
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.11843781092262745
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.30218336636228466
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.2600215126130644
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.05095697093081889
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.2483147295011052
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.20190028962260576
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.06960961637853803
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.05262464482185882
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.1359109996664855
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.2814661944640878
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 7,
+          "Weight": -0.31715128057975644
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Hakulewa",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.2908175611316222,
+      "Mu": -1.2350591461102773,
+      "Delta": 0.046588682025162295,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.6644378427787093
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.22106211819410085
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.30325256617528273
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.33090690583908483
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.05755710613261198
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.14819600336834612
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.3695074380337299
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.024917395045993412
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.3017890254684582
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.05773920824986367
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.0799626570305073
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.17608298091800942
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.23207872685165776
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.19514171988753126
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.08159276186484822
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.001446779612441891
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.08685345882179595
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.04274380409032
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 3,
+          "Weight": -0.18724120187248028
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.3012294878347938
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 3,
+          "Weight": -0.011118570303169073
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 12,
+          "Weight": -0.23625646748701776
+        },
+        {
+          "Enabled": true,
+          "Input": 12,
+          "Output": 11,
+          "Weight": 1.0203569895152884
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2,
+        2
+      ]
+    },
+    {
+      "Name": "Rydinae",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.273523331949107,
+      "Mu": -1.2963683519868154,
+      "Delta": 0.013819678853393457,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.31263041273307846
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.05033176825488698
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.4228370639429991
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.13821105235955064
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.27389301306652336
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.11317894246797176
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": 0.6353620313044079
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.10472778896023051
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.28442903399794867
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.1366996530533473
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.19671033374938768
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.2789561964192902
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.049368374552645256
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.19616920332781884
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.20131693727520864
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.07692782945933174
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.04094347506963886
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.05530376927689408
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.22550600417063993
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Ligaezhesa",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.2340616554382324,
+      "Mu": -1.4521707135516828,
+      "Delta": 0.02680043529227682,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.05034286459829803
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.08888988906706163
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.3450780209869022
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.12909770865672815
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.0013917210574203205
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.3579442715734696
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": 0.04507401848097201
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.28342934443480894
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.06954509162648023
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.2479528035355327
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.34931139888657525
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.1810217437208926
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.04133237223432195
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.20328380133538632
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.27950259352680124
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.01572756349840937
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.15583087815624339
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.033727041675604794
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.10750365180817789
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Gugaeshu",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.20774299459266105,
+      "Mu": -1.5714535661873934,
+      "Delta": 0.0312232865446714,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.3006789410226317
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.11154554428532804
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.45550827082277934
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": 0.11161516883488987
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.17822652458787674
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.10849138832105984
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.15830318137669536
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.1601604663387079
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.28442903399794867
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.033718600183140046
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.19270293222914914
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.19177747000206935
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.04876990114446464
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.010397748153174236
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.28728150668055413
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.0752146082889771
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.09760071190477795
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.05492519047915211
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": -0.008022122208498017
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Josho",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.19496541505424692,
+      "Mu": -1.6349330948444734,
+      "Delta": 0.03915706990339855,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.03369018466280983
+        },
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 10,
+          "Weight": -0.10765202173758083
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.33258315626764406
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.22442559316033195
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.01299639240896946
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.2203721021289003
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.38864303621872165
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.022101024038740147
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.25755166426273535
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.011328301122274939
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.31442446039575433
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.1816839232402916
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.007761229021429519
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": 0.3745905846977697
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.08271568826474193
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.035808984108036075
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.1490597484805876
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.25551293555623933
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 3,
+          "Weight": -0.354809212986202
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.2982944124672517
+        },
+        {
+          "Enabled": false,
+          "Input": 11,
+          "Output": 3,
+          "Weight": -0.011203173568455316
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Likamu",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.15894352247803814,
+      "Mu": -1.8392063444026217,
+      "Delta": 0.033039627593388785,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.5958499355937871
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.31294932714102786
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.2645145133981964
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.3500557302513536
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.012637456287152795
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.15528770938762604
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.36329045077944433
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": 0.21916886729639473
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.2911691446203081
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.061887609756846186
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.18338768805622788
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": -0.131173036074543
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.04514455178501896
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.28211982192002183
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": -0.0031045729451870674
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.009754640936379087
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.08653715364572598
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 10,
+          "Weight": -0.04464617152124597
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 3,
+          "Weight": -0.16731525837944125
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 11,
+          "Weight": -0.18842153411746426
+        },
+        {
+          "Enabled": true,
+          "Input": 11,
+          "Output": 3,
+          "Weight": 0.0270878227182303
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4,
+        2
+      ]
+    },
+    {
+      "Name": "Caedu",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.1464574106962065,
+      "Mu": -1.9210206047612184,
+      "Delta": 0.03536209121857627,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.11580825493777058
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.0684330683861238
+        },
+        {
+          "Enabled": false,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.41889918392774417
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.049858722572658165
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.14019337165280088
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": 0.1614426314248095
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.33852255301757517
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.25002614095781
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.408866310830454
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.05248481920048641
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.44658370334076625
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.30828800682608953
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": 0.04998755572837777
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.042162459831531676
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.2897481537872457
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": -0.1408744914539291
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.04184369194385508
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.047466095929904514
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.16695995990136794
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    },
+    {
+      "Name": "Xutabamusha",
+      "Played": true,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 2,
+      "Fitness": 0.09420749720650724,
+      "Mu": -2.3622555123873084,
+      "Delta": 0.04578961126074561,
+      "Connections": [
+        {
+          "Enabled": false,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.3096842828684795
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.07599434196465911
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": -0.3260987639066203
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.01718578932685727
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": 0.1837475692167442
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.12453947195875706
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.1550517108004913
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.1601604663387079
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 9,
+          "Weight": -0.28442903399794867
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.11793308856717134
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.23356469025023202
+        },
+        {
+          "Enabled": false,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.1551762594618339
+        },
+        {
+          "Enabled": true,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.04855559844581627
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.23965765519789003
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 9,
+          "Weight": -0.17354004346150662
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.0741893291868955
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 9,
+          "Weight": 0.056900430314892794
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.05492519047915211
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.20905108848205692
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    }
+  ]
+}
