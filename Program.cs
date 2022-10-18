@@ -17,35 +17,35 @@ class Program
 {
     const int MAX_LINES = 300;
     const int MAX_PIECES = MAX_LINES * 5 / 2;
-    const int THINK_TIME_IN_MILLIS = 120, MOVE_DELAY_IN_MILLIS = 0;
+    const int THINK_TIME_IN_MILLIS = 100, MOVE_DELAY_IN_MILLIS = 0;
     const int PLAY_TIMES = 4;
     const double DELTA_TRESH = 0.0487; // Just less than 5% error (e^0.0487 ~ 1.0499)
-    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\double out deep intent.json";
+    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\double out deep score.json";
         
     static void Main()
     {
         // Set up console
         Console.Title = "Tetris NEAT AI Training";
-        FConsole.Framerate = 30;
+        FConsole.Framerate = 18;
         FConsole.CursorVisible = false;
         FConsole.SetFont("Consolas", 16);
         //FConsole.SetFont("Consolas", 40); // Biggest
-        FConsole.Initialise(FrameEndCallback);
-        
-        int seed = new Random().Next();
-        Game[] games = new Game[2].Select(x => new Game(5, seed)).ToArray();
-        Game.SetGames(games);
-        FConsole.Set(FConsole.Width, FConsole.Height + 2);
-        Game.IsPaused = true;
-        Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        left.Start(100, 0);
-        SetupPlayerInput(games[1]);
-        Bot right = new BotFixedTresh(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
-        right.Start(100, 0);
-        Game.IsPaused = false;
+        FConsole.Initialise();
+
+        //int seed = new Random().Next();
+        //Game[] games = new Game[2].Select(x => new Game(6, seed)).ToArray();
+        //Game.SetGames(games);
+        //FConsole.Set(FConsole.Width, FConsole.Height + 2);
+        //Game.IsPaused = true;
+        //Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
+        //left.Start(100, 0);
+        //SetupPlayerInput(games[1]);
+        //Bot right = new BotFixedTresh(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
+        //right.Start(70, 0);
+        //Game.IsPaused = false;
 
         // Train NNs
-        //NN.Train(Population_path, FitnessFunctionVS, 8, 2, 50);
+        NN.Train(Population_path, FitnessFunctionVS, 8, 2, 50);
     }
 
     static void SetupPlayerInput(Game player_game)
@@ -272,8 +272,8 @@ class Program
                 FConsole.WriteLine($" No. of Species: {NN.Speciate(networks, compat_tresh).Count}");
 
                 // Start bots
-                Bot left_bot = new BotByIntent(left, games[0]);
-                Bot right_bot = new BotByIntent(right, games[1]);
+                Bot left_bot = new BotByScore(left, games[0]);
+                Bot right_bot = new BotByScore(right, games[1]);
                 Game.IsPaused = false;
                 left_bot.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);
                 right_bot.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);

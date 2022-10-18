@@ -387,20 +387,23 @@ public readonly struct MatrixMask
     {
         uint[] rows = new uint[24];
         int i = 0, shift;
-        for (shift = 10; i < 5; i++, shift += 10)
-            rows[i] = (uint)((LowLow >> shift) & FULL_LINE);
+        for (shift = 10; i < 5; shift += 10)
+            rows[i++] = (uint)((LowLow >> shift) & FULL_LINE);
         rows[i++] = (uint)((LowLow >> 60) | (LowHigh << 4) & FULL_LINE);
+        if (rows[i - 1] == 0) return rows;
 
-        for (shift = 6; i < 11; i++, shift += 10)
-            rows[i] = (uint)((LowHigh >> shift) & FULL_LINE);
+        for (shift = 6; i < 11; shift += 10)
+            rows[i++] = (uint)((LowHigh >> shift) & FULL_LINE);
         rows[i++] = (uint)((LowHigh >> 56) | (HighLow << 8) & FULL_LINE);
+        if (rows[i - 1] == 0) return rows;
 
-        for (shift = 2; i < 18; i++, shift += 10)
-            rows[i] = (uint)((HighLow >> shift) & FULL_LINE);
+        for (shift = 2; i < 18; shift += 10)
+            rows[i++] = (uint)((HighLow >> shift) & FULL_LINE);
         rows[i++] = (uint)((HighLow >> 62) | (HighHigh << 2) & FULL_LINE);
+        if (rows[i - 1] == 0) return rows;
 
-        for (shift = 8; i < 24; i++, shift += 10)
-            rows[i] = (uint)((HighHigh >> shift) & FULL_LINE);
+        for (shift = 8; i < 24; shift += 10)
+            rows[i++] = (uint)((HighHigh >> shift) & FULL_LINE);
 
         return rows;
     }
@@ -1089,18 +1092,19 @@ public class GameBase
             MatrixMask bottom = (Matrix & MatrixMask.HeightMasks[clears[2]]) |
                      (MatrixMask.InverseHeightMasks[clears[2]] & MatrixMask.HeightMasks[clears[2] + clears[3]]);
             Matrix = ((Matrix & MatrixMask.InverseHeightMasks[clears[2]]) << (clears[3] * 10)) | bottom;
+            Highest += clears[3];
         }
         if (clears[1] > 0)
         {
             MatrixMask bottom = (Matrix & MatrixMask.HeightMasks[clears[0]]) |
                      (MatrixMask.InverseHeightMasks[clears[0]] & MatrixMask.HeightMasks[clears[0] + clears[1]]);
             Matrix = ((Matrix & MatrixMask.InverseHeightMasks[clears[0]]) << (clears[1] * 10)) | bottom;
+            Highest += clears[1];
         }
         
         // Remove piece
         Matrix &= ~Current.GetMask(X, Y);
 
-        Highest += clears[1] + clears[3];
         while (Highest >= 0)
         {
             if (Matrix.GetRow(Highest) != 0) break;
