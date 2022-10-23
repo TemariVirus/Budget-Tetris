@@ -6,46 +6,54 @@ using Tetris;
 // Inputs: standard height, caves, pillars, row transitions, col transitions, trash, cleared, intent
 // Outputs: score of state, intent(don't search further if it drops below a treshold)
 // TODO:
+//- Make GameBase sealed and use composition?
+//- Remove DataIndex attribute from DoublyLinkedMartixNode
 //- laser chess?
-//- order moves by intent
-//- change erase timer to use delayed task + field for erase time
+//- implement move generator and order moves by intent
 //- proper implementation of KPP?
-//- optimise GameBase
 //- add height of trash as a feature
 //- add a featrue for t-spins
-class Program
+static class Program
 {
     const int MAX_LINES = 300;
     const int MAX_PIECES = MAX_LINES * 5 / 2;
     const int THINK_TIME_IN_MILLIS = 100, MOVE_DELAY_IN_MILLIS = 0;
     const int PLAY_TIMES = 4;
     const double DELTA_TRESH = 0.0487; // Just less than 5% error (e^0.0487 ~ 1.0499)
-    static readonly string Population_path = AppDomain.CurrentDomain.BaseDirectory + @"Pops\double out deep score.json";
+    static readonly string Population_path = AppContext.BaseDirectory + @"Pops\double out deep score.json";
         
     static void Main()
     {
         // Set up console
         Console.Title = "Tetris NEAT AI Training";
-        FConsole.Framerate = 18;
+        FConsole.Framerate = 30;
         FConsole.CursorVisible = false;
         FConsole.SetFont("Consolas", 16);
         //FConsole.SetFont("Consolas", 40); // Biggest
-        FConsole.Initialise();
+        FConsole.Initialise(FrameEndCallback);
 
-        //int seed = new Random().Next();
-        //Game[] games = new Game[2].Select(x => new Game(6, seed)).ToArray();
-        //Game.SetGames(games);
-        //FConsole.Set(FConsole.Width, FConsole.Height + 2);
-        //Game.IsPaused = true;
+        int seed = new Random().Next();
+        Game[] games = new Game[1].Select(x => new Game(16, seed)).ToArray();
+        Game.SetGames(games);
+        FConsole.Set(FConsole.Width, FConsole.Height + 2);
+        Game.IsPaused = true;
         //Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
         //left.Start(100, 0);
-        //SetupPlayerInput(games[1]);
+        SetupPlayerInput(games[0]);
         //Bot right = new BotFixedTresh(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
-        //right.Start(70, 0);
-        //Game.IsPaused = false;
+        //right.Start(100, 0);
+        Game.IsPaused = false;
 
+        games[0].G = 0.02;
+        PCFinder pc = new PCFinder();
+        FConsole.AddOnPressListener(Key.S, () => pc.ShowMode = !pc.ShowMode);
+        //FConsole.AddOnPressListener(Key.W, () => pc.Wait = !pc.Wait);
+        FConsole.AddOnPressListener(Key.N, () => pc.GoNext = true);
+        FConsole.AddOnHoldListener(Key.N, () => pc.GoNext = true, 400, 25);
+        FConsole.AddOnPressListener(Key.P, () => new Thread(() => pc.TryFindPC(games[0], out _)).Start());
+        
         // Train NNs
-        NN.Train(Population_path, FitnessFunctionVS, 8, 2, 50);
+        //NN.Train(Population_path, FitnessFunctionVS, 8, 2, 50);
     }
 
     static void SetupPlayerInput(Game player_game)

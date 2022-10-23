@@ -4,5 +4,5 @@
 
 /.vs
 /obj
-/bin/Release/net6.0-windows/NNs
-/bin/Debug/net6.0-windows
+/bin
+/.editorconfig

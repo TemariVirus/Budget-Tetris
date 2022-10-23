@@ -59,6 +59,14 @@ public readonly struct MatrixMask
             HighLow = ~value.HighLow,
             HighHigh = ~value.HighHigh
         };
+    public static MatrixMask operator &(MatrixMask left, ulong right) =>
+        new MatrixMask()
+        {
+            LowLow = left.LowLow & right,
+            LowHigh = left.LowHigh,
+            HighLow = left.HighLow,
+            HighHigh = left.HighHigh
+        };
     public static MatrixMask operator &(MatrixMask matrix, PieceMask piece)
     {
         return piece.Offset switch
@@ -101,6 +109,14 @@ public readonly struct MatrixMask
             LowHigh = left.LowHigh & right.LowHigh,
             HighLow = left.HighLow & right.HighLow,
             HighHigh = left.HighHigh & right.HighHigh
+        };
+    public static MatrixMask operator |(MatrixMask left, ulong right) =>
+        new MatrixMask()
+        {
+            LowLow = left.LowLow | right,
+            LowHigh = left.LowHigh,
+            HighLow = left.HighLow,
+            HighHigh = left.HighHigh
         };
     public static MatrixMask operator |(MatrixMask matrix, PieceMask piece)
     {
@@ -242,33 +258,6 @@ public readonly struct MatrixMask
                 HighHigh = (value.HighHigh << shift) | (value.HighLow >> (64 - shift))
             }
         };
-        
-        //shift &= 255;
-        //return shift switch
-        //{
-        //    >= 192 => new MatrixMask()
-        //    {
-        //        HighHigh = value.LowLow << (shift - 192)
-        //    },
-        //    >= 128 => new MatrixMask()
-        //    {
-        //        HighLow = value.LowLow << (shift - 128),
-        //        HighHigh = (value.LowHigh << (shift - 128)) | (value.LowLow >> (191 - shift) >> 1)
-        //    },
-        //    >= 64 => new MatrixMask()
-        //    {
-        //        LowHigh = value.LowLow << (shift - 64),
-        //        HighLow = (value.LowHigh << (shift - 64)) | (value.LowLow >> (127 - shift) >> 1),
-        //        HighHigh = (value.HighLow << (shift - 64)) | (value.LowHigh >> (127 - shift) >> 1)
-        //    },
-        //    _ => new MatrixMask()
-        //    {
-        //        LowLow = value.LowLow << shift,
-        //        LowHigh = (value.LowHigh << shift) | (value.LowLow >> (63 - shift) >> 1),
-        //        HighLow = (value.HighLow << shift) | (value.LowHigh >> (63 - shift) >> 1),
-        //        HighHigh = (value.HighHigh << shift) | (value.HighLow >> (63 - shift) >> 1)
-        //    }
-        //};
     }
     public static MatrixMask operator >>(MatrixMask value, int shift)
     {
@@ -324,33 +313,6 @@ public readonly struct MatrixMask
                 HighHigh = value.HighHigh >> shift
             }
         };
-
-        //shift &= 255;
-        //return shift switch
-        //{
-        //    >= 192 => new MatrixMask()
-        //    {
-        //        LowLow = value.HighHigh >> (shift - 192)
-        //    },
-        //    >= 128 => new MatrixMask()
-        //    {
-        //        LowLow = (value.HighLow >> (shift - 128)) | (value.HighHigh << (191 - shift) << 1),
-        //        LowHigh = value.HighHigh >> (shift - 128)
-        //    },
-        //    >= 64 => new MatrixMask()
-        //    {
-        //        LowLow = (value.LowHigh >> (shift - 64)) | (value.HighLow << (127 - shift) << 1),
-        //        LowHigh = (value.HighLow >> (shift - 64)) | (value.HighHigh << (127 - shift) << 1),
-        //        HighLow = value.HighHigh >> (shift - 64)
-        //    },
-        //    _ => new MatrixMask()
-        //    {
-        //        LowLow = (value.LowLow >> shift) | (value.LowHigh << (63 - shift) << 1),
-        //        LowHigh = (value.LowHigh >> shift) | (value.HighLow << (63 - shift) << 1),
-        //        HighLow = (value.HighLow >> shift) | (value.HighHigh << (63 - shift) << 1),
-        //        HighHigh = value.HighHigh >> shift
-        //    }
-        //};
     }
     #endregion
     public static bool operator ==(MatrixMask left, MatrixMask right) =>
@@ -408,6 +370,34 @@ public readonly struct MatrixMask
         return rows;
     }
 
+    public bool Intersects(Piece piece, int x, int y)
+    {
+        ulong low, high;
+        PieceMask mask = piece.GetMask(x, y);
+        switch (mask.Offset)
+        {
+            case 0:
+                low = mask.Low & LowLow;
+                high = mask.High & LowHigh;
+                //return (low | high) != 0;
+                return low != 0 || high != 0;
+            case 1:
+                low = mask.Low & LowHigh;
+                high = mask.High & HighLow;
+                //return (low | high) != 0;
+                return low != 0 || high != 0;
+            case 2:
+                low = mask.Low & HighLow;
+                high = mask.High & HighHigh;
+                //return (low | high) != 0;
+                return low != 0 || high != 0;
+            case 3:
+                return (mask.Low & HighHigh) != 0;
+            default:
+                return false;
+        }
+    }
+
     public static explicit operator MatrixMask(PieceMask value) => value.Offset switch
     {
         0 => new MatrixMask() { LowLow = value.Low, LowHigh = value.High },
@@ -416,16 +406,6 @@ public readonly struct MatrixMask
         3 => new MatrixMask() { HighHigh = value.Low },
         _ => new MatrixMask()
     };
-
-    //public unsafe ReadOnlySpan<ulong> ToSpan()
-    //{
-    //    fixed (void* ptr = &this)
-    //    {
-    //        return new ReadOnlySpan<ulong>(ptr, 4);
-    //    }
-    //}
-    
-    public ulong[] ToArray() => new ulong[] { LowLow, LowHigh, HighLow, HighHigh };
 
     #nullable enable
     public override bool Equals(object? obj) =>
@@ -441,6 +421,8 @@ public readonly struct MatrixMask
         }
         return sb.ToString();
     }
+
+    public ulong[] ToArray() => new ulong[] { LowLow, LowHigh, HighLow, HighHigh };
     
     public override int GetHashCode() =>
         (LowLow.GetHashCode() * 397) ^
@@ -519,7 +501,7 @@ public sealed class Piece
         new int[][] { new int[] { -2, -1, -1,  0 }, new int[] {  0,  0, -1, -1 }, new int[] { -1, -2, -1,  0 }, new int[] { -1, -1, -2, -2 } }, // Z
         new int[][] { new int[] { -1,  0, -1,  0 }, new int[] { -1,  0, -1,  0 }, new int[] { -1,  0, -1,  0 }, new int[] { -1,  0, -1,  0 } }  // O
     };
-    // Must be sorted in ascending order
+    // Innermost arrays must be sorted in ascending order
     private static readonly int[][][] PieceY = {
         new int[][] { new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 } }, // Empty
         new int[][] { new int[] { -2, -1, -1, -1 }, new int[] { -2, -1, -1,  0 }, new int[] { -1, -1, -1,  0 }, new int[] { -2, -1, -1,  0 } }, // T
@@ -560,7 +542,7 @@ public sealed class Piece
         MinY = _Y.Max();
         Highest = -_Y.Min();
         Lowest = -_Y.Max();
-        Height = Highest - Lowest;
+        Height = Highest - Lowest + 1;
 
         GetKicksTable(true, this, out _KicksCWX, out _KicksCWY);
         GetKicksTable(false, this, out _KicksCCWX, out _KicksCCWY);
@@ -611,7 +593,7 @@ public sealed class Piece
     //public int Kicks180Y(int i) => 0;
     public int KicksCCWX(int i) => _KicksCCWX[i];
     public int KicksCCWY(int i) => _KicksCCWY[i];
-    
+
     public static implicit operator Piece(int i) => Pieces[i & (PIECE_BITS | ROTATION_BITS)];
     public static implicit operator int(Piece i) => i.Id;
 
@@ -736,126 +718,12 @@ public class GameBase
         return Bag[BagIndex++];
     }
 
-    public bool Intersects(int x, int y)
-    {
-        // if (Y + Current.Lowest > Highest) return false; // Ald checked in most cases, wouldn't speed things up
-
-        ulong low, high;
-        PieceMask mask = Current.GetMask(x, y);
-        switch (mask.Offset)
-        {
-            case 0:
-                low = mask.Low & Matrix.LowLow;
-                high = mask.High & Matrix.LowHigh;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 1:
-                low = mask.Low & Matrix.LowHigh;
-                high = mask.High & Matrix.HighLow;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 2:
-                low = mask.Low & Matrix.HighLow;
-                high = mask.High & Matrix.HighHigh;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 3:
-                return (mask.Low & Matrix.HighHigh) != 0;
-            default:
-                return false;
-        }
-    }
-
-    public bool Intersects(Piece piece, int x, int y)
-    {
-        // if (Y + Current.Lowest > Highest) return false; // Ald checked in most cases, wouldn't speed things up
-
-        ulong low, high;
-        PieceMask mask = piece.GetMask(x, y);
-        switch (mask.Offset)
-        {
-            case 0:
-                low = mask.Low & Matrix.LowLow;
-                high = mask.High & Matrix.LowHigh;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 1:
-                low = mask.Low & Matrix.LowHigh;
-                high = mask.High & Matrix.HighLow;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 2:
-                low = mask.Low & Matrix.HighLow;
-                high = mask.High & Matrix.HighHigh;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 3:
-                return (mask.Low & Matrix.HighHigh) != 0;
-            default:
-                return false;
-        }
-    }
-
-    public bool Fits(int x, int y)
-    {
-        if (x < Current.MinX || x > Current.MaxX || y < Current.MinY) return false;
-        // if (Y + Current.Lowest > Highest) return true;
-
-        ulong low, high;
-        PieceMask mask = Current.GetMask(x, y);
-        switch (mask.Offset)
-        {
-            case 0:
-                low = mask.Low & Matrix.LowLow;
-                high = mask.High & Matrix.LowHigh;
-                //return (low | high) == 0;
-                return low == 0 && high == 0;
-            case 1:
-                low = mask.Low & Matrix.LowHigh;
-                high = mask.High & Matrix.HighLow;
-                //return (low | high) == 0;
-                return low == 0 && high == 0;
-            case 2:
-                low = mask.Low & Matrix.HighLow;
-                high = mask.High & Matrix.HighHigh;
-                //return (low | high) == 0;
-                return low == 0 && high == 0;
-            case 3:
-                return (mask.Low & Matrix.HighHigh) == 0;
-            default:
-                return false;
-        }
-    }
-
     public bool Fits(Piece piece, int x, int y)
     {
         if (x < piece.MinX || x > piece.MaxX || y < piece.MinY) return false;
         // if (Y + piece.Lowest > Highest) return true;
 
-            ulong low, high;
-        PieceMask mask = piece.GetMask(x, y);
-        switch (mask.Offset)
-        {
-            case 0:
-                low = mask.Low & Matrix.LowLow;
-                high = mask.High & Matrix.LowHigh;
-                //return (low | high) == 0;
-                return low == 0 && high == 0;
-            case 1:
-                low = mask.Low & Matrix.LowHigh;
-                high = mask.High & Matrix.HighLow;
-                //return (low | high) == 0;
-                return low == 0 && high == 0;
-            case 2:
-                low = mask.Low & Matrix.HighLow;
-                high = mask.High & Matrix.HighHigh;
-                //return (low | high) == 0;
-                return low == 0 && high == 0;
-            case 3:
-                return (mask.Low & Matrix.HighHigh) == 0;
-            default:
-                return false;
-        }
+        return !Matrix.Intersects(piece, x, y);
     }
 
     public bool OnGround()
@@ -863,7 +731,7 @@ public class GameBase
         // if (Y + Current.Lowest > Highest) return false; // Ald checked in most cases, wouldn't speed things up
         if (Y <= Current.MinY) return true;
 
-        return Intersects(X, Y - 1);
+        return Matrix.Intersects(Current, X, Y - 1);
     }
 
     public int TSpinType(bool rotatedLast)
@@ -976,7 +844,7 @@ public class GameBase
         {
             if (X < Current.MaxX)
             {
-                if (Intersects(X + 1, Y))
+                if (Matrix.Intersects(Current, X + 1, Y))
                     return false;
                 X++;
                 return true;
@@ -986,7 +854,7 @@ public class GameBase
         {
             if (X > Current.MinX)
             {
-                if (Intersects(X - 1, Y))
+                if (Matrix.Intersects(Current, X - 1, Y))
                     return false;
                 X--;
                 return true;
@@ -1142,28 +1010,33 @@ public class GameBase
         if (end_x < end_piece.MinX || end_x > end_piece.MaxX || end_y < end_piece.MinY || end_y >= 24)
             return false;
 
-        PieceMask end_piece_mask = end_piece.GetMask(end_x, end_y);
-
         GameBase clone = Clone();
         // Check if hold is needed
         bool hold = false;
         if (clone.Current.PieceType != end_piece.PieceType)
         {
-            clone.Current = clone.Hold == Piece.EMPTY ? clone.Next[0] : clone.Hold;
+            clone.Current = (clone.Hold == Piece.EMPTY) ? clone.Next[0] : clone.Hold;
             // No possible route if holding doesn't give correct piece type
             if (clone.Current.PieceType != end_piece.PieceType)
                 return false;
             hold = true;
-            clone.ResetPiece();
         }
+
+        // Can't pathfind to floating piece
+        clone.Current = end_piece;
+        clone.X = end_x;
+        clone.Y = end_y;
+        if (!clone.OnGround()) return false;
 
         // Queue of nodes to try
         Queue<(Piece p, int x, int y, List<Moves> m)> nodes = new Queue<(Piece, int, int, List<Moves>)>();
         // Set of seen nodes
         HashSet<int> seen = new HashSet<int>();
         // Breadth first search
+        clone.ResetPiece();
         nodes.Enqueue((clone.Current, clone.X, clone.Y, new List<Moves>()));
         seen.Add((clone.Current, clone.X, clone.Y).GetHashCode());
+        PieceMask end_piece_mask = end_piece.GetMask(end_x, end_y);
         while (nodes.Count != 0)
         {
             (Piece piece, int x, int y, List<Moves> m) = nodes.Dequeue();
@@ -1217,7 +1090,7 @@ public class GameBase
 
         void UpdateWith(List<Moves> m, Moves move)
         {
-            int hash = (clone.Current, clone.X, clone.Y).GetHashCode();
+            int hash = clone.Current | (clone.X << 5) | (clone.Y << 9);
             if (!seen.Contains(hash))
             {
                 seen.Add(hash);
@@ -1265,7 +1138,6 @@ public sealed class Game : GameBase
                 foreach (Game g in Games)
                 {
                     g.LockT.Stop();
-                    g.EraseT.Stop();
                 }
             }
             else
@@ -1274,7 +1146,6 @@ public sealed class Game : GameBase
                 foreach (Game g in Games)
                 {
                     if (g.OnGround()) g.LockT.Start();
-                    g.EraseT.Start();
                     Task.Delay(g.GarbageDelay).ContinueWith(t => g.DrawTrashMeter());
                 }
             }
@@ -1354,8 +1225,8 @@ public sealed class Game : GameBase
     public int AutoLockGrace = 15;
     int MoveCount = 0;
     bool IsLastMoveRotate = false, AlreadyHeld = false;
-    readonly Stopwatch LockT = new Stopwatch(),
-                       EraseT = new Stopwatch();
+    readonly Stopwatch LockT = new Stopwatch();
+    readonly List<CancellationTokenSource> EraseCancelTokenSrcs = new List<CancellationTokenSource>();
 
     readonly Random GarbageRand;
     readonly List<(int Lines, long Time)> Garbage = new List<(int, long)>();
@@ -1437,7 +1308,6 @@ public sealed class Game : GameBase
         LastFrameTime = StartTime;
         LastTargetChangeTime = GlobalTime.ElapsedMilliseconds;
         LockT.Reset();
-        EraseT.Reset();
         Garbage.Clear();
         //TargetMode = TargetModes.Random;
         Targets.Clear();
@@ -1453,9 +1323,6 @@ public sealed class Game : GameBase
         // Timekeeping
         double deltaT = GlobalTime.Elapsed.TotalSeconds - LastFrameTime;
         LastFrameTime = GlobalTime.Elapsed.TotalSeconds;
-
-        // Erase stats
-        if (EraseT.ElapsedMilliseconds > EraseDelay) EraseClearStats();
 
         // Play queued moves (it's up to the input adapter to time the moves, the queue is a buffer jic)
         bool softDrop = false;
@@ -1670,7 +1537,25 @@ public sealed class Game : GameBase
         // Write stats to console
         WriteAt(1, 11, ConsoleColor.White, Level.ToString());
         // Write clear stats and play sound
-        if (tspin > 0 || cleared > 0 || Combo > 0 || pc) EraseClearStats();
+        if (tspin > 0 || cleared > 0 || Combo > 0 || pc)
+        {
+            foreach (var ts in EraseCancelTokenSrcs)
+            {
+                ts.Cancel();
+                ts.Dispose();
+            }
+            EraseCancelTokenSrcs.Clear();
+
+            CancellationTokenSource token_source = new CancellationTokenSource();
+            EraseCancelTokenSrcs.Add(token_source);
+            Task.Delay(EraseDelay).ContinueWith(t => {
+                if (token_source.IsCancellationRequested) return;
+                EraseClearStats();
+                EraseCancelTokenSrcs.Remove(token_source);
+                token_source.Dispose();
+            }, token_source.Token);
+            EraseClearStats();
+        }
         if (b2b_active) WriteAt(4, 14, ConsoleColor.White, "B2B");
         if (tspin == 2) WriteAt(0, 15, ConsoleColor.White, "T-SPIN MINI");
         else if (tspin == 3) WriteAt(2, 15, ConsoleColor.White, "T-SPIN");
@@ -1780,7 +1665,7 @@ public sealed class Game : GameBase
         {
             victim.Garbage.Add((trash, time));
             victim.DrawTrashMeter();
-            Task.Delay(GarbageDelay + 1).ContinueWith(t => victim.DrawTrashMeter());
+            Task.Delay(GarbageDelay).ContinueWith(t => victim.DrawTrashMeter());
         }
     }
 
@@ -1801,7 +1686,7 @@ public sealed class Game : GameBase
         MoveCount = 0;
         LockT.Reset();
         // Check for block out
-        if (Intersects(X, Y)) IsDead = true;
+        if (Matrix.Intersects(Current, X, Y)) IsDead = true;
         // Check for lock out
         //if (Y + Current.Lowest >= 20) IsDead = true;
         // Draw next
@@ -1863,7 +1748,6 @@ public sealed class Game : GameBase
     void EraseClearStats()
     {
         for (int i = 14; i < 19; i++) WriteAt(0, i, ConsoleColor.Black, "".PadLeft(11));
-        EraseT.Restart();
     }
 
     void ClearScreen()

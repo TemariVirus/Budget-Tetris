@@ -1,6 +1,7 @@
 ﻿namespace Tetris;
 
 using NEAT;
+using System;
 using System.Diagnostics;
 using System.Numerics;
 
@@ -204,18 +205,16 @@ public abstract class Bot
     }
 }
 
-public class BotOld : Bot
+public sealed class BotOld : Bot
 {
     const double MIN_TRESH = -1, MAX_TRESH = -0.01, MOVE_MUL = 1.05, MOVE_TARGET = 5;
 
     public bool UsePCFinder = true;
     protected override double MoveTreshStart { get => -0.05; }
 
-    public BotOld(NN network, Game game) : base(network, game)
-    { }
+    public BotOld(NN network, Game game) : base(network, game) { }
 
-    public BotOld(string filePath, Game game) : base(filePath, game)
-    { }
+    public BotOld(string filePath, Game game) : base(filePath, game) { }
 
     protected override List<Moves> FindMoves()
     {
@@ -289,7 +288,6 @@ public class BotOld : Bot
                         Sim.Y = oriy;
                         Sim.Unplace(clears);
                         // Only vertical pieces can be spun
-                        if ((rot & Piece.ROTATION_CW) == Piece.ROTATION_CW && piece.PieceType != Piece.O)
                         {
                             for (int rotate_cw = 0; rotate_cw < 2; rotate_cw++)
                             {
@@ -600,18 +598,16 @@ public class BotOld : Bot
     }
 }
 
-public class BotFixedTresh : Bot
+public sealed class BotFixedTresh : Bot
 {
     const double MIN_TRESH = -0.999, MAX_TRESH = 1, MOVE_MUL = 0.015, MOVE_TARGET = 5;
 
     protected override double MoveTreshStart { get => 0; }
     public bool UsePCFinder = true;
 
-    public BotFixedTresh(NN network, Game game) : base(network, game)
-    { }
+    public BotFixedTresh(NN network, Game game) : base(network, game) { }
 
-    public BotFixedTresh(string filePath, Game game) : base(NN.LoadNN(filePath), game)
-    { }
+    public BotFixedTresh(string filePath, Game game) : base(NN.LoadNN(filePath), game) { }
 
     protected override List<Moves> FindMoves()
     {
@@ -997,18 +993,16 @@ public class BotFixedTresh : Bot
     }
 }
 
-public class BotByScore : Bot
+public sealed class BotByScore : Bot
 {
     const double MIN_TRESH = -1, MAX_TRESH = -0.01, MOVE_MUL = 1.05, MOVE_TARGET = 5;
 
     protected override double MoveTreshStart { get => -0.05; }
     public bool UsePCFinder = true;
 
-    public BotByScore(NN network, Game game) : base(network, game)
-    { }
+    public BotByScore(NN network, Game game) : base(network, game) { }
 
-    public BotByScore(string filePath, Game game) : base(NN.LoadNN(filePath), game)
-    { }
+    public BotByScore(string filePath, Game game) : base(NN.LoadNN(filePath), game) { }
 
     protected override List<Moves> FindMoves()
     {
