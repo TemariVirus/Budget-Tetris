@@ -4,33 +4,74 @@
     <OutputType>Exe</OutputType>
 	<TargetFramework>net6.0-windows</TargetFramework>
 	<RootNamespace>Tetris_NEAT_AI</RootNamespace>
+	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	<ImplicitUsings>enable</ImplicitUsings>
 	<UseWPF>true</UseWPF>
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="NNs\downstacking.txt" />
-    <None Remove="NNs\fixedhold2.txt" />
-    <None Remove="NNs\PC.txt" />
-    <None Remove="NNs\plan2.txt" />
-    <None Remove="NNs\plan3.txt" />
+    <None Remove="Sounds\bfall.wav" />
+    <None Remove="Sounds\double.wav" />
+    <None Remove="Sounds\harddrop.wav" />
+    <None Remove="Sounds\hold.wav" />
+    <None Remove="Sounds\Korobeiniki Remix.wav" />
+    <None Remove="Sounds\lvlup.wav" />
+    <None Remove="Sounds\move.wav" />
+    <None Remove="Sounds\pause.wav" />
+    <None Remove="Sounds\pc.wav" />
+    <None Remove="Sounds\rotate.wav" />
+    <None Remove="Sounds\single.wav" />
+    <None Remove="Sounds\softdrop.wav" />
+    <None Remove="Sounds\tetris.wav" />
+    <None Remove="Sounds\triple.wav" />
+    <None Remove="Sounds\tspin.wav" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="NNs\downstacking.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <Content Include="Sounds\bfall.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="NNs\fixedhold2.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <Content Include="Sounds\double.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="NNs\PC.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <Content Include="Sounds\harddrop.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="NNs\plan2.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <Content Include="Sounds\hold.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="NNs\plan3.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <Content Include="Sounds\Korobeiniki Remix.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\lvlup.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\move.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\pause.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\pc.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\rotate.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\single.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\softdrop.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\tetris.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\triple.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\tspin.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
