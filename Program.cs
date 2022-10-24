@@ -7,11 +7,10 @@ using Tetris;
 // Outputs: score of state, intent(don't search further if it drops below a treshold)
 // TODO:
 //- Make GameBase sealed and use composition?
-//- Remove DataIndex attribute from DoublyLinkedMartixNode
 //- laser chess?
 //- implement move generator and order moves by intent
 //- proper implementation of KPP?
-//- add height of trash as a feature
+//- add height of trash and incoming trash as features
 //- add a featrue for t-spins
 static class Program
 {
@@ -33,24 +32,24 @@ static class Program
         FConsole.Initialise(FrameEndCallback);
 
         int seed = new Random().Next();
-        Game[] games = new Game[1].Select(x => new Game(16, seed)).ToArray();
+        Game[] games = new Game[2].Select(x => new Game(16, seed)).ToArray();
         Game.SetGames(games);
         FConsole.Set(FConsole.Width, FConsole.Height + 2);
         Game.IsPaused = true;
         //Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        //left.Start(100, 0);
-        SetupPlayerInput(games[0]);
+        //left.Start(300, 0);
+        SetupPlayerInput(games[1]);
         //Bot right = new BotFixedTresh(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
-        //right.Start(100, 0);
+        //right.Start(300, 0);
         Game.IsPaused = false;
-
-        games[0].G = 0.02;
+        
+        games[1].G = 0.02;
         PCFinder pc = new PCFinder();
         FConsole.AddOnPressListener(Key.S, () => pc.ShowMode = !pc.ShowMode);
         //FConsole.AddOnPressListener(Key.W, () => pc.Wait = !pc.Wait);
         FConsole.AddOnPressListener(Key.N, () => pc.GoNext = true);
         FConsole.AddOnHoldListener(Key.N, () => pc.GoNext = true, 400, 25);
-        FConsole.AddOnPressListener(Key.P, () => new Thread(() => pc.TryFindPC(games[0], out _)).Start());
+        FConsole.AddOnPressListener(Key.P, () => new Thread(() => pc.TryFindPC(games[1], out _)).Start());
         
         // Train NNs
         //NN.Train(Population_path, FitnessFunctionVS, 8, 2, 50);

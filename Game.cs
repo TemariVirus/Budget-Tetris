@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 
@@ -30,445 +29,6 @@ public enum TargetModes
     All,
     Self,
     None
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public readonly struct MatrixMask
-{
-    public const ulong FULL_LINE = (1 << 10) - 1;
-
-    public static readonly MatrixMask[] HeightMasks = new MatrixMask[25].Select((m, i) =>
-    {
-        m = ~new MatrixMask();
-        m <<= i * 10;
-        return ~m << 10;
-    }).ToArray();
-    public static readonly MatrixMask[] InverseHeightMasks = HeightMasks.Select((m) => ~m & HeightMasks[^1]).ToArray();
-
-    public ulong LowLow { get; init; }
-    public ulong LowHigh { get; init; }
-    public ulong HighLow { get; init; }
-    public ulong HighHigh { get; init; }
-
-    #region // Logical operators
-    public static MatrixMask operator ~(MatrixMask value) =>
-        new MatrixMask()
-        {
-            LowLow = ~value.LowLow,
-            LowHigh = ~value.LowHigh,
-            HighLow = ~value.HighLow,
-            HighHigh = ~value.HighHigh
-        };
-    public static MatrixMask operator &(MatrixMask left, ulong right) =>
-        new MatrixMask()
-        {
-            LowLow = left.LowLow & right,
-            LowHigh = left.LowHigh,
-            HighLow = left.HighLow,
-            HighHigh = left.HighHigh
-        };
-    public static MatrixMask operator &(MatrixMask matrix, PieceMask piece)
-    {
-        return piece.Offset switch
-        {
-            0 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow & piece.Low,
-                LowHigh = matrix.LowHigh & piece.High,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh
-            },
-            1 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh & piece.Low,
-                HighLow = matrix.HighLow & piece.High,
-                HighHigh = matrix.HighHigh
-            },
-            2 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow & piece.Low,
-                HighHigh = matrix.HighHigh & piece.High
-            },
-            3 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh & piece.Low
-            },
-            _ => matrix
-        };
-    }
-    public static MatrixMask operator &(MatrixMask left, MatrixMask right) =>
-        new MatrixMask()
-        {
-            LowLow = left.LowLow & right.LowLow,
-            LowHigh = left.LowHigh & right.LowHigh,
-            HighLow = left.HighLow & right.HighLow,
-            HighHigh = left.HighHigh & right.HighHigh
-        };
-    public static MatrixMask operator |(MatrixMask left, ulong right) =>
-        new MatrixMask()
-        {
-            LowLow = left.LowLow | right,
-            LowHigh = left.LowHigh,
-            HighLow = left.HighLow,
-            HighHigh = left.HighHigh
-        };
-    public static MatrixMask operator |(MatrixMask matrix, PieceMask piece)
-    {
-        return piece.Offset switch
-        {
-            0 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow | piece.Low,
-                LowHigh = matrix.LowHigh | piece.High,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh
-            },
-            1 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh | piece.Low,
-                HighLow = matrix.HighLow | piece.High,
-                HighHigh = matrix.HighHigh
-            },
-            2 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow | piece.Low,
-                HighHigh = matrix.HighHigh | piece.High
-            },
-            3 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh | piece.Low
-            },
-            _ => matrix
-        };
-    }
-    public static MatrixMask operator |(MatrixMask left, MatrixMask right) =>
-        new MatrixMask() 
-        {
-            LowLow = left.LowLow | right.LowLow,
-            LowHigh = left.LowHigh | right.LowHigh,
-            HighLow = left.HighLow | right.HighLow,
-            HighHigh = left.HighHigh | right.HighHigh
-        };
-    public static MatrixMask operator ^(MatrixMask matrix, PieceMask piece)
-    {
-        return piece.Offset switch
-        {
-            0 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow ^ piece.Low,
-                LowHigh = matrix.LowHigh ^ piece.High,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh
-            },
-            1 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh ^ piece.Low,
-                HighLow = matrix.HighLow ^ piece.High,
-                HighHigh = matrix.HighHigh
-            },
-            2 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow ^ piece.Low,
-                HighHigh = matrix.HighHigh ^ piece.High
-            },
-            3 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh ^ piece.Low
-            },
-            _ => matrix
-        };
-    }
-    public static MatrixMask operator ^(MatrixMask left, MatrixMask right) =>
-        new MatrixMask()
-        {
-            LowLow = left.LowLow ^ right.LowLow,
-            LowHigh = left.LowHigh ^ right.LowHigh,
-            HighLow = left.HighLow ^ right.HighLow,
-            HighHigh = left.HighHigh ^ right.HighHigh
-        };
-    public static MatrixMask operator <<(MatrixMask value, int shift)
-    {
-        if (shift < 0) return value >> -shift;
-        
-        // Special treatment for multiples of 64
-        if ((shift & 63) == 0)
-        {
-            return (shift & 192) switch
-            {
-                192 => new MatrixMask()
-                {
-                    HighHigh = value.LowLow
-                },
-                128 => new MatrixMask()
-                {
-                    HighLow = value.LowLow,
-                    HighHigh = value.LowHigh
-                },
-                64 => new MatrixMask()
-                {
-                    LowHigh = value.LowLow,
-                    HighLow = value.LowHigh,
-                    HighHigh = value.HighLow
-                },
-                _ => value
-            };
-        }
-        
-        shift &= 255;
-        return shift switch
-        {
-            > 192 => new MatrixMask()
-            {
-                HighHigh = value.LowLow << (shift - 192)
-            },
-            > 128 => new MatrixMask()
-            {
-                HighLow = value.LowLow << (shift - 128),
-                HighHigh = (value.LowHigh << (shift - 128)) | (value.LowLow >> (192 - shift))
-            },
-            > 64 => new MatrixMask()
-            {
-                LowHigh = value.LowLow << (shift - 64),
-                HighLow = (value.LowHigh << (shift - 64)) | (value.LowLow >> (128 - shift)),
-                HighHigh = (value.HighLow << (shift - 64)) | (value.LowHigh >> (128 - shift))
-            },
-            _ => new MatrixMask()
-            {
-                LowLow = value.LowLow << shift,
-                LowHigh = (value.LowHigh << shift) | (value.LowLow >> (64 - shift)),
-                HighLow = (value.HighLow << shift) | (value.LowHigh >> (64 - shift)),
-                HighHigh = (value.HighHigh << shift) | (value.HighLow >> (64 - shift))
-            }
-        };
-    }
-    public static MatrixMask operator >>(MatrixMask value, int shift)
-    {
-        if (shift < 0) return value << -shift;
-
-        // Special treatment for multiples of 64
-        if ((shift & 63) == 0)
-        {
-            return (shift & 192) switch
-            {
-                192 => new MatrixMask()
-                {
-                    LowLow = value.HighHigh
-                },
-                128 => new MatrixMask()
-                {
-                    LowLow = value.HighLow,
-                    LowHigh = value.HighHigh
-                },
-                64 => new MatrixMask()
-                {
-                    LowLow = value.LowHigh,
-                    LowHigh = value.HighLow,
-                    HighLow = value.HighHigh
-                },
-                _ => value
-            };
-        }
-
-        shift &= 255;
-        return shift switch
-        {
-            > 192 => new MatrixMask()
-            {
-                LowLow = value.HighHigh >> (shift - 192)
-            },
-            > 128 => new MatrixMask()
-            {
-                LowLow = (value.HighLow >> (shift - 128)) | (value.HighHigh << (192 - shift)),
-                LowHigh = value.HighHigh >> (shift - 128)
-            },
-            > 64 => new MatrixMask()
-            {
-                LowLow = (value.LowHigh >> (shift - 64)) | (value.HighLow << (128 - shift)),
-                LowHigh = (value.HighLow >> (shift - 64)) | (value.HighHigh << (128 - shift)),
-                HighLow = value.HighHigh >> (shift - 64)
-            },
-            _ => new MatrixMask()
-            {
-                LowLow = (value.LowLow >> shift) | (value.LowHigh << (64 - shift)),
-                LowHigh = (value.LowHigh >> shift) | (value.HighLow << (64 - shift)),
-                HighLow = (value.HighLow >> shift) | (value.HighHigh << (64 - shift)),
-                HighHigh = value.HighHigh >> shift
-            }
-        };
-    }
-    #endregion
-    public static bool operator ==(MatrixMask left, MatrixMask right) =>
-        left.LowLow == right.LowLow &&
-        left.LowHigh == right.LowHigh &&
-        left.HighLow == right.HighLow &&
-        left.HighHigh == right.HighHigh;
-    public static bool operator !=(MatrixMask left, MatrixMask right) =>
-        left.LowLow != right.LowLow ||
-        left.LowHigh != right.LowHigh ||
-        left.HighLow != right.HighLow ||
-        left.HighHigh != right.HighHigh;
-
-    public int PopCount() =>
-        BitOperations.PopCount(HighHigh & 0x03FFFFFFFFFFFFFFUL) + // Exclude top 6 bits
-        BitOperations.PopCount(HighLow) +
-        BitOperations.PopCount(LowHigh) +
-        BitOperations.PopCount(LowLow & 0xFFFFFFFFFFFFFC00UL); // Exclude bottom 10 bits
-
-    public ulong GetRow(int row) =>
-        ((++row) switch
-        {
-            < 6 => LowLow >> (row * 10),
-            6 => (LowLow >> 60) | (LowHigh << 4),
-            < 12 => LowHigh >> ((row - 6) * 10 - 4),
-            12 => (LowHigh >> 56) | (HighLow << 8),
-            < 19 => HighLow >> ((row - 12) * 10 - 8),
-            19 => (HighLow >> 62) | (HighHigh << 2),
-            < 25 => HighHigh >> ((row - 19) * 10 - 2),
-            _ => throw new ArgumentOutOfRangeException(nameof(row))
-        }) & FULL_LINE;
-
-    public uint[] GetRows()
-    {
-        uint[] rows = new uint[24];
-        int i = 0, shift;
-        for (shift = 10; i < 5; shift += 10)
-            rows[i++] = (uint)((LowLow >> shift) & FULL_LINE);
-        rows[i++] = (uint)((LowLow >> 60) | (LowHigh << 4) & FULL_LINE);
-        if (rows[i - 1] == 0) return rows;
-
-        for (shift = 6; i < 11; shift += 10)
-            rows[i++] = (uint)((LowHigh >> shift) & FULL_LINE);
-        rows[i++] = (uint)((LowHigh >> 56) | (HighLow << 8) & FULL_LINE);
-        if (rows[i - 1] == 0) return rows;
-
-        for (shift = 2; i < 18; shift += 10)
-            rows[i++] = (uint)((HighLow >> shift) & FULL_LINE);
-        rows[i++] = (uint)((HighLow >> 62) | (HighHigh << 2) & FULL_LINE);
-        if (rows[i - 1] == 0) return rows;
-
-        for (shift = 8; i < 24; shift += 10)
-            rows[i++] = (uint)((HighHigh >> shift) & FULL_LINE);
-
-        return rows;
-    }
-
-    public bool Intersects(Piece piece, int x, int y)
-    {
-        ulong low, high;
-        PieceMask mask = piece.GetMask(x, y);
-        switch (mask.Offset)
-        {
-            case 0:
-                low = mask.Low & LowLow;
-                high = mask.High & LowHigh;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 1:
-                low = mask.Low & LowHigh;
-                high = mask.High & HighLow;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 2:
-                low = mask.Low & HighLow;
-                high = mask.High & HighHigh;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 3:
-                return (mask.Low & HighHigh) != 0;
-            default:
-                return false;
-        }
-    }
-
-    public static explicit operator MatrixMask(PieceMask value) => value.Offset switch
-    {
-        0 => new MatrixMask() { LowLow = value.Low, LowHigh = value.High },
-        1 => new MatrixMask() { LowHigh = value.Low, HighLow = value.High },
-        2 => new MatrixMask() { HighLow = value.Low, HighHigh = value.High },
-        3 => new MatrixMask() { HighHigh = value.Low },
-        _ => new MatrixMask()
-    };
-
-    #nullable enable
-    public override bool Equals(object? obj) =>
-        obj is MatrixMask value && this == value;
-
-    public override string ToString()
-    {
-        StringBuilder sb = new StringBuilder(275);
-        for (int i = 249; i >= 10; i--)
-        {
-            sb.Append((this >> i).LowLow & 1);
-            if (i % 10 == 0) sb.Append(' ');
-        }
-        return sb.ToString();
-    }
-
-    public ulong[] ToArray() => new ulong[] { LowLow, LowHigh, HighLow, HighHigh };
-    
-    public override int GetHashCode() =>
-        (LowLow.GetHashCode() * 397) ^
-        (LowHigh.GetHashCode() * 113) ^
-        (HighLow.GetHashCode() / 239) ^
-        ((HighHigh.GetHashCode() >> 7) + 43);
-}
-
-[StructLayout(LayoutKind.Sequential)]
-public readonly struct PieceMask
-{
-    public ulong Low { get; init; }
-    public ulong High { get; init; }
-    public int Offset { get; init; }
-
-    public static PieceMask operator ~(PieceMask value) =>
-        new PieceMask()
-        {
-            Low = ~value.Low,
-            High = ~value.High,
-            Offset = value.Offset
-        };
-    
-    public static bool operator ==(PieceMask left, PieceMask right) =>
-        left.Low == right.Low &&
-        left.High == right.High &&
-        left.Offset == right.Offset;
-    public static bool operator !=(PieceMask left, PieceMask right) =>
-        left.Low != right.Low ||
-        left.High != right.High ||
-        left.Offset != right.Offset;
-
-    public override bool Equals(object? obj) =>
-        obj is PieceMask value && this == value;
-
-    public override int GetHashCode() =>
-       (Low.GetHashCode() * 397) ^
-       ((High.GetHashCode() >> 7) + 43);
-
-    public override string ToString()
-    {
-        MatrixMask mask = new MatrixMask() { LowLow = Low, LowHigh = High };
-        mask <<= 64 * Offset;
-        return mask.ToString();
-    }
-
 }
 
 // Try out having the mask left and bottom alligned to avoid some branches
@@ -523,7 +83,8 @@ public sealed class Piece
     public readonly int PieceType, R;
     public readonly int Highest, Lowest, Height;
     public readonly int MinX, MaxX, MinY;
-    private readonly PieceMask _Mask;
+    private readonly ulong _Mask;
+    private readonly int _MaskTrainingZeros;
     private readonly int[] _X, _Y;
     private readonly int[] _KicksCWX, _KicksCWY;
     private readonly int[] _KicksCCWX, _KicksCCWY;
@@ -548,13 +109,13 @@ public sealed class Piece
         GetKicksTable(false, this, out _KicksCCWX, out _KicksCCWY);
 
         // Center at (0, 1)
-        ulong mask = 0;
+        _Mask = 0;
         for (int i = 0; i < 4; i++)
         {
             int pos = -_X[i] + 10 * (1 - _Y[i]) + 9;
-            mask |= 1UL << pos;
+            _Mask |= 1UL << pos;
         }
-        _Mask = new PieceMask() { Low = mask };
+        _MaskTrainingZeros = BitOperations.TrailingZeroCount(_Mask);
     }
 
     private static Piece[] GetPieces()
@@ -594,79 +155,30 @@ public sealed class Piece
     public int KicksCCWX(int i) => _KicksCCWX[i];
     public int KicksCCWY(int i) => _KicksCCWY[i];
 
-    public static implicit operator Piece(int i) => Pieces[i & (PIECE_BITS | ROTATION_BITS)];
-    public static implicit operator int(Piece i) => i.Id;
-
-    public override string ToString()
-    {
-        string name = "";
-        switch (R)
-        {
-            case ROTATION_CW:
-                name = "CW ";
-                break;
-            case ROTATION_180:
-                name = "180 ";
-                break;
-            case ROTATION_CCW:
-                name = "CCW";
-                break;
-        }
-        switch (PieceType)
-        {
-            case EMPTY:
-                name += "Empty";
-                break;
-            case T:
-                name += "T";
-                break;
-            case I:
-                name += "I";
-                break;
-            case L:
-                name += "L";
-                break;
-            case J:
-                name += "J";
-                break;
-            case S:
-                name += "S";
-                break;
-            case Z:
-                name += "Z";
-                break;
-            case O:
-                name += "O";
-                break;
-        }
-
-        return name;
-    }
-
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public PieceMask GetMask(int x, int y)
     {
         int shift = 10 * y - x;
 
-        // Note: offset and high should always be zero for Mask
         if (shift <= 0)
-        {
-            return new PieceMask() { Low = _Mask.Low >> -shift };
-        }
+            return new PieceMask() { Mask = _Mask >> -shift };
         else
         {
-            int offset = shift >> 6;
-            shift &= 63;
-            ulong low = _Mask.Low << shift;
-            ulong high = shift == 0 ? 0 : _Mask.Low >> (64 - shift);
-            //ulong high = Mask.Low >> (63 - shift);
-            //high >>= 1;
-
-            //return low == 0 ? new PieceMask() { Low = high, Offset = offset + 1 } :
-            //                  new PieceMask() { Low = low, High = high, Offset = offset };
-            return new PieceMask() { Low = low, High = high, Offset = offset }; // Always keeping low non-zero results in more conditionals
+            int offset = shift >> 5;
+            shift &= 31;
+            if (shift + _MaskTrainingZeros < 32)
+                return new PieceMask() { Mask = _Mask << shift, Offset = offset };
+            else
+                return new PieceMask() { Mask = _Mask >> (32 - shift), Offset = offset + 1 };
         }
     }
+
+    public static implicit operator Piece(int i) => Pieces[i & (PIECE_BITS | ROTATION_BITS)];
+    public static implicit operator int(Piece i) => i.Id;
+
+    public override string ToString() =>
+        new string[] { "", "CW ", "180 ", "CCW " }[R >> 3] +
+        new string[] { "Empty", "T", "I", "L", "J", "S", "Z", "O" }[PieceType];
 }
 
 public class GameBase
@@ -717,13 +229,13 @@ public class GameBase
 
         return Bag[BagIndex++];
     }
-
+    
     public bool Fits(Piece piece, int x, int y)
     {
         if (x < piece.MinX || x > piece.MaxX || y < piece.MinY) return false;
         // if (Y + piece.Lowest > Highest) return true;
 
-        return !Matrix.Intersects(piece, x, y);
+        return !Matrix.Intersects(piece.GetMask(x, y));
     }
 
     public bool OnGround()
@@ -731,32 +243,33 @@ public class GameBase
         // if (Y + Current.Lowest > Highest) return false; // Ald checked in most cases, wouldn't speed things up
         if (Y <= Current.MinY) return true;
 
-        return Matrix.Intersects(Current, X, Y - 1);
+        return Matrix.Intersects(Current.GetMask(X, Y - 1));
     }
 
     public int TSpinType(bool rotatedLast)
     {
-        const int ALL_CORNERS = (0b101 << 20) | 0b101;
-        const int NO_BR = (0b101 << 20) | 0b100;
-        const int NO_BL = (0b101 << 20) | 0b001;
-        const int NO_TL = (0b001 << 20) | 0b101;
-        const int NO_TR = (0b100 << 20) | 0b101;
+        // 19 = 10 + T.MaxX
+        const int ALL_CORNERS = ((0b101 << 20) | 0b101) << 19;
+        const int NO_BR = ((0b101 << 20) | 0b100) << 19;
+        const int NO_BL = ((0b101 << 20) | 0b001) << 19;
+        const int NO_TL = ((0b001 << 20) | 0b101) << 19;
+        const int NO_TR = ((0b100 << 20) | 0b101) << 19;
 
         if (!rotatedLast || (Current.PieceType != Piece.T)) return 0;
 
-        int i = 10 * Y - X + 19; // 19 = 10 + T.MaxX
-        ulong corners = (Matrix >> i).LowLow & ALL_CORNERS;
+        int pos = 10 * Y - X;
+        ulong corners = (Matrix >> pos).LowLow & ALL_CORNERS;
 
         if (corners == ALL_CORNERS) return 3;
         switch (Current.R)
         {
             case Piece.ROTATION_NONE:
-                if (Y == Current.MinY) corners |= 0b101;
+                if (Y == Current.MinY) corners |= 0b101 << 19;
                 if (corners == NO_BR || corners == NO_BL) return 3;
                 if (corners == NO_TR || corners == NO_TL) return 2;
                 break;
             case Piece.ROTATION_CW:
-                if (X == Current.MinX) corners |= (0b100 << 20) | 0b100;
+                if (X == Current.MinX) corners |= ((0b100 << 20) | 0b100) << 19;
                 if (corners == NO_TL || corners == NO_BL) return 3;
                 if (corners == NO_TR || corners == NO_BR) return 2;
                 break;
@@ -765,7 +278,7 @@ public class GameBase
                 if (corners == NO_BR || corners == NO_BL) return 2;
                 break;
             case Piece.ROTATION_CCW:
-                if (X == Current.MaxX) corners |= (0b001 << 20) | 0b001;
+                if (X == Current.MaxX) corners |= ((0b001 << 20) | 0b001) << 19;
                 if (corners == NO_TR || corners == NO_BR) return 3;
                 if (corners == NO_TL || corners == NO_BL) return 2;
                 break;
@@ -844,7 +357,7 @@ public class GameBase
         {
             if (X < Current.MaxX)
             {
-                if (Matrix.Intersects(Current, X + 1, Y))
+                if (Matrix.Intersects(Current.GetMask(X + 1, Y)))
                     return false;
                 X++;
                 return true;
@@ -854,7 +367,7 @@ public class GameBase
         {
             if (X > Current.MinX)
             {
-                if (Matrix.Intersects(Current, X - 1, Y))
+                if (Matrix.Intersects(Current.GetMask(X - 1, Y)))
                     return false;
                 X--;
                 return true;
@@ -1671,9 +1184,6 @@ public sealed class Game : GameBase
 
     void SpawnNextPiece()
     {
-        // Undraw next
-        for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPieceAt(Next[i], 39, 4 + 3 * i, true);
         // Update current and next
         Current = Next[0];
         for (int i = 1; i < Next.Length; i++) Next[i - 1] = Next[i];
@@ -1686,12 +1196,11 @@ public sealed class Game : GameBase
         MoveCount = 0;
         LockT.Reset();
         // Check for block out
-        if (Matrix.Intersects(Current, X, Y)) IsDead = true;
+        if (!Fits(Current, X, Y)) IsDead = true;
         // Check for lock out
         //if (Y + Current.Lowest >= 20) IsDead = true;
         // Draw next
-        for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPieceAt(Next[i], 39, 4 + 3 * i, false);
+        DrawNext();
         // Draw current
         DrawCurrent(false);
     }
@@ -1701,24 +1210,38 @@ public sealed class Game : GameBase
     public void WriteAt(int x, int y, ConsoleColor color, string text) =>
         FConsole.WriteAt(text, x + XOffset, y + YOffset, foreground: color);
 
-    void DrawCurrent(bool black)
+    void DrawCurrent(bool undraw)
     {
         // Ghost
         GameBase clone = this.Clone();
         clone.TryDrop(40);
         for (int i = 0; i < 4; i++)
             if (clone.Y - Current.Y(i) < 20) // If visible
-                WriteAt((clone.X + Current.X(i)) * 2 + 12, -clone.Y + Current.Y(i) + 21, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKGHOST);
+                WriteAt((clone.X + Current.X(i)) * 2 + 12, -clone.Y + Current.Y(i) + 21, undraw ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKGHOST);
         // Piece
         for (int i = 0; i < 4; i++)
             if (Y - Current.Y(i) < 20) // If visible
-                WriteAt((X + Current.X(i)) * 2 + 12, -Y + Current.Y(i) + 21, black ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKSOLID);
+                WriteAt((X + Current.X(i)) * 2 + 12, -Y + Current.Y(i) + 21, undraw ? ConsoleColor.Black : PieceColors[Current.PieceType], BLOCKSOLID);
     }
 
-    void DrawPieceAt(Piece piece, int x, int y, bool black)
+    void DrawPieceAt(Piece piece, int x, int y, bool undraw)
     {
         for (int i = 0; i < 4; i++)
-            WriteAt(piece.X(i) * 2 + x, piece.Y(i) + y, black ? ConsoleColor.Black : PieceColors[piece.PieceType], BLOCKSOLID);
+            WriteAt(piece.X(i) * 2 + x, piece.Y(i) + y, undraw ? ConsoleColor.Black : PieceColors[piece.PieceType], BLOCKSOLID);
+    }
+
+    void DrawNext()
+    {
+        // Outline
+        WriteAt(34, 1, ConsoleColor.White, "╔══NEXT══╗");
+        for (int i = 2; i < 1 + Math.Min(7, Next.Length) * 3; i++)
+        {
+            WriteAt(34, i, ConsoleColor.White, "║        ║");
+        }
+        WriteAt(34, 1 + Math.Min(7, Next.Length) * 3, ConsoleColor.White, "╚════════╝");
+        // Pieces
+        for (int i = 0; i < Math.Min(7, Next.Length); i++)
+            DrawPieceAt(Next[i], 39, 4 + 3 * i, false);
     }
 
     void DrawMatrix()
@@ -1780,14 +1303,6 @@ public sealed class Game : GameBase
         }
         WriteAt(11, 22, ConsoleColor.White, "╚════════════════════╝");
 
-        WriteAt(34, 1, ConsoleColor.White, "╔══NEXT══╗");
-        for (int i = 2; i < 2 + 17; i++)
-        {
-            WriteAt(34, i, ConsoleColor.White, "║");
-            WriteAt(43, i, ConsoleColor.White, "║");
-        }
-        WriteAt(34, 19, ConsoleColor.White, "╚════════╝");
-
         WriteAt(0, 7, ConsoleColor.White, "╔════════╗");
         for (int i = 8; i < 12; i++)
         {
@@ -1802,8 +1317,7 @@ public sealed class Game : GameBase
         #endregion
 
         // Draw next
-        for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPieceAt(Next[i], 39, 4 + 3 * i, false);
+        DrawNext();
         // Draw hold
         DrawPieceAt(Hold, 5, 4, false);
         // Draw board

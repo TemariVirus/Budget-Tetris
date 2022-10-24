@@ -7,10 +7,6 @@ class PCFinder
 {   
     private sealed class DoublyLinkedMatrix
     {
-        #if DEBUG
-        private int NonEmpty { get => Headers.Count(x => x.OneCount != 0); }
-        #endif
-
         public int Width, Height;
         public readonly DoublyLinkedMatrixNode[] Headers;
         public readonly List<NodeData> RowData;
@@ -255,7 +251,7 @@ class PCFinder
 
                 // Check if on ground
                 if (ys[0] != 0)
-                    if (!matrix_mask.Intersects(piece, x, ys[0] + piece.MinY - 1))
+                    if (!matrix_mask.Intersects(piece.GetMask(x, ys[0] + piece.MinY - 1)))
                         return false;
                 
                 return true;
@@ -288,8 +284,7 @@ class PCFinder
         public readonly DoublyLinkedMatrixNode Header;
         public int OneCount;
         
-        public readonly int DataIndex;
-        public readonly NodeData Data;
+        public readonly NodeData Data = null;
 
         public DoublyLinkedMatrixNode Up;
         public DoublyLinkedMatrixNode Down;
@@ -302,10 +297,9 @@ class PCFinder
             HeaderIndex = header_index;
             Header = matrix.Headers[header_index];
             OneCount = 0;
-            DataIndex = data_index;
             if (data_index != -1) Data = matrix.RowData[data_index];
         }
-
+        
         public void AddRow()
         {
             Up.Down = this;
@@ -389,27 +383,33 @@ class PCFinder
 
     public bool ShowMode = false, Wait = false, GoNext = false;
     long NodeCount, PCCount;
+    Stopwatch sw = new Stopwatch();
+
+    bool Busy = false, CanHold;
     GameBase PathFind;
-    //Stopwatch sw = new Stopwatch();
 
     public bool TryFindPC(GameBase game, out List<(Piece piece, int x, int y)> placements)
     {
+        placements = new List<(Piece piece, int x, int y)>();
+        if (Busy) return false;
+
+        Busy = true;
         Game.Games[0].DrawAll();
         NodeCount = 0;
         PCCount = 0;
+        
         DoublyLinkedMatrixNode.IdCounter = 0;
         NodeData.IdCounter = 0;
         PathFind = game.Clone();
-        placements = new List<(Piece piece, int x, int y)>();
-        //sw.Restart();
-        //new Thread(() =>
-        //{
-        //    while (true)
-        //    {
-        //        Game.Games[0].WriteAt(0, 25, ConsoleColor.White, "Nodes/s: " + NodeCount / sw.Elapsed.TotalSeconds);
-        //        Thread.Sleep(1000);
-        //    }
-        //}).Start();
+        sw.Restart();
+        new Thread(() =>
+        {
+            while (Busy)
+            {
+                Game.Games[0].WriteAt(0, 25, ConsoleColor.White, "Nodes/s: " + NodeCount / sw.Elapsed.TotalSeconds);
+                Thread.Sleep(1000);
+            }
+        }).Start();
 
         // Order of pieces: Current, Hold (if exists), Next (in order)
         List<Piece> pieces = new List<Piece>() { game.Current };
@@ -427,9 +427,16 @@ class PCFinder
         for (DoublyLinkedMatrix matrix; holes.PopCount() / 4 <= pieces.Count; holes = AddLines(holes, 2))
         {
             if (!DoublyLinkedMatrix.TryGetMatrix(holes, pieces, out matrix)) continue;
-            if (SolverHead(matrix, out DoublyLinkedMatrixNode[] sol)) return true;
+
+            CanHold = pieces.Count > holes.PopCount() / 4;
+            if (SolverHead(matrix, out DoublyLinkedMatrixNode[] sol))
+            {
+                Busy = false;
+                return true;
+            }
         }
 
+        Busy = false;
         return false;
     }
 
@@ -478,7 +485,7 @@ class PCFinder
                 NodeCount++;
                 // Add this row to partial solution
                 solution.Push(current_row);
-                if (ShowMode && current_row.DataIndex != -1)
+                if (ShowMode && current_row.Data != null)
                 {
                     DrawPiece(current_row.Data, false);
                     if (Wait) WaitNext();
@@ -517,7 +524,7 @@ class PCFinder
                 }
                 // Remove row from partial solution
                 solution.Pop();
-                if (ShowMode && current_row.DataIndex != -1)
+                if (ShowMode && current_row.Data != null)
                     DrawPiece(current_row.Data, true);
             }
 
@@ -549,28 +556,28 @@ class PCFinder
 
         bool CanPathFind()
         {
-            if (solution.Count == 0) return true;
-            //if (next_index >= PathFind.Next.Length) return false;
-
             next_index++;
             NodeData[] nodes_current = solution.Where(x => x.Piece.PieceType == PathFind.Current.PieceType).ToArray();
             if (CheckNodes(nodes_current)) return true;
 
-            bool hold_empty = PathFind.Hold == Piece.EMPTY;
-            Piece hold = hold_empty ? PathFind.Next[next_index++] : PathFind.Hold;
-            NodeData[] nodes_hold = solution.Where(x => x.Piece.PieceType == hold.PieceType).ToArray();
-            // Update hold
-            PathFind.Hold = PathFind.Current;
-            if (CheckNodes(nodes_hold)) return true;
-            // Un-update Hold
-            if (hold_empty)
+            if (CanHold)
             {
-                next_index--;
-                PathFind.Hold = Piece.EMPTY;
+                bool hold_empty = PathFind.Hold == Piece.EMPTY;
+                Piece hold = hold_empty ? PathFind.Next[next_index++] : PathFind.Hold;
+                NodeData[] nodes_hold = solution.Where(x => x.Piece.PieceType == hold.PieceType).ToArray();
+                // Update hold
+                PathFind.Hold = PathFind.Current;
+                if (CheckNodes(nodes_hold)) return true;
+                // Un-update Hold
+                if (hold_empty)
+                {
+                    next_index--;
+                    PathFind.Hold = Piece.EMPTY;
+                }
+                else
+                    PathFind.Hold = hold;
             }
-            else
-                PathFind.Hold = hold;
-
+            
             next_index--;
             return false;
         }
@@ -590,6 +597,9 @@ class PCFinder
                 PathFind.Current = placement.Piece;
                 if (PathFind.PathFind(placement.Piece, placement.X, y, out _))
                 {
+                    // Return true if this is the last one
+                    if (solution.Count == 1) return true;
+
                     // Place piece
                     PathFind.X = placement.X;
                     PathFind.Y = y;
@@ -635,7 +645,7 @@ class PCFinder
     {
         HashSet<NodeData> placements = new HashSet<NodeData>(solution.Count);
         foreach (var row in solution)
-            if (row.DataIndex != -1)
+            if (row.Data != null)
                 placements.Add(row.Data);
                 //placements.Add(row.Data.Clone());
 
@@ -654,7 +664,7 @@ class PCFinder
         int y_index = 0;
         for (int i = 3; i >= 0; i--)
         {
-            Game.Games[0].WriteAt((data.Piece.X(i) + data.X) * 2 + 12, 21 - data.Ys[y_index], color, "▒▒");
+            Game.Games[0].WriteAt((data.Piece.X(i) + data.X) * 2 + 12, 21 - data.Ys[y_index], color, "██");
             if (i > 0)
             {
                 if (data.Piece.Y(i) != data.Piece.Y(i - 1))
