@@ -83,9 +83,10 @@ public sealed class Piece
     public readonly int PieceType, R;
     public readonly int Highest, Lowest, Height;
     public readonly int MinX, MaxX, MinY;
-    private readonly PieceMask Mask;
+    private readonly PieceMask[][] _Masks;
     private readonly int[] _X, _Y;
     private readonly int[] _KicksCWX, _KicksCWY;
+    //private readonly int[] _Kicks180X, _Kicks180Y;
     private readonly int[] _KicksCCWX, _KicksCCWY;
 
     private Piece(int id)
@@ -114,7 +115,14 @@ public sealed class Piece
             int pos = -_X[i] + 10 * (1 - _Y[i]) + 9;
             mask |= 1UL << pos;
         }
-        Mask = new PieceMask() { Low = mask };
+
+        _Masks = new PieceMask[MaxX - MinX + 1][];
+        for (int i = 0; i < _Masks.Length; i++)
+        {
+            _Masks[i] = new PieceMask[26 - MinY + 1];
+            for (int j = 0; j < _Masks[i].Length; j++)
+                _Masks[i][j] = GetMask(mask, i + MinX, j + MinY);
+        }
     }
 
     private static Piece[] GetPieces()
@@ -149,84 +157,35 @@ public sealed class Piece
     public int Y(int i) => _Y[i];
     public int KicksCWX(int i) => _KicksCWX[i];
     public int KicksCWY(int i) => _KicksCWY[i];
-    //public int Kicks180X(int i) => 0;
-    //public int Kicks180Y(int i) => 0;
+    //public int Kicks180X(int i) => _Kicks180X[i];
+    //public int Kicks180Y(int i) => _Kicks180Y[i];
     public int KicksCCWX(int i) => _KicksCCWX[i];
     public int KicksCCWY(int i) => _KicksCCWY[i];
+
+    private static PieceMask GetMask(ulong mask, int x, int y)
+    {
+        int shift = 10 * y - x;
+
+        if (shift <= 0)
+            return new PieceMask() { Mask = mask >> -shift };
+        else
+        {
+            int offset = shift >> 5;
+            shift &= 31;
+            if (shift + BitOperations.TrailingZeroCount(mask) < 32)
+                return new PieceMask() { Mask = mask << shift, Offset = offset };
+            else
+                return new PieceMask() { Mask = mask >> (32 - shift), Offset = offset + 1 };
+        }
+    }
+    public PieceMask GetMask(int x, int y) => _Masks[x - MinX][y - MinY];
 
     public static implicit operator Piece(int i) => Pieces[i & (PIECE_BITS | ROTATION_BITS)];
     public static implicit operator int(Piece i) => i.Id;
 
-    public override string ToString()
-    {
-        string name = "";
-        switch (R)
-        {
-            case ROTATION_CW:
-                name = "CW ";
-                break;
-            case ROTATION_180:
-                name = "180 ";
-                break;
-            case ROTATION_CCW:
-                name = "CCW";
-                break;
-        }
-        switch (PieceType)
-        {
-            case EMPTY:
-                name += "Empty";
-                break;
-            case T:
-                name += "T";
-                break;
-            case I:
-                name += "I";
-                break;
-            case L:
-                name += "L";
-                break;
-            case J:
-                name += "J";
-                break;
-            case S:
-                name += "S";
-                break;
-            case Z:
-                name += "Z";
-                break;
-            case O:
-                name += "O";
-                break;
-        }
-
-        return name;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public PieceMask GetMask(int x, int y)
-    {
-        int shift = 10 * y - x;
-
-        // Note: offset and high should always be zero for Mask
-        if (shift <= 0)
-        {
-            return new PieceMask() { Low = Mask.Low >> -shift };
-        }
-        else
-        {
-            int offset = shift >> 6;
-            shift &= 63;
-            ulong low = Mask.Low << shift;
-            ulong high = shift == 0 ? 0 : Mask.Low >> (64 - shift);
-            //ulong high = Mask.Low >> (63 - shift);
-            //high >>= 1;
-
-            //return low == 0 ? new PieceMask() { Low = high, Offset = offset + 1 } :
-            //                  new PieceMask() { Low = low, High = high, Offset = offset };
-            return new PieceMask() { Low = low, High = high, Offset = offset }; // Always keeping low non-zero results in more conditionals
-        }
-    }
+    public override string ToString() =>
+        new string[] { "", "CW ", "180 ", "CCW " }[R >> 3] +
+        new string[] { "Empty", "T", "I", "L", "J", "S", "Z", "O" }[PieceType];
 }
 
 public class GameBase
@@ -283,7 +242,7 @@ public class GameBase
         if (x < piece.MinX || x > piece.MaxX || y < piece.MinY) return false;
         // if (Y + piece.Lowest > Highest) return true;
 
-        return !Matrix.Intersects(piece, x, y);
+        return !Matrix.Intersects(piece.GetMask(x, y));
     }
 
     public bool OnGround()
@@ -291,32 +250,33 @@ public class GameBase
         // if (Y + Current.Lowest > Highest) return false; // Ald checked in most cases, wouldn't speed things up
         if (Y <= Current.MinY) return true;
 
-        return Matrix.Intersects(Current, X, Y - 1);
+        return Matrix.Intersects(Current.GetMask(X, Y - 1));
     }
 
     public int TSpinType(bool rotatedLast)
     {
-        const int ALL_CORNERS = (0b101 << 20) | 0b101;
-        const int NO_BR = (0b101 << 20) | 0b100;
-        const int NO_BL = (0b101 << 20) | 0b001;
-        const int NO_TL = (0b001 << 20) | 0b101;
-        const int NO_TR = (0b100 << 20) | 0b101;
+        // 19 = 10 + T.MaxX
+        const int ALL_CORNERS = ((0b101 << 20) | 0b101) << 19;
+        const int NO_BR = ((0b101 << 20) | 0b100) << 19;
+        const int NO_BL = ((0b101 << 20) | 0b001) << 19;
+        const int NO_TL = ((0b001 << 20) | 0b101) << 19;
+        const int NO_TR = ((0b100 << 20) | 0b101) << 19;
 
         if (!rotatedLast || (Current.PieceType != Piece.T)) return 0;
 
-        int i = 10 * Y - X + 19; // 19 = 10 + T.MaxX
-        ulong corners = (Matrix >> i).LowLow & ALL_CORNERS;
+        int pos = 10 * Y - X;
+        ulong corners = (Matrix >> pos).LowLow & ALL_CORNERS;
 
         if (corners == ALL_CORNERS) return 3;
         switch (Current.R)
         {
             case Piece.ROTATION_NONE:
-                if (Y == Current.MinY) corners |= 0b101;
+                if (Y == Current.MinY) corners |= 0b101 << 19;
                 if (corners == NO_BR || corners == NO_BL) return 3;
                 if (corners == NO_TR || corners == NO_TL) return 2;
                 break;
             case Piece.ROTATION_CW:
-                if (X == Current.MinX) corners |= (0b100 << 20) | 0b100;
+                if (X == Current.MinX) corners |= ((0b100 << 20) | 0b100) << 19;
                 if (corners == NO_TL || corners == NO_BL) return 3;
                 if (corners == NO_TR || corners == NO_BR) return 2;
                 break;
@@ -325,7 +285,7 @@ public class GameBase
                 if (corners == NO_BR || corners == NO_BL) return 2;
                 break;
             case Piece.ROTATION_CCW:
-                if (X == Current.MaxX) corners |= (0b001 << 20) | 0b001;
+                if (X == Current.MaxX) corners |= ((0b001 << 20) | 0b001) << 19;
                 if (corners == NO_TR || corners == NO_BR) return 3;
                 if (corners == NO_TL || corners == NO_BL) return 2;
                 break;
@@ -404,7 +364,7 @@ public class GameBase
         {
             if (X < Current.MaxX)
             {
-                if (Matrix.Intersects(Current, X + 1, Y))
+                if (Matrix.Intersects(Current.GetMask(X + 1, Y)))
                     return false;
                 X++;
                 return true;
@@ -414,7 +374,7 @@ public class GameBase
         {
             if (X > Current.MinX)
             {
-                if (Matrix.Intersects(Current, X - 1, Y))
+                if (Matrix.Intersects(Current.GetMask(X - 1, Y)))
                     return false;
                 X--;
                 return true;
@@ -1304,7 +1264,7 @@ public sealed class Game : GameBase
         MoveCount = 0;
         LockT.Reset();
         // Check for block out
-        if (Matrix.Intersects(Current, X, Y)) IsDead = true;
+        if (Matrix.Intersects(Current.GetMask(X, Y))) IsDead = true;
         // Check for lock out
         //if (Y + Current.Lowest >= 20) IsDead = true;
         // Draw next

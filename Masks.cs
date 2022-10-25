@@ -22,6 +22,30 @@ public readonly struct MatrixMask
     public ulong HighLow { get; init; }
     public ulong HighHigh { get; init; }
 
+    private unsafe ulong this[int i]
+    {
+        get
+        {
+            #if DEBUG
+            if (i < 0 || i > 7)
+                throw new IndexOutOfRangeException();
+            #endif
+
+            fixed (void* ptr = &this)
+                return *(ulong*)((int*)ptr + i);
+        }
+        set
+        {
+            #if DEBUG
+            if (i < 0 || i > 7)
+                throw new IndexOutOfRangeException();
+            #endif
+
+            fixed (void* ptr = &this)
+                *(ulong*)((int*)ptr + i) = value;
+        }
+    }
+
     #region // Logical operators
     public static MatrixMask operator ~(MatrixMask value) =>
         new MatrixMask()
@@ -31,48 +55,11 @@ public readonly struct MatrixMask
             HighLow = ~value.HighLow,
             HighHigh = ~value.HighHigh
         };
-    public static MatrixMask operator &(MatrixMask left, ulong right) =>
-        new MatrixMask()
-        {
-            LowLow = left.LowLow & right,
-            LowHigh = left.LowHigh,
-            HighLow = left.HighLow,
-            HighHigh = left.HighHigh
-        };
     public static MatrixMask operator &(MatrixMask matrix, PieceMask piece)
     {
-        return piece.Offset switch
-        {
-            0 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow & piece.Low,
-                LowHigh = matrix.LowHigh & piece.High,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh
-            },
-            1 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh & piece.Low,
-                HighLow = matrix.HighLow & piece.High,
-                HighHigh = matrix.HighHigh
-            },
-            2 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow & piece.Low,
-                HighHigh = matrix.HighHigh & piece.High
-            },
-            3 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh & piece.Low
-            },
-            _ => matrix
-        };
+        MatrixMask mask = matrix;
+        mask[piece.Offset] &= piece.Mask;
+        return mask;
     }
     public static MatrixMask operator &(MatrixMask left, MatrixMask right) =>
         new MatrixMask()
@@ -82,48 +69,11 @@ public readonly struct MatrixMask
             HighLow = left.HighLow & right.HighLow,
             HighHigh = left.HighHigh & right.HighHigh
         };
-    public static MatrixMask operator |(MatrixMask left, ulong right) =>
-        new MatrixMask()
-        {
-            LowLow = left.LowLow | right,
-            LowHigh = left.LowHigh,
-            HighLow = left.HighLow,
-            HighHigh = left.HighHigh
-        };
     public static MatrixMask operator |(MatrixMask matrix, PieceMask piece)
     {
-        return piece.Offset switch
-        {
-            0 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow | piece.Low,
-                LowHigh = matrix.LowHigh | piece.High,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh
-            },
-            1 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh | piece.Low,
-                HighLow = matrix.HighLow | piece.High,
-                HighHigh = matrix.HighHigh
-            },
-            2 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow | piece.Low,
-                HighHigh = matrix.HighHigh | piece.High
-            },
-            3 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh | piece.Low
-            },
-            _ => matrix
-        };
+        MatrixMask mask = matrix;
+        mask[piece.Offset] |= piece.Mask;
+        return mask;
     }
     public static MatrixMask operator |(MatrixMask left, MatrixMask right) =>
         new MatrixMask()
@@ -135,38 +85,9 @@ public readonly struct MatrixMask
         };
     public static MatrixMask operator ^(MatrixMask matrix, PieceMask piece)
     {
-        return piece.Offset switch
-        {
-            0 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow ^ piece.Low,
-                LowHigh = matrix.LowHigh ^ piece.High,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh
-            },
-            1 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh ^ piece.Low,
-                HighLow = matrix.HighLow ^ piece.High,
-                HighHigh = matrix.HighHigh
-            },
-            2 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow ^ piece.Low,
-                HighHigh = matrix.HighHigh ^ piece.High
-            },
-            3 => new MatrixMask()
-            {
-                LowLow = matrix.LowLow,
-                LowHigh = matrix.LowHigh,
-                HighLow = matrix.HighLow,
-                HighHigh = matrix.HighHigh ^ piece.Low
-            },
-            _ => matrix
-        };
+        MatrixMask mask = matrix;
+        mask[piece.Offset] ^= piece.Mask;
+        return mask;
     }
     public static MatrixMask operator ^(MatrixMask left, MatrixMask right) =>
         new MatrixMask()
@@ -342,44 +263,17 @@ public readonly struct MatrixMask
         return rows;
     }
 
-    public bool Intersects(Piece piece, int x, int y)
+    public bool Intersects(PieceMask piece) =>
+        (this[piece.Offset] & piece.Mask) != 0;
+
+    public static explicit operator MatrixMask(PieceMask piece)
     {
-        ulong low, high;
-        PieceMask mask = piece.GetMask(x, y);
-        switch (mask.Offset)
-        {
-            case 0:
-                low = mask.Low & LowLow;
-                high = mask.High & LowHigh;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 1:
-                low = mask.Low & LowHigh;
-                high = mask.High & HighLow;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 2:
-                low = mask.Low & HighLow;
-                high = mask.High & HighHigh;
-                //return (low | high) != 0;
-                return low != 0 || high != 0;
-            case 3:
-                return (mask.Low & HighHigh) != 0;
-            default:
-                return false;
-        }
+        MatrixMask mask = new MatrixMask();
+        mask[piece.Offset] = piece.Mask;
+        return mask;
     }
 
-    public static explicit operator MatrixMask(PieceMask value) => value.Offset switch
-    {
-        0 => new MatrixMask() { LowLow = value.Low, LowHigh = value.High },
-        1 => new MatrixMask() { LowHigh = value.Low, HighLow = value.High },
-        2 => new MatrixMask() { HighLow = value.Low, HighHigh = value.High },
-        3 => new MatrixMask() { HighHigh = value.Low },
-        _ => new MatrixMask()
-    };
-
-    #nullable enable
+#nullable enable
     public override bool Equals(object? obj) =>
         obj is MatrixMask value && this == value;
 
@@ -406,39 +300,34 @@ public readonly struct MatrixMask
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct PieceMask
 {
-    public ulong Low { get; init; }
-    public ulong High { get; init; }
+    public ulong Mask { get; init; }
     public int Offset { get; init; }
 
     public static PieceMask operator ~(PieceMask value) =>
         new PieceMask()
         {
-            Low = ~value.Low,
-            High = ~value.High,
+            Mask = ~value.Mask,
             Offset = value.Offset
         };
 
     public static bool operator ==(PieceMask left, PieceMask right) =>
-        left.Low == right.Low &&
-        left.High == right.High &&
+        left.Mask == right.Mask &&
         left.Offset == right.Offset;
     public static bool operator !=(PieceMask left, PieceMask right) =>
-        left.Low != right.Low ||
-        left.High != right.High ||
+        left.Mask != right.Mask ||
         left.Offset != right.Offset;
 
     public override bool Equals(object? obj) =>
         obj is PieceMask value && this == value;
 
     public override int GetHashCode() =>
-       (Low.GetHashCode() * 397) ^
-       ((High.GetHashCode() >> 7) + 43);
+       (Offset.GetHashCode() * 397) ^
+       ((Mask.GetHashCode() >> 7) + 43);
 
     public override string ToString()
     {
-        MatrixMask mask = new MatrixMask() { LowLow = Low, LowHigh = High };
+        MatrixMask mask = new MatrixMask() { LowLow = Mask };
         mask <<= 64 * Offset;
         return mask.ToString();
     }
-
 }
