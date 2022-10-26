@@ -1,38 +1,26 @@
 ﻿using FastConsole;
 using NEAT;
 using System.Windows.Input;
-using System.Windows.Media;
 using System.Windows.Threading;
 using Tetris;
 
 // Inputs: standard height, caves, pillars, row transitions, col transitions, trash, cleared, intent
 // Outputs: score of state, intent(don't search further if it drops below a treshold)
+//TODO:
+//-add RemoveAllListeners method that uses a predicate
 static class Program
 {
-    static readonly string BaseDirectory = AppContext.BaseDirectory;
-
-    public static Thread BGMThread;
-    public static MediaPlayer BGM;
-
     static void Main()
     {
-        // Set up console
-        Console.Title = "Tetris NEAT AI Training";
-        FConsole.Framerate = 30;
-        FConsole.CursorVisible = false;
-        FConsole.SetFont("Consolas", 16);
-        //FConsole.SetFont("Consolas", 40); // Biggest
-        FConsole.Initialise(FrameEndCallback);
-
-        BGMThread = PlayBGMAsync();
+        GameManager.InitWindow();
 
         int seed = new Random().Next();
         Game[] games = new Game[2].Select(x => new Game(24, seed)).ToArray();
         Game.SetGames(games);
         FConsole.Set(FConsole.Width, FConsole.Height + 2);
         Game.IsPaused = true;
-        //Bot left = new BotOld(NN.LoadNN(BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        //left.Start(100, 0);
+        Bot left = new BotOld(NN.LoadNN(GameManager.BaseDirectory + @"NNs\plan2.txt"), games[0]);
+        left.Start(300, 0);
         SetupPlayerInput(games[1]);
         //Bot right = new BotByScore(NN.LoadNN(BaseDirectory + @"NNs\Temare.txt"), games[1]);
         //right.Start(100, 0);
@@ -74,41 +62,7 @@ static class Program
             player_game.IsMuted = !player_game.IsMuted;
         });
     }
-
-    static Thread PlayBGMAsync()
-    {
-        // Play BGM on a seperate thread
-        Thread thread = new Thread(() =>
-        {
-            BGM = new MediaPlayer
-            {
-                Volume = 0.04,
-            };
-            BGM.Open(new Uri($"{BaseDirectory}Sounds\\Korobeiniki Remix.wav"));
-            // Loop delegate
-            BGM.MediaEnded += (object sender, EventArgs e) =>
-            {
-                BGM.Position = TimeSpan.Zero;
-                BGM.Play();
-            };
-            BGM.Play();
-            // Run the dispatcher
-            Dispatcher.Run();
-        });
-        thread.Start();
-        thread.Priority = ThreadPriority.Lowest;
-        return thread;
-    }
-
-    static void FrameEndCallback()
-    {
-        if (Game.IsPaused || Game.Games == null) return;
-        foreach (Game g in Game.Games)
-        {
-            g.Tick();
-        }
-    }
-
+    
     static void HalfHeight()
     {
         ConsoleColor[] bedrock_row = new ConsoleColor[10].Select(x => Game.PieceColors[Piece.Bedrock]).ToArray();

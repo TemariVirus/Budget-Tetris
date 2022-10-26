@@ -15,8 +15,17 @@ public abstract class Bot
         get => _Game;
         set
         {
+            if (_Game != null)
+            {
+                _Game.SoftG = GameManager.Settings.SoftG;
+                _Game.IsBot = false;
+            }
             _Game = value;
-            _Game.SoftG = 40;
+            if (_Game != null)
+            {
+                _Game.SoftG = 40;
+                _Game.IsBot = true;
+            }
         }
     }
     protected GameBase Sim;
@@ -125,6 +134,8 @@ public abstract class Bot
             }
 
             ToStop = false;
+            Game.IsBot = false;
+            Game.SoftG = GameManager.Settings.SoftG;
             return;
         });
         BotThread.Priority = ThreadPriority.Highest;

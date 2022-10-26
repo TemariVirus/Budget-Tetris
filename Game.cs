@@ -4,11 +4,12 @@ using FastConsole;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 public enum Moves
 {
@@ -723,6 +724,7 @@ public sealed class Game : GameBase
                 WriteAt(0, -1, ConsoleColor.White, value.PadLeft(left_space + value.Length).PadRight(GAMEWIDTH));
         }
     }
+    public bool IsBot = false;
     private bool _IsDead = true;
     public bool IsDead
     {
@@ -821,7 +823,7 @@ public sealed class Game : GameBase
             SoundThread = new Thread(MediaPlayerThread);
             SoundThread.Start();
         }
-        
+
         for (int i = 0; i < MatrixColors.Length; i++) MatrixColors[i] = new ConsoleColor[10];
         GarbageRand = new Random(Guid.NewGuid().GetHashCode());
     }
@@ -833,7 +835,7 @@ public sealed class Game : GameBase
             SoundThread = new Thread(MediaPlayerThread);
             SoundThread.Start();
         }
-        
+
         for (int i = 0; i < MatrixColors.Length; i++) MatrixColors[i] = new ConsoleColor[10];
         GarbageRand = new Random(seed.GetHashCode());
     }
@@ -986,7 +988,7 @@ public sealed class Game : GameBase
         MoveQueue.Enqueue(move);
         KeysPressed++;
     }
-    
+
     public void Slide(int dx)
     {
         DrawCurrent(true);
@@ -1119,7 +1121,8 @@ public sealed class Game : GameBase
 
             CancellationTokenSource token_source = new CancellationTokenSource();
             EraseCancelTokenSrcs.Add(token_source);
-            Task.Delay(EraseDelay).ContinueWith(t => {
+            Task.Delay(EraseDelay).ContinueWith(t =>
+            {
                 if (token_source.IsCancellationRequested) return;
                 EraseClearStats();
                 EraseCancelTokenSrcs.Remove(token_source);
@@ -1134,8 +1137,8 @@ public sealed class Game : GameBase
         if (Combo > 0) WriteAt(1, 17, ConsoleColor.White, Combo + " COMBO!");
         if (pc) WriteAt(0, 18, ConsoleColor.White, "ALL CLEAR!");
         // Play sound
-        
-        
+
+
         // Trash sent
         int trash = pc ? PCTrash[cleared] :
                     tspin == 3 ? TSpinTrash[cleared] :
@@ -1169,7 +1172,7 @@ public sealed class Game : GameBase
             while (Garbage.Count > 0)
             {
                 if (GlobalTime.ElapsedMilliseconds - Garbage[0].Time <= GarbageDelay) break;
-                
+
                 int lines_to_add = Garbage[0].Lines;
                 Garbage.RemoveAt(0);
                 int hole = GarbageRand.Next(10);
@@ -1193,7 +1196,7 @@ public sealed class Game : GameBase
                     // Add hole
                     MatrixColors[y][hole] = PieceColors[Piece.EMPTY];
                 }
-                
+
                 garbage_dumped = true;
             }
 
@@ -1399,7 +1402,7 @@ public sealed class Game : GameBase
         DrawTrashMeter();
     }
     #endregion
-    
+
     private void MediaPlayerThread()
     {
         Thread.CurrentThread.Priority = ThreadPriority.Lowest;
@@ -1441,9 +1444,39 @@ public static class GameManager
         public int TargetChangeInteval;
     }
 
+    public static readonly string BaseDirectory = AppContext.BaseDirectory;
     public static GameSettings Settings { get; private set; } = LoadSettings();
 
-    public static GameSettings LoadSettings(string? path = null)
+    public static Thread BGMThread;
+    public static MediaPlayer BGM;
+
+    private static bool _IsMuted = false;
+    public static bool IsMuted
+    {
+        get => _IsMuted;
+        
+    }
+
+    public static void InitWindow(int size = 16)
+    {
+        // Set up console
+        Console.Title = "Tetris NEAT AI Training";
+        FConsole.Framerate = 30;
+        FConsole.CursorVisible = false;
+        FConsole.SetFont("Consolas", 16);
+        FConsole.Initialise(() =>
+        {
+            if (Game.IsPaused || Game.Games == null) return;
+            foreach (Game g in Game.Games)
+            {
+                g.Tick();
+            }
+        });
+
+        BGMThread = PlayBGMAsync();
+    }
+
+    public static GameSettings LoadSettings(string path = null)
     {
         path ??= GameSettings.DefaultPath;
         string jsonString = File.ReadAllText(path);
@@ -1451,11 +1484,36 @@ public static class GameManager
         return JsonSerializer.Deserialize<GameSettings>(jsonString, options);
     }
 
-    public static void SaveSettings(string? path = null)
+    public static void SaveSettings(string path = null)
     {
         path ??= GameSettings.DefaultPath;
         var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
         string json = JsonSerializer.Serialize(Settings, options);
         File.WriteAllText(path, json, Encoding.UTF8);
+    }
+
+    static Thread PlayBGMAsync()
+    {
+        // Play BGM on a seperate thread
+        Thread thread = new Thread(() =>
+        {
+            BGM = new MediaPlayer
+            {
+                Volume = 0.04,
+            };
+            BGM.Open(new Uri($"{BaseDirectory}Sounds\\Korobeiniki Remix.wav"));
+            // Loop delegate
+            BGM.MediaEnded += (object sender, EventArgs e) =>
+            {
+                BGM.Position = TimeSpan.Zero;
+                BGM.Play();
+            };
+            BGM.Play();
+            // Run the dispatcher
+            Dispatcher.Run();
+        });
+        thread.Start();
+        thread.Priority = ThreadPriority.Lowest;
+        return thread;
     }
 }
