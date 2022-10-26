@@ -4,7 +4,7 @@ using System.Reflection;
 using System.IO;
 using System.Text.Json;
 
-public class NN
+public sealed class NN
 {
     public enum ActivationTypes
     {

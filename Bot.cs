@@ -121,11 +121,11 @@ public abstract class Bot
                     }
                 }
                 // Stats
-                Game.WriteAt(0, Game.GAMEHEIGHT - 1, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(Game.GAMEWIDTH));
+                Game.WriteAt(0, Game.GameHeight - 1, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(Game.GameWidth));
                 long count = NodeCounts.Aggregate(0, (aggregate, next) => (next == 0) ? aggregate : aggregate + 1);
                 if (count == 0) count++;
-                Game.WriteAt(0, Game.GAMEHEIGHT, ConsoleColor.White, $"Nodes: {NodeCounts.Sum() / count}".PadRight(Game.GAMEWIDTH));
-                Game.WriteAt(0, Game.GAMEHEIGHT + 1, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(Game.GAMEWIDTH));
+                Game.WriteAt(0, Game.GameHeight, ConsoleColor.White, $"Nodes: {NodeCounts.Sum() / count}".PadRight(Game.GameWidth));
+                Game.WriteAt(0, Game.GameHeight + 1, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(Game.GameWidth));
                 for (int i = NodeCounts.Length - 1; i > 0; i--)
                     NodeCounts[i] = NodeCounts[i - 1];
                 NodeCounts[0] = 0;
@@ -142,9 +142,9 @@ public abstract class Bot
         BotThread.Start();
 
         // Write stats
-        Game.WriteAt(0, Game.GAMEHEIGHT - 1, ConsoleColor.White, $"Depth: 0".PadRight(Game.GAMEWIDTH));
-        Game.WriteAt(0, Game.GAMEHEIGHT, ConsoleColor.White, $"Nodes: 0".PadRight(Game.GAMEWIDTH));
-        Game.WriteAt(0, Game.GAMEHEIGHT + 1, ConsoleColor.White, $"Tresh: 0.000000".PadRight(Game.GAMEWIDTH));
+        Game.WriteAt(0, Game.GameHeight - 1, ConsoleColor.White, $"Depth: 0".PadRight(Game.GameWidth));
+        Game.WriteAt(0, Game.GameHeight, ConsoleColor.White, $"Nodes: 0".PadRight(Game.GameWidth));
+        Game.WriteAt(0, Game.GameHeight + 1, ConsoleColor.White, $"Tresh: 0.000000".PadRight(Game.GameWidth));
     }
 
     public void Stop()
