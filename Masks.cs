@@ -9,11 +9,11 @@ public readonly struct MatrixMask
 {
     public const ulong FULL_LINE = (1 << 10) - 1;
 
-    public static readonly MatrixMask[] HeightMasks = new MatrixMask[25].Select((m, i) =>
+    public static readonly MatrixMask[] HeightMasks = new MatrixMask[26].Select((_, i) =>
     {
-        m = ~new MatrixMask();
-        m <<= i * 10;
-        return ~m << 10;
+        MatrixMask mask = ~new MatrixMask();    // Set it to all 1s
+        mask <<= i * 10;                        // Make the first i rows 0
+        return ~mask;                           // Invert it
     }).ToArray();
     public static readonly MatrixMask[] InverseHeightMasks = HeightMasks.Select((m) => ~m & HeightMasks[^1]).ToArray();
 
@@ -223,10 +223,10 @@ public readonly struct MatrixMask
         BitOperations.PopCount(HighHigh & 0x03FFFFFFFFFFFFFFUL) + // Exclude top 6 bits
         BitOperations.PopCount(HighLow) +
         BitOperations.PopCount(LowHigh) +
-        BitOperations.PopCount(LowLow & 0xFFFFFFFFFFFFFC00UL); // Exclude bottom 10 bits
+        BitOperations.PopCount(LowLow);
 
     public ulong GetRow(int row) =>
-        ((++row) switch
+        (row switch
         {
             < 6 => LowLow >> (row * 10),
             6 => (LowLow >> 60) | (LowHigh << 4),

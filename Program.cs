@@ -10,6 +10,7 @@ using static Tetris.Game;
 //-add RemoveAllListeners method that uses a predicate
 //-move PieceColors to Piece class
 //-handle games' widths and heights chaning mid-game
+//-change stuff cuz piece coords got reverted
 static class Program
 {
     static void Main()

@@ -251,7 +251,7 @@ sealed class PCFinder
 
                 // Check if on ground
                 if (ys[0] != 0)
-                    if (!matrix_mask.Intersects(piece.GetMask(x, ys[0] + piece.MinY - 1)))
+                    if (!matrix_mask.Intersects(piece.Masks(x, ys[0] + piece.MinY - 1)))
                         return false;
                 
                 return true;

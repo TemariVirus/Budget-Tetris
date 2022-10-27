@@ -54,25 +54,25 @@ public sealed class Piece
 
     // [piece][rot][layer]
     private static readonly int[][][] PieceX = {
-        new int[][] { new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 } }, // Empty
-        new int[][] { new int[] { -1, -1, -2,  0 }, new int[] { -1, -1,  0, -1 }, new int[] { -1, -2,  0, -1 }, new int[] { -1, -1, -2, -1 } }, // T
-        new int[][] { new int[] { -1, -2,  0,  1 }, new int[] {  0,  0,  0,  0 }, new int[] { -2, -1,  0,  1 }, new int[] { -1, -1, -1, -1 } }, // I
-        new int[][] { new int[] {  0, -2,  0, -1 }, new int[] { -1, -1, -1,  0 }, new int[] { -1, -2,  0, -2 }, new int[] { -1, -2, -1, -1 } }, // L
-        new int[][] { new int[] { -2, -2,  0, -1 }, new int[] { -1,  0, -1, -1 }, new int[] { -1, -2,  0,  0 }, new int[] { -1, -1, -1, -2 } }, // J
-        new int[][] { new int[] { -1,  0, -1, -2 }, new int[] { -1, -1,  0,  0 }, new int[] { -1,  0, -1, -2 }, new int[] { -2, -1, -2, -1 } }, // S
-        new int[][] { new int[] { -2, -1, -1,  0 }, new int[] {  0,  0, -1, -1 }, new int[] { -1, -2, -1,  0 }, new int[] { -1, -1, -2, -2 } }, // Z
-        new int[][] { new int[] { -1,  0, -1,  0 }, new int[] { -1,  0, -1,  0 }, new int[] { -1,  0, -1,  0 }, new int[] { -1,  0, -1,  0 } }  // O
+        new int[][] { new int[] {  0,  0,  0,  0 }, new int[] { 0, 0, 0, 0 }, new int[] {  0,  0, 0,  0 }, new int[] {  0,  0,  0,  0 } }, // Empty
+        new int[][] { new int[] {  0,  0, -1,  1 }, new int[] { 0, 0, 1, 0 }, new int[] {  0, -1, 1,  0 }, new int[] {  0,  0, -1,  0 } }, // T
+        new int[][] { new int[] {  0, -1,  1,  2 }, new int[] { 1, 1, 1, 1 }, new int[] { -1,  0, 1,  2 }, new int[] {  0,  0,  0,  0 } }, // I
+        new int[][] { new int[] {  1, -1,  1,  0 }, new int[] { 0, 0, 0, 1 }, new int[] {  0, -1, 1, -1 }, new int[] {  0, -1,  0,  0 } }, // L
+        new int[][] { new int[] { -1, -1,  1,  0 }, new int[] { 0, 1, 0, 0 }, new int[] {  0, -1, 1,  1 }, new int[] {  0,  0,  0, -1 } }, // J
+        new int[][] { new int[] {  0,  1,  0, -1 }, new int[] { 0, 0, 1, 1 }, new int[] {  0,  1, 0, -1 }, new int[] { -1,  0, -1,  0 } }, // S
+        new int[][] { new int[] { -1,  0,  0,  1 }, new int[] { 1, 1, 0, 0 }, new int[] {  0, -1, 0,  1 }, new int[] {  0,  0, -1, -1 } }, // Z
+        new int[][] { new int[] {  0,  1,  0,  1 }, new int[] { 0, 1, 0, 1 }, new int[] {  0,  1, 0,  1 }, new int[] {  0,  1,  0,  1 } }  // O
     };
     // Innermost arrays must be sorted in ascending order
     private static readonly int[][][] PieceY = {
-        new int[][] { new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 }, new int[] { -1, -1, -1, -1 } }, // Empty
-        new int[][] { new int[] { -2, -1, -1, -1 }, new int[] { -2, -1, -1,  0 }, new int[] { -1, -1, -1,  0 }, new int[] { -2, -1, -1,  0 } }, // T
-        new int[][] { new int[] { -1, -1, -1, -1 }, new int[] { -2, -1,  0,  1 }, new int[] {  0,  0,  0,  0 }, new int[] { -2, -1,  0,  1 } }, // I
-        new int[][] { new int[] { -2, -1, -1, -1 }, new int[] { -2, -1,  0,  0 }, new int[] { -1, -1, -1,  0 }, new int[] { -2, -2, -1,  0 } }, // L
-        new int[][] { new int[] { -2, -1, -1, -1 }, new int[] { -2, -2, -1,  0 }, new int[] { -1, -1, -1,  0 }, new int[] { -2, -1,  0,  0 } }, // J
-        new int[][] { new int[] { -2, -2, -1, -1 }, new int[] { -2, -1, -1,  0 }, new int[] { -1, -1,  0,  0 }, new int[] { -2, -1, -1,  0 } }, // S
-        new int[][] { new int[] { -2, -2, -1, -1 }, new int[] { -2, -1, -1,  0 }, new int[] { -1, -1,  0,  0 }, new int[] { -2, -1, -1,  0 } }, // Z
-        new int[][] { new int[] { -2, -2, -1, -1 }, new int[] { -2, -2, -1, -1 }, new int[] { -2, -2, -1, -1 }, new int[] { -2, -2, -1, -1 } }  // O
+        new int[][] { new int[] {  0,  0, 0, 0 }, new int[] {  0,  0, 0, 0 }, new int[] {  0,  0, 0, 0 }, new int[] {  0,  0, 0, 0 } }, // Empty
+        new int[][] { new int[] { -1,  0, 0, 0 }, new int[] { -1,  0, 0, 1 }, new int[] {  0,  0, 0, 1 }, new int[] { -1,  0, 0, 1 } }, // T
+        new int[][] { new int[] {  0,  0, 0, 0 }, new int[] { -1,  0, 1, 2 }, new int[] {  1,  1, 1, 1 }, new int[] { -1,  0, 1, 2 } }, // I
+        new int[][] { new int[] { -1,  0, 0, 0 }, new int[] { -1,  0, 1, 1 }, new int[] {  0,  0, 0, 1 }, new int[] { -1, -1, 0, 1 } }, // L
+        new int[][] { new int[] { -1,  0, 0, 0 }, new int[] { -1, -1, 0, 1 }, new int[] {  0,  0, 0, 1 }, new int[] { -1,  0, 1, 1 } }, // J
+        new int[][] { new int[] { -1, -1, 0, 0 }, new int[] { -1,  0, 0, 1 }, new int[] {  0,  0, 1, 1 }, new int[] { -1,  0, 0, 1 } }, // S
+        new int[][] { new int[] { -1, -1, 0, 0 }, new int[] { -1,  0, 0, 1 }, new int[] {  0,  0, 1, 1 }, new int[] { -1,  0, 0, 1 } }, // Z
+        new int[][] { new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 }, new int[] { -1, -1, 0, 0 } }  // O
     };
 
     private static readonly int[] KicksX = { 0, -1, -1, 0, -1 }, IKicksX = { 0, -2, 1, -2, 1 };
@@ -106,23 +106,15 @@ public sealed class Piece
         Lowest = -_Y.Max();
         Height = Highest - Lowest + 1;
 
-        GetKicksTable(true, this, out _KicksCWX, out _KicksCWY);
-        GetKicksTable(false, this, out _KicksCCWX, out _KicksCCWY);
-
-        // Center at (0, 1)
-        ulong mask = 0;
-        for (int i = 0; i < 4; i++)
-        {
-            int pos = -_X[i] + 10 * (1 - _Y[i]) + 9;
-            mask |= 1UL << pos;
-        }
+        GetKicksTable(true, out _KicksCWX, out _KicksCWY);
+        GetKicksTable(false, out _KicksCCWX, out _KicksCCWY);
 
         _Masks = new PieceMask[MaxX - MinX + 1][];
         for (int i = 0; i < _Masks.Length; i++)
         {
-            _Masks[i] = new PieceMask[26 - MinY + 1];
+            _Masks[i] = new PieceMask[32];
             for (int j = 0; j < _Masks[i].Length; j++)
-                _Masks[i][j] = GetMask(mask, i + MinX, j + MinY);
+                _Masks[i][j] = GetMask(i + MinX, j + MinY);
         }
     }
 
@@ -138,22 +130,40 @@ public sealed class Piece
     }
 
     // Helper function to convert from old format
-    private static void GetKicksTable(bool clockwise, Piece piece, out int[] kicksx, out int[] kicksy)
+    private void GetKicksTable(bool clockwise, out int[] kicksx, out int[] kicksy)
     {
-        bool vertial = (piece.R & ROTATION_CW) == ROTATION_CW;
-        int xmul = (!clockwise ^ (piece.R > ROTATION_CW) ^ (vertial && clockwise)) ? -1 : 1;
+        bool vertial = (R & ROTATION_CW) == ROTATION_CW;
+        int xmul = (!clockwise ^ (R > ROTATION_CW) ^ (vertial && clockwise)) ? -1 : 1;
         int ymul = vertial ? -1 : 1;
-        if (piece.PieceType == I) ymul *= ((piece.R > ROTATION_CW) ^ clockwise) ? -1 : 1;
-        int[] testorder = piece.PieceType == I && (vertial ^ !clockwise) ? new int[] { 0, 2, 1, 4, 3 } : new int[] { 0, 1, 2, 3, 4 };
+        if (PieceType == I) ymul *= ((R > ROTATION_CW) ^ clockwise) ? -1 : 1;
+        int[] testorder = PieceType == I && (vertial ^ !clockwise) ? new int[] { 0, 2, 1, 4, 3 } : new int[] { 0, 1, 2, 3, 4 };
         kicksx = new int[5];
         kicksy = new int[5];
         for (int i = 0; i < 5; i++)
         {
-            kicksx[i] = (piece.PieceType == I ? IKicksX[testorder[i]] : KicksX[testorder[i]]) * xmul;
-            kicksy[i] = (piece.PieceType == I ? IKicksY[testorder[i]] : KicksY[testorder[i]]) * ymul;
+            kicksx[i] = (PieceType == I ? IKicksX[testorder[i]] : KicksX[testorder[i]]) * xmul;
+            kicksy[i] = (PieceType == I ? IKicksY[testorder[i]] : KicksY[testorder[i]]) * ymul;
         }
     }
 
+    // Helper function to convert from old format
+    private PieceMask GetMask(int x, int y)
+    {
+        int start = new int[4].Select((_, i) => XYToPos(x + _X[i], y - _Y[i]))
+                              .Min();
+        start &= ~31;
+
+        // Center at (0, 0)
+        ulong mask = 0;
+        for (int i = 0; i < 4; i++)
+            mask |= 1UL << (XYToPos(x + _X[i], y - _Y[i]) - start);
+
+        return new PieceMask() { Mask = mask, Offset = start / 32 };
+    }
+
+    private static int XYToPos(int x, int y) => (9 - x) + (10 * y);
+
+    public PieceMask Masks(int x, int y) => _Masks[x - MinX][y - MinY];
     public int X(int i) => _X[i];
     public int Y(int i) => _Y[i];
     public int KicksCWX(int i) => _KicksCWX[i];
@@ -162,24 +172,6 @@ public sealed class Piece
     //public int Kicks180Y(int i) => _Kicks180Y[i];
     public int KicksCCWX(int i) => _KicksCCWX[i];
     public int KicksCCWY(int i) => _KicksCCWY[i];
-
-    private static PieceMask GetMask(ulong mask, int x, int y)
-    {
-        int shift = 10 * y - x;
-
-        if (shift <= 0)
-            return new PieceMask() { Mask = mask >> -shift };
-        else
-        {
-            int offset = shift >> 5;
-            shift &= 31;
-            if (shift + BitOperations.TrailingZeroCount(mask) < 32)
-                return new PieceMask() { Mask = mask << shift, Offset = offset };
-            else
-                return new PieceMask() { Mask = mask >> (32 - shift), Offset = offset + 1 };
-        }
-    }
-    public PieceMask GetMask(int x, int y) => _Masks[x - MinX][y - MinY];
 
     public static implicit operator Piece(int i) => Pieces[i & (PIECE_BITS | ROTATION_BITS)];
     public static implicit operator int(Piece i) => i.Id;
@@ -243,7 +235,7 @@ public class GameBase
         if (x < piece.MinX || x > piece.MaxX || y < piece.MinY) return false;
         // if (Y + piece.Lowest > Highest) return true;
 
-        return !Matrix.Intersects(piece.GetMask(x, y));
+        return !Matrix.Intersects(piece.Masks(x, y));
     }
 
     public bool OnGround()
@@ -251,7 +243,7 @@ public class GameBase
         // if (Y + Current.Lowest > Highest) return false; // Ald checked in most cases, wouldn't speed things up
         if (Y <= Current.MinY) return true;
 
-        return Matrix.Intersects(Current.GetMask(X, Y - 1));
+        return Matrix.Intersects(Current.Masks(X, Y - 1));
     }
 
     public int TSpinType(bool rotatedLast)
@@ -365,7 +357,7 @@ public class GameBase
         {
             if (X < Current.MaxX)
             {
-                if (Matrix.Intersects(Current.GetMask(X + 1, Y)))
+                if (Matrix.Intersects(Current.Masks(X + 1, Y)))
                     return false;
                 X++;
                 return true;
@@ -375,7 +367,7 @@ public class GameBase
         {
             if (X > Current.MinX)
             {
-                if (Matrix.Intersects(Current.GetMask(X - 1, Y)))
+                if (Matrix.Intersects(Current.Masks(X - 1, Y)))
                     return false;
                 X--;
                 return true;
@@ -436,7 +428,7 @@ public class GameBase
     {
         // Put piece into matrix
         Highest = Math.Max(Highest, Y + Current.Highest);
-        Matrix |= Current.GetMask(X, Y);
+        Matrix |= Current.Masks(X, Y);
 
         // Find cleared lines
         cleared = 0;
@@ -492,7 +484,7 @@ public class GameBase
         }
 
         // Remove piece
-        Matrix &= ~Current.GetMask(X, Y);
+        Matrix &= ~Current.Masks(X, Y);
 
         while (Highest >= 0)
         {
@@ -557,7 +549,7 @@ public class GameBase
         clone.ResetPiece();
         nodes.Enqueue((clone.Current, clone.X, clone.Y, new List<Moves>()));
         seen.Add((clone.Current, clone.X, clone.Y).GetHashCode());
-        PieceMask end_piece_mask = end_piece.GetMask(end_x, end_y);
+        PieceMask end_piece_mask = end_piece.Masks(end_x, end_y);
         while (nodes.Count != 0)
         {
             (Piece piece, int x, int y, List<Moves> m) = nodes.Dequeue();
@@ -596,7 +588,7 @@ public class GameBase
             clone.X = x;
             clone.Y = y;
             clone.TryDrop(40);
-            if (piece.GetMask(clone.X, clone.Y) == end_piece_mask)
+            if (piece.Masks(clone.X, clone.Y) == end_piece_mask)
             {
                 moves = m;
                 moves.Add(Moves.HardDrop);
@@ -1387,7 +1379,7 @@ public sealed class Game : GameBase
         MoveCount = 0;
         LockT.Reset();
         // Check for block out
-        if (Matrix.Intersects(Current.GetMask(X, Y))) IsDead = true;
+        if (Matrix.Intersects(Current.Masks(X, Y))) IsDead = true;
         // Check for lock out
         //if (Y + Current.Lowest >= 20) IsDead = true;
         // Draw next
