@@ -1,55 +1,120 @@
-﻿namespace Tetris;
+﻿using System.Windows.Media;
+using System.Windows.Threading;
 
-using System.Windows.Media;
-using static Tetris.Game;
+namespace Tetris;
 
-static class Sounds
+class Sound
 {
     public const string SoundsFolder = @"Sounds\";
+    
+    public static readonly Sound BGM = new Sound("Korobeiniki Remix.wav"),
+                                 SoftDrop = new Sound("bfall.wav"),
+                                 HardDrop = new Sound("harddrop.wav"),
+                                 TSpin = new Sound("tspin.wav"),
+                                 PC = new Sound("pc.wav"),
+                                 Hold = new Sound("hold.wav"),
+                                 Slide = new Sound("move.wav"),
+                                 Rotate = new Sound("rotate.wav"),
+                                 LvlUp = new Sound("lvlup.wav"),
+                                 Pause = new Sound("pause.wav");
 
-    public const string SoftDrop = SoundsFolder + "bfall.wav",
-                        HardDrop = SoundsFolder + "harddrop.wav",
-                        TSpin = SoundsFolder + "tspin.wav",
-                        PC = SoundsFolder + "pc.wav",
-                        Hold = SoundsFolder + "hold.wav",
-                        Slide = SoundsFolder + "move.wav",
-                        Rotate = SoundsFolder + "rotate.wav",
-                        LvlUp = SoundsFolder + "lvlup.wav",
-                        Pause = SoundsFolder + "pause.wav";
-
-    public static readonly string[] ClearSounds = { "", SoundsFolder + "single.wav", SoundsFolder + "double.wav", SoundsFolder + "triple.wav", SoundsFolder + "tetris.wav" };
-
-
-    static Thread SoundThread = new Thread(MediaPlayerThread);
-    static MediaPlayer Player;
-    static string FileToPlay = "";
-    static bool IsPlaying = false;
-
-    private static void MediaPlayerThread()
+    public static readonly Sound[] ClearSounds =
     {
-        Thread.CurrentThread.Priority = ThreadPriority.Lowest;
-        Player = new MediaPlayer();
-        Player.Volume = 0.1;
-        while (true)
+        new Sound("single.wav"),
+        new Sound("double.wav"),
+        new Sound("triple.wav"),
+        new Sound("tetris.wav")
+    };
+
+    public static bool IsMuted = false;
+    public static Thread SoundThread { get; private set; }
+    public static Dispatcher SoundDP { get => Dispatcher.FromThread(SoundThread); }
+
+    public static double SFXVolume = 0.1;
+    private static readonly Queue<MediaPlayer> MediaPlayerPool = new Queue<MediaPlayer>();
+
+    private static double _BGMVolume = 0.04;
+    public static double BGMVolume
+    {
+        get => _BGMVolume;
+        set
         {
-            Thread.Sleep(1);
-            if (GameManager.IsMuted || IsDead) continue;
-            if (FileToPlay.Length == 0) continue;
-
-            IsPlaying = true;
-
-            Player.Open(new Uri(FileToPlay, UriKind.Relative));
-            Player.Play();
-            FileToPlay = "";
-
-            IsPlaying = false;
+            _BGMVolume = value;
+            SoundDP?.Invoke(() =>
+            {
+                BGMPlayer.Volume = value;
+            });
         }
     }
+    private static MediaPlayer BGMPlayer;
 
-    public static void Playsfx(string filename)
+    
+    public Uri Path { get; private set; }
+
+    public Sound(string file_name)
     {
-        if (IsPlaying || GameManager.IsMuted || IsDead) return;
+        if (SoundThread == null)
+            InitSound();
 
-        FileToPlay = filename;
+        Path = new Uri(SoundsFolder + file_name, UriKind.Relative);
+    }
+    
+    public static void InitSound()
+    {
+        // Create Sound thread
+        SoundThread = new Thread(() =>
+        {
+            BGMPlayer = new MediaPlayer
+            {
+                Volume = BGMVolume,
+            };
+            // Loop delegate
+            BGMPlayer.MediaEnded += (s, e) =>
+            {
+                BGMPlayer.Position = TimeSpan.Zero;
+                BGMPlayer.Play();
+            };
+            // Play BGM looping
+            BGMPlayer.Open(BGM.Path);
+            BGMPlayer.Play();
+            // Run the dispatcher
+            Dispatcher.Run();
+        });
+        SoundThread.Start();
+        SoundThread.Priority = ThreadPriority.Lowest;
+    }
+
+    public void Play()
+    {
+        if (IsMuted) return;
+
+        MediaPlayer player = GetSFXPlayer();
+        SoundDP.Invoke(() =>
+        {
+            player.Open(Path);
+            player.Play();
+        });
+    }
+
+    static MediaPlayer GetSFXPlayer()
+    {
+        // Create a new player if pool is dry
+        if (!MediaPlayerPool.TryDequeue(out MediaPlayer player))
+        {
+            SoundDP.Invoke(() =>
+                {
+                    player = new MediaPlayer()
+                    {
+                        Volume = SFXVolume,
+                    };
+                    player.MediaEnded += (s, e) =>
+                    {
+                        player.Close();
+                        MediaPlayerPool.Enqueue(player);
+                    };
+                });
+        }
+
+        return player;
     }
 }

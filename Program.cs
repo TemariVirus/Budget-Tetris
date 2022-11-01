@@ -2,7 +2,6 @@
 using NEAT;
 using System.Windows.Input;
 using Tetris;
-using static Tetris.Game;
 
 // Inputs: standard height, caves, pillars, row transitions, col transitions, trash, cleared, intent
 // Outputs: score of state, intent(don't search further if it drops below a treshold)
@@ -11,23 +10,24 @@ using static Tetris.Game;
 //-move PieceColors to Piece class
 //-handle games' widths and heights chaning mid-game
 //-change stuff cuz piece coords got reverted
+//-fix volume
 static class Program
 {
     static void Main()
     {
-        GameManager.InitWindow();
+        Game.InitWindow();
 
         int seed = new Random().Next();
         Game[] games = new Game[2].Select(x => new Game(24, seed)).ToArray();
-        GameManager.SetGames(games);
+        Game.SetGames(games);
         FConsole.Set(FConsole.Width, FConsole.Height + 2);
-        GameManager.IsPaused = true;
-        Bot left = new BotOld(NN.LoadNN(GameManager.BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        left.Start(300, 0);
-        GameManager.SetupPlayerInput(games[1]);
+        Game.IsPaused = true;
+        Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
+        //left.Start(300, 0);
+        games[1].SetupPlayerInput();
         //Bot right = new BotByScore(NN.LoadNN(BaseDirectory + @"NNs\Temare.txt"), games[1]);
         //right.Start(100, 0);
-        GameManager.IsPaused = false;
+        Game.IsPaused = false;
 
         PCFinder pc = new PCFinder();
         FConsole.AddOnPressListener(Key.S, () => pc.ShowMode = !pc.ShowMode);
@@ -40,7 +40,7 @@ static class Program
     static void HalfHeight()
     {
         ConsoleColor[] bedrock_row = new ConsoleColor[10].Select(x => Game.PieceColors[Piece.Bedrock]).ToArray();
-        foreach (Game g in GameManager.Games)
+        foreach (Game g in Game.Games)
         {
             for (int j = 0; j < 10; j++)
             {

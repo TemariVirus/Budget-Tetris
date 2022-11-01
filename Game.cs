@@ -3,7 +3,6 @@
 using FastConsole;
 using System.Diagnostics;
 using System.IO;
-using System.Numerics;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -32,6 +31,45 @@ public enum TargetModes
     All,
     Self,
     None
+}
+
+public readonly struct GameSettings
+{
+    public static readonly string DefaultPath = AppContext.BaseDirectory + "Settings.json";
+
+    public int[] LinesTrash { get; init; }
+    public int[] TSpinTrash { get; init; }
+    public int[] ComboTrash { get; init; }
+    public int[] PCTrash { get; init; }
+
+    public double G { get; init; }
+    public double SoftG { get; init; }
+
+    // In miliseconds
+    public int LockDelay { get; init; }
+    public int EraseDelay { get; init; }
+    public int GarbageDelay { get; init; } 
+    
+    public int AutoLockGrace { get; init; }
+    public int TargetChangeInteval { get; init; }
+
+    public static readonly GameSettings Default = new GameSettings()
+    {
+        LinesTrash = new int[] { 0, 0, 1, 2, 4 },
+        TSpinTrash = new int[] { 0, 2, 4, 6 },
+        //ComboTrash = new int[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }, // Tetris 99
+        ComboTrash = new int[] { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }, // Jstris
+        PCTrash = new int[] { 0, 10, 10, 10, 10 },
+        G = 0.05,
+        SoftG = 1,
+
+        LockDelay = 500,
+        EraseDelay = 1000,
+        GarbageDelay = 500,
+
+        AutoLockGrace = 15,
+        TargetChangeInteval = 500,
+    };
 }
 
 public sealed class Piece
@@ -183,7 +221,7 @@ public sealed class Piece
 
 public class GameBase
 {
-    public const int START_X = 5, START_Y = 19;
+    public const int START_X = 4, START_Y = 20;
 
     // Try out array of heights as well
     public int Highest { get; private set; } = 0;
@@ -616,31 +654,23 @@ public class GameBase
 
 public sealed class Game : GameBase
 {
-    public struct GameSettings
+    public static GameSettings Settings { get; private set; } = LoadSettings();
+
+    public static Game[] Games { get; private set; }
+    public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
+    public static double CurrentTime { get => GlobalTime.Elapsed.TotalSeconds; }
+    public static long CurrentMillis { get => GlobalTime.ElapsedMilliseconds; }
+
+    const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
+
+    public const int GameWidth = 44;
+    public const int GameHeight = 24;
+    int XOffset = 0;
+    int YOffset = 0;
+
+    static readonly string[] ClearText = { "SINGLE", "DOUBLE", "TRIPLE", "TETRIS" };
+    public static readonly ConsoleColor[] PieceColors =
     {
-        public static readonly string DefaultPath = AppContext.BaseDirectory + "Settings.json";
-
-        public int[] LinesTrash;
-        public int[] TSpinTrash;
-        public int[] ComboTrash;
-        public int[] PCTrash;
-
-        public double G;
-        public double SoftG;
-
-        public int LockDelay, EraseDelay, GarbageDelay; // In miliseconds
-        public int AutoLockGrace;
-        public int TargetChangeInteval;
-    }
-
-    public static class GameManager
-    {
-        public static readonly string BaseDirectory = AppContext.BaseDirectory;
-        public static GameSettings Settings { get; private set; } = LoadSettings();
-
-        static readonly string[] ClearText = { "SINGLE", "DOUBLE", "TRIPLE", "TETRIS" };
-        public static readonly ConsoleColor[] PieceColors =
-        {
         ConsoleColor.Black,         // Empty
         ConsoleColor.Magenta,       // T
         ConsoleColor.Cyan,          // I
@@ -652,205 +682,14 @@ public sealed class Game : GameBase
         ConsoleColor.Gray,          // Garbage
         ConsoleColor.DarkGray       // Bedrock
         };
-        static readonly ConsoleColor[] GarbageLineColor = new ConsoleColor[10].Select(x => PieceColors[Piece.Garbage]).ToArray();
+    static readonly ConsoleColor[] GarbageLineColor = new ConsoleColor[10].Select(x => PieceColors[Piece.Garbage]).ToArray();
 
-        public static int[] LinesTrash { get; private set; } = { 0, 0, 1, 2, 4 };
-        public static int[] TSpinTrash { get; private set; } = { 0, 2, 4, 6 };
-        //public static int[] ComboTrash { get; private set; } = { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Tetris 99
-        public static int[] ComboTrash { get; private set; } = { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Jstris
-        public static int[] PCTrash { get; private set; } = { 0, 10, 10, 10, 10 };
+    public static int[] LinesTrash { get; private set; } = { 0, 0, 1, 2, 4 };
+    public static int[] TSpinTrash { get; private set; } = { 0, 2, 4, 6 };
+    //public static int[] ComboTrash { get; private set; } = { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Tetris 99
+    public static int[] ComboTrash { get; private set; } = { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Jstris
+    public static int[] PCTrash { get; private set; } = { 0, 10, 10, 10, 10 };
 
-        public static Game[] Games { get; private set; }
-        public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
-        public static double CurrentTime { get => GlobalTime.Elapsed.TotalSeconds; }
-        public static long CurrentMillis { get => GlobalTime.ElapsedMilliseconds; }
-
-        private static Thread BGMThread;
-        private static MediaPlayer BGM;
-
-        private static bool _IsPaused = false;
-        public static bool IsPaused
-        {
-            get => _IsPaused;
-            set
-            {
-                _IsPaused = value;
-                if (_IsPaused)
-                {
-                    GlobalTime.Stop();
-                    foreach (Game g in Games)
-                    {
-                        g.LockT.Stop();
-                    }
-                }
-                else
-                {
-                    GlobalTime.Start();
-                    foreach (Game g in Games)
-                    {
-                        if (g.OnGround()) g.LockT.Start();
-                        Task.Delay(GarbageDelay).ContinueWith(t => g.DrawTrashMeter());
-                    }
-                }
-            }
-        }
-
-        private static bool _IsMuted = false;
-        public static bool IsMuted
-        {
-            get => _IsMuted;
-            set
-            {
-                Dispatcher bgmDp = Dispatcher.FromThread(BGMThread);
-                bgmDp.Invoke(() => BGM.IsMuted = value);
-                _IsMuted = value;
-            }
-        }
-
-        public static int EraseDelay = 1000, GarbageDelay = 500; // In miliseconds
-
-        public static void InitWindow(int size = 16)
-        {
-            // Set up console
-            Console.Title = "Tetris NEAT AI Training";
-            FConsole.Framerate = 30;
-            FConsole.CursorVisible = false;
-            FConsole.SetFont("Consolas", 16);
-            FConsole.Initialise(() =>
-            {
-                if (IsPaused || Games == null) return;
-                foreach (Game g in Games)
-                {
-                    g.Tick();
-                }
-            });
-
-            BGMThread = PlayBGMAsync();
-        }
-
-        public static GameSettings LoadSettings(string path = null)
-        {
-            path ??= GameSettings.DefaultPath;
-            string jsonString = File.ReadAllText(path);
-            var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
-            return JsonSerializer.Deserialize<GameSettings>(jsonString, options);
-        }
-
-        public static void SaveSettings(string path = null)
-        {
-            path ??= GameSettings.DefaultPath;
-            var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
-            string json = JsonSerializer.Serialize(Settings, options);
-            File.WriteAllText(path, json, Encoding.UTF8);
-        }
-
-        public static void SetGames(Game[] games)
-        {
-            Games = games;
-            GlobalTime.Restart();
-
-            // Find width and height (~2:1 ratio)
-            int width = (int)Math.Sqrt(Games.Length / 2) * 2, height = width / 2;
-            if (width * height < Games.Length) width++;
-            if (width * height < Games.Length) height++;
-
-            FConsole.Set(width * (GameWidth + 1) + 1, height * GameHeight + 1);
-
-            foreach (Game g in Games) g.ClearScreen();
-
-            // Set up and re-draw games
-            for (int i = 0; i < Games.Length; i++)
-            {
-                Games[i].XOffset = (i % width) * (GameWidth + 1) + 1;
-                Games[i].YOffset = (i / width) * GameHeight + 1;
-                if (Games[i].IsDead) Games[i].Restart();
-                Games[i].DrawAll();
-            }
-        }
-
-        static Thread PlayBGMAsync()
-        {
-            // Play BGM on a seperate thread
-            Thread thread = new Thread(() =>
-            {
-                BGM = new MediaPlayer
-                {
-                    Volume = 0.04,
-                };
-                BGM.Open(new Uri($"{BaseDirectory}Sounds\\Korobeiniki Remix.wav"));
-                // Loop delegate
-                BGM.MediaEnded += (object sender, EventArgs e) =>
-                {
-                    BGM.Position = TimeSpan.Zero;
-                    BGM.Play();
-                };
-                BGM.Play();
-                // Run the dispatcher
-                Dispatcher.Run();
-            });
-            thread.Start();
-            thread.Priority = ThreadPriority.Lowest;
-            return thread;
-        }
-
-        static void SetupPlayerInput(Game player_game)
-        {
-            player_game.SoftG = 40;
-            FConsole.AddOnPressListener(Key.Left, () => player_game.Play(Moves.Left));
-            //FastConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.Left), 133, 0);
-            FConsole.AddOnHoldListener(Key.Left, () => player_game.Play(Moves.DASLeft), 133, 15);
-
-            FConsole.AddOnPressListener(Key.Right, () => player_game.Play(Moves.Right));
-            //FastConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.Right), 133, 0);
-            FConsole.AddOnHoldListener(Key.Right, () => player_game.Play(Moves.DASRight), 133, 15);
-
-            FConsole.AddOnPressListener(Key.Up, () => player_game.Play(Moves.RotateCW));
-            FConsole.AddOnPressListener(Key.Z, () => player_game.Play(Moves.RotateCCW));
-            FConsole.AddOnPressListener(Key.A, () => player_game.Play(Moves.Rotate180));
-
-            FConsole.AddOnHoldListener(Key.Down, () => player_game.Play(Moves.SoftDrop), 0, 15);
-            FConsole.AddOnPressListener(Key.Space, () => player_game.Play(Moves.HardDrop));
-
-            FConsole.AddOnPressListener(Key.C, () => player_game.Play(Moves.Hold));
-            FConsole.AddOnPressListener(Key.R, () => player_game.Restart());
-            FConsole.AddOnPressListener(Key.Escape, () => IsPaused = !IsPaused);
-            FConsole.AddOnPressListener(Key.M, () => IsMuted = !IsMuted);
-        }
-    }
-
-
-    const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
-
-    private int _GameWidth = 44;
-    public int GameWidth
-    {
-        get => _GameWidth;
-        private set
-        {
-            if (_GameWidth != value)
-            {
-                _GameWidth = value;
-
-
-            }
-        }
-    }
-    private int _GameHeight = 24;
-    public int GameHeight
-    {
-        get => _GameHeight;
-        private set
-        {
-            if (_GameHeight != value)
-            {
-                _GameHeight = value;
-
-
-            }
-        }
-    }
-    int XOffset = 0;
-    int YOffset = 0;
 
     #region // Fields and Properties
 
@@ -906,17 +745,43 @@ public sealed class Game : GameBase
         }
     }
     public int Level { get => Lines / 10 + 1; }
+    private static bool _IsPaused = false;
+    public static bool IsPaused
+    {
+        get => _IsPaused;
+        set
+        {
+            _IsPaused = value;
+            if (_IsPaused)
+            {
+                GlobalTime.Stop();
+                foreach (Game g in Games)
+                {
+                    g.LockT.Stop();
+                }
+            }
+            else
+            {
+                GlobalTime.Start();
+                foreach (Game g in Games)
+                {
+                    if (g.OnGround()) g.LockT.Start();
+                    Task.Delay(Settings.GarbageDelay).ContinueWith(t => g.DrawTrashMeter());
+                }
+            }
+        }
+    }
 
     public int B2B { get; internal set; } = -1;
     public int Combo { get; internal set; } = -1;
 
-    public double G = 0.05, SoftG = 1;
+    public double SoftG = Settings.SoftG;
     double Vel = 0;
     readonly Queue<Moves> MoveQueue = new Queue<Moves>();
 
     double LastFrameTime;
-    public int LockDelay = 500; // In miliseconds
-    public int AutoLockGrace = 15;
+    public int LockDelay = Settings.LockDelay;
+    public int AutoLockGrace = Settings.AutoLockGrace;
     int MoveCount = 0;
     bool IsLastMoveRotate = false, AlreadyHeld = false;
     readonly Stopwatch LockT = new Stopwatch();
@@ -925,8 +790,7 @@ public sealed class Game : GameBase
     readonly Random GarbageRand;
     readonly List<(int Lines, long Time)> Garbage = new List<(int, long)>();
 
-    // int GameIndex;
-    long TargetChangeInteval = 500, LastTargetChangeTime; // In miliseconds
+    long LastTargetChangeTime;
     public TargetModes TargetMode = TargetModes.Random;
     List<Game> Targets = new List<Game>();
     #endregion
@@ -949,7 +813,7 @@ public sealed class Game : GameBase
         get
         {
             if (PiecesPlaced == 0) return 0;
-            return PiecesPlaced / (GameManager.CurrentTime - StartTime);
+            return PiecesPlaced / (CurrentTime - StartTime);
         }
     }
 
@@ -976,6 +840,90 @@ public sealed class Game : GameBase
         GarbageRand = new Random(seed.GetHashCode());
     }
 
+    public static void InitWindow(int size = 16)
+    {
+        if (Sound.SoundThread == null)
+            Sound.InitSound();
+        // Set up console
+        Console.Title = "Tetris NEAT AI Training";
+        FConsole.Framerate = 30;
+        FConsole.CursorVisible = false;
+        FConsole.SetFont("Consolas", 16);
+        FConsole.Initialise(() =>
+        {
+            if (IsPaused || Games == null) return;
+            foreach (Game g in Games)
+            {
+                g.Tick();
+            }
+        });
+    }
+
+    public static GameSettings LoadSettings(string path = null)
+    {
+        path ??= GameSettings.DefaultPath;
+        if (!File.Exists(path))
+            return GameSettings.Default;
+        string jsonString = File.ReadAllText(path);
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        return JsonSerializer.Deserialize<GameSettings>(jsonString, options);
+    }
+
+    public static void SaveSettings(string path = null)
+    {
+        path ??= GameSettings.DefaultPath;
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        string json = JsonSerializer.Serialize(Settings, options);
+        File.WriteAllText(path, json, Encoding.UTF8);
+    }
+
+    public static void SetGames(Game[] games)
+    {
+        Games = games;
+        GlobalTime.Restart();
+
+        // Find width and height (~2:1 ratio)
+        int width = (int)Math.Sqrt(Games.Length / 2) * 2, height = width / 2;
+        if (width * height < Games.Length) width++;
+        if (width * height < Games.Length) height++;
+
+        FConsole.Set(width * (GameWidth + 1) + 1, height * GameHeight + 1);
+        FConsole.Clear();
+
+        // Set up and re-draw games
+        for (int i = 0; i < Games.Length; i++)
+        {
+            Games[i].XOffset = (i % width) * (GameWidth + 1) + 1;
+            Games[i].YOffset = (i / width) * GameHeight + 1;
+            if (Games[i].IsDead) Games[i].Restart();
+            Games[i].DrawAll();
+        }
+    }
+
+    public void SetupPlayerInput()
+    {
+        SoftG = 40;
+        FConsole.AddOnPressListener(Key.Left, () => Play(Moves.Left));
+        //FastConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.Left), 133, 0);
+        FConsole.AddOnHoldListener(Key.Left, () => Play(Moves.DASLeft), 133, 15);
+
+        FConsole.AddOnPressListener(Key.Right, () => Play(Moves.Right));
+        //FastConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.Right), 133, 0);
+        FConsole.AddOnHoldListener(Key.Right, () => Play(Moves.DASRight), 133, 15);
+
+        FConsole.AddOnPressListener(Key.Up, () => Play(Moves.RotateCW));
+        FConsole.AddOnPressListener(Key.Z, () => Play(Moves.RotateCCW));
+        FConsole.AddOnPressListener(Key.A, () => Play(Moves.Rotate180));
+
+        FConsole.AddOnHoldListener(Key.Down, () => Play(Moves.SoftDrop), 0, 15);
+        FConsole.AddOnPressListener(Key.Space, () => Play(Moves.HardDrop));
+
+        FConsole.AddOnPressListener(Key.C, () => Play(Moves.Hold));
+        FConsole.AddOnPressListener(Key.R, () => Restart());
+        FConsole.AddOnPressListener(Key.Escape, () => IsPaused = !IsPaused);
+        FConsole.AddOnPressListener(Key.M, () => Sound.IsMuted = !Sound.IsMuted);
+    }
+
     public void Restart()
     {
         Matrix = new MatrixMask();
@@ -999,9 +947,9 @@ public sealed class Game : GameBase
         MoveCount = 0;
         MoveQueue.Clear();
 
-        StartTime = GameManager.CurrentTime;
+        StartTime = CurrentTime;
         LastFrameTime = StartTime;
-        LastTargetChangeTime = GameManager.CurrentMillis;
+        LastTargetChangeTime = CurrentMillis;
         LockT.Reset();
         Garbage.Clear();
         //TargetMode = TargetModes.Random;
@@ -1013,11 +961,11 @@ public sealed class Game : GameBase
 
     public void Tick()
     {
-        if (IsDead || GameManager.IsPaused) return;
+        if (IsDead || IsPaused) return;
 
         // Timekeeping
-        double deltaT = GameManager.CurrentTime - LastFrameTime;
-        LastFrameTime = GameManager.CurrentTime;
+        double deltaT = CurrentTime - LastFrameTime;
+        LastFrameTime = CurrentTime;
 
         // Play queued moves (it's up to the input adapter to time the moves, the queue is a buffer jic)
         bool softDrop = false;
@@ -1062,7 +1010,7 @@ public sealed class Game : GameBase
         }
 
         // Handle locking and gravity
-        Vel += G * deltaT * FConsole.Framerate;
+        Vel += Settings.G * deltaT * FConsole.Framerate;
         if (OnGround())
         {
             Vel = 0;
@@ -1083,19 +1031,10 @@ public sealed class Game : GameBase
         WriteAt(0, 22, ConsoleColor.White, $"APL: {Math.Round(APL, 3)}".PadRight(11));
     }
 
-    public static List<Game> GetAliveGames()
-    {
-        List<Game> games = new List<Game>();
-        foreach (Game g in GameManager.Games)
-            if (!g.IsDead)
-                games.Add(g);
-        return games;
-    }
-
     #region // Player methods
     public void Play(Moves move)
     {
-        if (IsDead || GameManager.IsPaused) return;
+        if (IsDead || IsPaused) return;
 
         MoveQueue.Enqueue(move);
         KeysPressed++;
@@ -1106,7 +1045,7 @@ public sealed class Game : GameBase
         DrawCurrent(true);
         if (TrySlide(dx))
         {
-            Sounds.Playsfx(Sounds.Slide);
+            Sound.Slide.Play();
             IsLastMoveRotate = false;
             if (MoveCount++ < AutoLockGrace) LockT.Restart();
         }
@@ -1136,7 +1075,7 @@ public sealed class Game : GameBase
             DrawCurrent(true);
             if (TryRotate(dr))
             {
-                Sounds.Playsfx(Sounds.Rotate);
+                Sound.Rotate.Play();
                 IsLastMoveRotate = true;
                 if (MoveCount++ < AutoLockGrace) LockT.Restart();
             }
@@ -1148,13 +1087,13 @@ public sealed class Game : GameBase
     {
         if (!AlreadyHeld)
         {
-            Sounds.Playsfx(Sounds.Hold);
+            Sound.Hold.Play();
             AlreadyHeld = true;
             IsLastMoveRotate = false;
 
             // Undraw
             DrawCurrent(true);
-            DrawPieceAt(Hold, 5, 4, true);
+            DrawPieceAt(Hold, 3, 3, true);
 
             Piece oldhold = Hold.PieceType;
             Hold = Current.PieceType;
@@ -1168,7 +1107,7 @@ public sealed class Game : GameBase
             }
 
             // Redraw
-            DrawPieceAt(Hold, 5, 4, false);
+            DrawPieceAt(Hold, 3, 3, false);
             DrawCurrent(false);
             LockT.Restart();
         }
@@ -1180,7 +1119,7 @@ public sealed class Game : GameBase
         int tspin = TSpinType(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
         // Place piece in MatrixColors
         for (int i = 0; i < 4; i++)
-            MatrixColors[Y - Current.Y(i)][X + Current.X(i)] = GameManager.PieceColors[Current.PieceType];
+            MatrixColors[Y - Current.Y(i)][X + Current.X(i)] = PieceColors[Current.PieceType];
         // Clear lines
         int[] clears = Place(out int cleared);
         for (int i = 0; i < clears.Length; i += 2)
@@ -1218,7 +1157,7 @@ public sealed class Game : GameBase
         int old_level = Level;
         Lines += cleared;
         if (old_level < Level)
-            Sounds.Playsfx(Sounds.LvlUp);
+            Sound.LvlUp.Play();
 
         // Write stats to console
         // Write clear stats
@@ -1233,7 +1172,7 @@ public sealed class Game : GameBase
 
             CancellationTokenSource token_source = new CancellationTokenSource();
             EraseCancelTokenSrcs.Add(token_source);
-            Task.Delay(GameManager.EraseDelay).ContinueWith(t =>
+            Task.Delay(Settings.EraseDelay).ContinueWith(t =>
             {
                 if (token_source.IsCancellationRequested) return;
                 EraseClearStats();
@@ -1245,17 +1184,17 @@ public sealed class Game : GameBase
         if (b2b_active) WriteAt(4, 14, ConsoleColor.White, "B2B");
         if (tspin == 2) WriteAt(0, 15, ConsoleColor.White, "T-SPIN MINI");
         else if (tspin == 3) WriteAt(2, 15, ConsoleColor.White, "T-SPIN");
-        if (cleared > 0) WriteAt(2, 16, ConsoleColor.White, GameManager.ClearText[cleared - 1]);
+        if (cleared > 0) WriteAt(2, 16, ConsoleColor.White, ClearText[cleared - 1]);
         if (Combo > 0) WriteAt(1, 17, ConsoleColor.White, Combo + " COMBO!");
         if (pc) WriteAt(0, 18, ConsoleColor.White, "ALL CLEAR!");
         // Play sound
 
 
         // Trash sent
-        int trash = pc ? GameManager.PCTrash[cleared] :
-                    tspin == 3 ? GameManager.TSpinTrash[cleared] :
-                                 GameManager.LinesTrash[cleared];
-        if (Combo > 0) trash += GameManager.ComboTrash[Math.Min(Combo, GameManager.ComboTrash.Length) - 1];
+        int trash = pc ? PCTrash[cleared] :
+                    tspin == 3 ? TSpinTrash[cleared] :
+                                 LinesTrash[cleared];
+        if (Combo > 0) trash += ComboTrash[Math.Min(Combo, ComboTrash.Length) - 1];
         if (b2b_active) trash++;
 
         // Stats
@@ -1283,7 +1222,7 @@ public sealed class Game : GameBase
             bool garbage_dumped = false;
             while (Garbage.Count > 0)
             {
-                if (GameManager.CurrentMillis - Garbage[0].Time <= GarbageDelay) break;
+                if (CurrentMillis - Garbage[0].Time <= Settings.GarbageDelay) break;
 
                 int lines_to_add = Garbage[0].Lines;
                 Garbage.RemoveAt(0);
@@ -1326,16 +1265,16 @@ public sealed class Game : GameBase
 
     void SendTrash(int trash)
     {
-        long time = GameManager.CurrentMillis;
+        long time = CurrentMillis;
         // Select targets
         switch (TargetMode)
         {
             case TargetModes.Random:
-                if (time - LastTargetChangeTime > TargetChangeInteval)
+                if (time - LastTargetChangeTime > Settings.TargetChangeInteval)
                 {
                     LastTargetChangeTime = time;
                     Targets.Clear();
-                    List<Game> aliveGames = GameManager.Games.Where(x => !x.IsDead).ToList();
+                    List<Game> aliveGames = Games.Where(x => !x.IsDead).ToList();
                     if (aliveGames.Count <= 1) break;
                     int i = new Random().Next(aliveGames.Count - 1);
                     if (i >= aliveGames.IndexOf(this)) i = (i + 1) % aliveGames.Count;
@@ -1343,7 +1282,7 @@ public sealed class Game : GameBase
                 }
                 break;
             case TargetModes.All:
-                Targets = GameManager.Games.Where(x => !x.IsDead).ToList();
+                Targets = Games.Where(x => !x.IsDead).ToList();
                 break;
             case TargetModes.Self:
                 Targets.Clear();
@@ -1358,7 +1297,7 @@ public sealed class Game : GameBase
         {
             victim.Garbage.Add((trash, time));
             victim.DrawTrashMeter();
-            Task.Delay(GarbageDelay).ContinueWith(t => victim.DrawTrashMeter());
+            Task.Delay(Settings.GarbageDelay).ContinueWith(t => victim.DrawTrashMeter());
         }
     }
 
@@ -1366,7 +1305,7 @@ public sealed class Game : GameBase
     {
         // Undraw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPieceAt(Next[i], 39, 4 + 3 * i, true);
+            DrawPieceAt(Next[i], 37, 3 + 3 * i, true);
         // Update current and next
         Current = Next[0];
         for (int i = 1; i < Next.Length; i++) Next[i - 1] = Next[i];
@@ -1384,7 +1323,7 @@ public sealed class Game : GameBase
         //if (Y + Current.Lowest >= 20) IsDead = true;
         // Draw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPieceAt(Next[i], 39, 4 + 3 * i, false);
+            DrawPieceAt(Next[i], 37, 3 + 3 * i, false);
         // Draw current
         DrawCurrent(false);
     }
@@ -1411,7 +1350,7 @@ public sealed class Game : GameBase
     void DrawPieceAt(Piece piece, int x, int y, bool black)
     {
         for (int i = 0; i < 4; i++)
-            WriteAt(piece.X(i) * 2 + x, piece.Y(i) + y, black ? ConsoleColor.Black : GameManager.PieceColors[piece.PieceType], BLOCKSOLID);
+            WriteAt(piece.X(i) * 2 + x, piece.Y(i) + y, black ? ConsoleColor.Black : PieceColors[piece.PieceType], BLOCKSOLID);
     }
 
     void DrawMatrix()
@@ -1428,7 +1367,7 @@ public sealed class Game : GameBase
         {
             for (int i = 0; i < Garbage.Count; i++)
             {
-                ConsoleColor color = GameManager.CurrentMillis - Garbage[i].Time > GarbageDelay ? ConsoleColor.Red : ConsoleColor.Gray;
+                ConsoleColor color = CurrentMillis - Garbage[i].Time > Settings.GarbageDelay ? ConsoleColor.Red : ConsoleColor.Gray;
                 for (int j = y; y > j - Garbage[i].Lines && y > 1; y--)
                 {
                     WriteAt(33, y, color, "█");
@@ -1496,9 +1435,9 @@ public sealed class Game : GameBase
 
         // Draw next
         for (int i = 0; i < Math.Min(6, Next.Length); i++)
-            DrawPieceAt(Next[i], 39, 4 + 3 * i, false);
+            DrawPieceAt(Next[i], 37, 3 + 3 * i, false);
         // Draw hold
-        DrawPieceAt(Hold, 5, 4, false);
+        DrawPieceAt(Hold, 3, 3, false);
         // Draw board
         DrawMatrix();
         // Draw current piece

@@ -17,7 +17,7 @@ public abstract class Bot
         {
             if (_Game != null)
             {
-                _Game.SoftG = GameManager.Settings.SoftG;
+                _Game.SoftG = Game.Settings.SoftG;
                 _Game.IsBot = false;
             }
             _Game = value;
@@ -135,7 +135,7 @@ public abstract class Bot
 
             ToStop = false;
             Game.IsBot = false;
-            Game.SoftG = GameManager.Settings.SoftG;
+            Game.SoftG = Game.Settings.SoftG;
             return;
         });
         BotThread.Priority = ThreadPriority.Highest;
@@ -975,7 +975,7 @@ public sealed class BotByScore : Bot
         return new double[] { h, caves, pillars, rowtrans, coltrans, sent, cleared, intent };
     }
 
-    protected ulong HashBoard(Piece piece, Piece _hold, int nexti, int depth, double cleared, double trash, double intent)
+    ulong HashBoard(Piece piece, Piece _hold, int nexti, int depth, double cleared, double trash, double intent)
     {
         ulong hash = PieceHashTable[piece.PieceType] ^ HoldHashTable[_hold.PieceType];
         for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++)
@@ -984,7 +984,7 @@ public sealed class BotByScore : Bot
         return hash ^ HashState(cleared, trash, intent);
     }
 
-    protected ulong HashState(double cleared, double trash, double intent)
+    ulong HashState(double cleared, double trash, double intent)
     {
         ulong hash = 0;
         for (int i = 0, shift = 0; i < 4; i++)

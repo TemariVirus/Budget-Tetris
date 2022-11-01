@@ -1,8 +1,6 @@
 ﻿namespace Tetris;
 
 using System.Diagnostics;
-using static Tetris.Game;
-
 sealed class PCFinder
 {   
     private sealed class DoublyLinkedMatrix
@@ -383,7 +381,7 @@ sealed class PCFinder
 
     public bool ShowMode = false, Wait = false, GoNext = false;
     long NodeCount, PCCount;
-    Stopwatch sw = new Stopwatch();
+    readonly Stopwatch sw = new Stopwatch();
 
     bool Busy = false, CanHold;
     GameBase PathFind;
@@ -394,7 +392,7 @@ sealed class PCFinder
         if (Busy) return false;
 
         Busy = true;
-        GameManager.Games[0].DrawAll();
+        Game.Games[0].DrawAll();
         NodeCount = 0;
         PCCount = 0;
         
@@ -406,7 +404,7 @@ sealed class PCFinder
         {
             while (Busy)
             {
-                GameManager.Games[0].WriteAt(0, 25, ConsoleColor.White, "Nodes/s: " + NodeCount / sw.Elapsed.TotalSeconds);
+                Game.Games[0].WriteAt(0, 25, ConsoleColor.White, "Nodes/s: " + NodeCount / sw.Elapsed.TotalSeconds);
                 Thread.Sleep(1000);
             }
         }).Start();
@@ -540,9 +538,9 @@ sealed class PCFinder
                 DrawPiece(placement, false);
         if (Wait)
         {
-            GameManager.Games[0].WriteAt(0, 25, ConsoleColor.White, "PC found");
+            Game.Games[0].WriteAt(0, 25, ConsoleColor.White, "PC found");
             WaitNext();
-            GameManager.Games[0].WriteAt(0, 25, ConsoleColor.White, "        ");
+            Game.Games[0].WriteAt(0, 25, ConsoleColor.White, "        ");
         }
 
         int next_index = -1;
@@ -664,14 +662,14 @@ sealed class PCFinder
         int y_index = 0;
         for (int i = 3; i >= 0; i--)
         {
-            GameManager.Games[0].WriteAt((data.Piece.X(i) + data.X) * 2 + 12, 21 - data.Ys[y_index], color, "██");
+            Game.Games[0].WriteAt((data.Piece.X(i) + data.X) * 2 + 12, 21 - data.Ys[y_index], color, "██");
             if (i > 0)
             {
                 if (data.Piece.Y(i) != data.Piece.Y(i - 1))
                     y_index++;
             }
         }
-        GameManager.Games[0].WriteAt(0, 23, ConsoleColor.White, "Nodes searched: " + NodeCount + "           ");
-        GameManager.Games[0].WriteAt(0, 24, ConsoleColor.White, "PCs checked: " + PCCount + "           ");
+        Game.Games[0].WriteAt(0, 23, ConsoleColor.White, "Nodes searched: " + NodeCount + "           ");
+        Game.Games[0].WriteAt(0, 24, ConsoleColor.White, "PCs checked: " + PCCount + "           ");
     }
 }
