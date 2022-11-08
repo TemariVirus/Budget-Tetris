@@ -1,8 +1,8 @@
-﻿namespace Tetris;
-
-using System.Numerics;
+﻿using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Text;
+
+namespace Tetris;
 
 [StructLayout(LayoutKind.Sequential)]
 public readonly struct MatrixMask
@@ -280,7 +280,7 @@ public readonly struct MatrixMask
     public override string ToString()
     {
         StringBuilder sb = new StringBuilder(275);
-        for (int i = 249; i >= 10; i--)
+        for (int i = 249; i >= 0; i--)
         {
             sb.Append((this >> i).LowLow & 1);
             if (i % 10 == 0) sb.Append(' ');

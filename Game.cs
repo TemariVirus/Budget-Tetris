@@ -1,14 +1,11 @@
-﻿namespace Tetris;
-
-using FastConsole;
+﻿using FastConsole;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Threading;
+
+namespace Tetris;
 
 public enum Moves
 {
@@ -37,6 +34,9 @@ public readonly struct GameSettings
 {
     public static readonly string DefaultPath = AppContext.BaseDirectory + "Settings.json";
 
+    public double SFXVolume { get; init; }
+    public double BGMVolume { get; init; }
+
     public int[] LinesTrash { get; init; }
     public int[] TSpinTrash { get; init; }
     public int[] ComboTrash { get; init; }
@@ -55,6 +55,9 @@ public readonly struct GameSettings
 
     public static readonly GameSettings Default = new GameSettings()
     {
+        SFXVolume = 0.1,
+        BGMVolume = 0.1,
+
         LinesTrash = new int[] { 0, 0, 1, 2, 4 },
         TSpinTrash = new int[] { 0, 2, 4, 6 },
         //ComboTrash = new int[] { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }, // Tetris 99
@@ -286,28 +289,28 @@ public class GameBase
 
     public int TSpinType(bool rotatedLast)
     {
-        // 19 = 10 + T.MaxX
-        const int ALL_CORNERS = ((0b101 << 20) | 0b101) << 19;
-        const int NO_BR = ((0b101 << 20) | 0b100) << 19;
-        const int NO_BL = ((0b101 << 20) | 0b001) << 19;
-        const int NO_TL = ((0b001 << 20) | 0b101) << 19;
-        const int NO_TR = ((0b100 << 20) | 0b101) << 19;
+        const int ALL_CORNERS = (0b101 << 20) | 0b101;
+        const int NO_BR = (0b101 << 20) | 0b100;
+        const int NO_BL = (0b101 << 20) | 0b001;
+        const int NO_TL = (0b001 << 20) | 0b101;
+        const int NO_TR = (0b100 << 20) | 0b101;
 
         if (!rotatedLast || (Current.PieceType != Piece.T)) return 0;
 
-        int pos = 10 * Y - X;
+        // Allign the matrix so that the t-spin is at bottom left
+        int pos = 10 * Y - X - 2;
         ulong corners = (Matrix >> pos).LowLow & ALL_CORNERS;
 
         if (corners == ALL_CORNERS) return 3;
         switch (Current.R)
         {
             case Piece.ROTATION_NONE:
-                if (Y == Current.MinY) corners |= 0b101 << 19;
+                if (Y == Current.MinY) corners |= 0b101;
                 if (corners == NO_BR || corners == NO_BL) return 3;
                 if (corners == NO_TR || corners == NO_TL) return 2;
                 break;
             case Piece.ROTATION_CW:
-                if (X == Current.MinX) corners |= ((0b100 << 20) | 0b100) << 19;
+                if (X == Current.MinX) corners |= (0b100 << 20) | 0b100;
                 if (corners == NO_TL || corners == NO_BL) return 3;
                 if (corners == NO_TR || corners == NO_BR) return 2;
                 break;
@@ -316,7 +319,7 @@ public class GameBase
                 if (corners == NO_BR || corners == NO_BL) return 2;
                 break;
             case Piece.ROTATION_CCW:
-                if (X == Current.MaxX) corners |= ((0b001 << 20) | 0b001) << 19;
+                if (X == Current.MaxX) corners |= (0b001 << 20) | 0b001;
                 if (corners == NO_TR || corners == NO_BR) return 3;
                 if (corners == NO_TL || corners == NO_BL) return 2;
                 break;
@@ -665,8 +668,6 @@ public sealed class Game : GameBase
 
     public const int GameWidth = 44;
     public const int GameHeight = 24;
-    int XOffset = 0;
-    int YOffset = 0;
 
     static readonly string[] ClearText = { "SINGLE", "DOUBLE", "TRIPLE", "TETRIS" };
     public static readonly ConsoleColor[] PieceColors =
@@ -684,16 +685,11 @@ public sealed class Game : GameBase
         };
     static readonly ConsoleColor[] GarbageLineColor = new ConsoleColor[10].Select(x => PieceColors[Piece.Garbage]).ToArray();
 
-    public static int[] LinesTrash { get; private set; } = { 0, 0, 1, 2, 4 };
-    public static int[] TSpinTrash { get; private set; } = { 0, 2, 4, 6 };
-    //public static int[] ComboTrash { get; private set; } = { 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Tetris 99
-    public static int[] ComboTrash { get; private set; } = { 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 }; // Jstris
-    public static int[] PCTrash { get; private set; } = { 0, 10, 10, 10, 10 };
-
-
     #region // Fields and Properties
-
     public readonly ConsoleColor[][] MatrixColors = new ConsoleColor[24][]; // [y][x]
+
+    int XOffset = 0;
+    int YOffset = 0;
 
     private string _Name = "";
     public string Name
@@ -755,23 +751,17 @@ public sealed class Game : GameBase
             if (_IsPaused)
             {
                 GlobalTime.Stop();
-                foreach (Game g in Games)
-                {
-                    g.LockT.Stop();
-                }
             }
             else
             {
                 GlobalTime.Start();
                 foreach (Game g in Games)
-                {
-                    if (g.OnGround()) g.LockT.Start();
                     Task.Delay(Settings.GarbageDelay).ContinueWith(t => g.DrawTrashMeter());
-                }
             }
         }
     }
-
+    public static bool IsMuted = false;
+    
     public int B2B { get; internal set; } = -1;
     public int Combo { get; internal set; } = -1;
 
@@ -784,7 +774,7 @@ public sealed class Game : GameBase
     public int AutoLockGrace = Settings.AutoLockGrace;
     int MoveCount = 0;
     bool IsLastMoveRotate = false, AlreadyHeld = false;
-    readonly Stopwatch LockT = new Stopwatch();
+    long LockT = -1;
     readonly List<CancellationTokenSource> EraseCancelTokenSrcs = new List<CancellationTokenSource>();
 
     readonly Random GarbageRand;
@@ -842,8 +832,9 @@ public sealed class Game : GameBase
 
     public static void InitWindow(int size = 16)
     {
-        if (Sound.SoundThread == null)
-            Sound.InitSound();
+        Sound.SFXVolume = Settings.SFXVolume;
+        Sound.BGMVolume = Settings.BGMVolume;
+        Sound.InitSound();
         // Set up console
         Console.Title = "Tetris NEAT AI Training";
         FConsole.Framerate = 30;
@@ -857,6 +848,8 @@ public sealed class Game : GameBase
                 g.Tick();
             }
         });
+
+        SaveSettings();
     }
 
     public static GameSettings LoadSettings(string path = null)
@@ -950,7 +943,7 @@ public sealed class Game : GameBase
         StartTime = CurrentTime;
         LastFrameTime = StartTime;
         LastTargetChangeTime = CurrentMillis;
-        LockT.Reset();
+        LockT = -1;
         Garbage.Clear();
         //TargetMode = TargetModes.Random;
         Targets.Clear();
@@ -1014,14 +1007,16 @@ public sealed class Game : GameBase
         if (OnGround())
         {
             Vel = 0;
-            LockT.Start();
+            // Take note of the time it touched the ground
+            if (LockT < 0)
+                LockT = CurrentMillis;
             // Lock piece
-            if ((MoveCount > AutoLockGrace) || (LockT.ElapsedMilliseconds > LockDelay))
+            if ((MoveCount > AutoLockGrace) || (CurrentMillis - LockT > LockDelay))
                 PlacePiece();
         }
         else
         {
-            if (MoveCount < AutoLockGrace) LockT.Reset();
+            if (MoveCount < AutoLockGrace) LockT = -1;
             Vel -= Drop((int)Vel, softDrop ? 1 : 0); // Round Vel down
         }
 
@@ -1045,9 +1040,10 @@ public sealed class Game : GameBase
         DrawCurrent(true);
         if (TrySlide(dx))
         {
-            Sound.Slide.Play();
+            if (!IsMuted)
+                Sound.Slide.Play();
             IsLastMoveRotate = false;
-            if (MoveCount++ < AutoLockGrace) LockT.Restart();
+            if (MoveCount++ < AutoLockGrace) LockT = OnGround() ? CurrentMillis : -1;
         }
         DrawCurrent(false);
     }
@@ -1075,9 +1071,10 @@ public sealed class Game : GameBase
             DrawCurrent(true);
             if (TryRotate(dr))
             {
-                Sound.Rotate.Play();
+                if (!IsMuted)
+                    Sound.Rotate.Play();
                 IsLastMoveRotate = true;
-                if (MoveCount++ < AutoLockGrace) LockT.Restart();
+                if (MoveCount++ < AutoLockGrace) LockT = OnGround() ? CurrentMillis : -1;
             }
             DrawCurrent(false);
         }
@@ -1087,9 +1084,8 @@ public sealed class Game : GameBase
     {
         if (!AlreadyHeld)
         {
-            Sound.Hold.Play();
-            AlreadyHeld = true;
-            IsLastMoveRotate = false;
+            if (!IsMuted)
+                Sound.Hold.Play();
 
             // Undraw
             DrawCurrent(true);
@@ -1109,7 +1105,8 @@ public sealed class Game : GameBase
             // Redraw
             DrawPieceAt(Hold, 3, 3, false);
             DrawCurrent(false);
-            LockT.Restart();
+            AlreadyHeld = true;
+            IsLastMoveRotate = false;
         }
     }
 
@@ -1156,7 +1153,7 @@ public sealed class Game : GameBase
         // Check if leveled up
         int old_level = Level;
         Lines += cleared;
-        if (old_level < Level)
+        if (!IsMuted && old_level < Level)
             Sound.LvlUp.Play();
 
         // Write stats to console
@@ -1191,10 +1188,10 @@ public sealed class Game : GameBase
 
 
         // Trash sent
-        int trash = pc ? PCTrash[cleared] :
-                    tspin == 3 ? TSpinTrash[cleared] :
-                                 LinesTrash[cleared];
-        if (Combo > 0) trash += ComboTrash[Math.Min(Combo, ComboTrash.Length) - 1];
+        int trash = pc ? Settings.PCTrash[cleared] :
+                    tspin == 3 ? Settings.TSpinTrash[cleared] :
+                                 Settings.LinesTrash[cleared];
+        if (Combo > 0) trash += Settings.ComboTrash[Math.Min(Combo, Settings.ComboTrash.Length) - 1];
         if (b2b_active) trash++;
 
         // Stats
@@ -1219,26 +1216,26 @@ public sealed class Game : GameBase
         // Dump the trash
         if (cleared == 0)
         {
-            bool garbage_dumped = false;
+            int garbage_dumped = 0;
             while (Garbage.Count > 0)
             {
                 if (CurrentMillis - Garbage[0].Time <= Settings.GarbageDelay) break;
 
                 int lines_to_add = Garbage[0].Lines;
+                garbage_dumped += lines_to_add;
                 Garbage.RemoveAt(0);
                 int hole = GarbageRand.Next(10);
                 int bedrock_height = 0;
                 while (Matrix.GetRow(bedrock_height) == MatrixMask.FULL_LINE) bedrock_height++;
-                bedrock_height--;
                 // Move stuff up
-                MatrixMask top = (Matrix & MatrixMask.InverseHeightMasks[bedrock_height + 1]) << (lines_to_add * 10);
-                Matrix = top | (Matrix & MatrixMask.HeightMasks[bedrock_height + 1]);
-                for (int y = MatrixColors.Length - lines_to_add - 1; y > bedrock_height; y--)
+                MatrixMask top = (Matrix & MatrixMask.InverseHeightMasks[bedrock_height]) << (lines_to_add * 10);
+                Matrix = top | MatrixMask.HeightMasks[bedrock_height];
+                for (int y = MatrixColors.Length - lines_to_add - 1; y > bedrock_height - 1; y--)
                     MatrixColors[y + lines_to_add] = MatrixColors[y];
                 // Add garbage
-                for (int y = bedrock_height + 1; y < bedrock_height + lines_to_add + 1; y++)
+                for (int y = bedrock_height; y < bedrock_height + lines_to_add; y++)
                 {
-                    MatrixMask garbage_line = new MatrixMask() { LowLow = ~(1UL << (9 - hole)) << 10 } & MatrixMask.HeightMasks[1];
+                    MatrixMask garbage_line = new MatrixMask() { LowLow = ~(1UL << (9 - hole)) } & MatrixMask.HeightMasks[1];
                     garbage_line <<= y * 10;
                     Matrix |= garbage_line;
 
@@ -1247,11 +1244,10 @@ public sealed class Game : GameBase
                     // Add hole
                     MatrixColors[y][hole] = PieceColors[Piece.EMPTY];
                 }
-
-                garbage_dumped = true;
             }
 
-            //if (garbage_dumped) Playsfx(Sounds.garbage);
+            if (garbage_dumped > 0)
+                (garbage_dumped >= 10 ? Sound.GarbageLarge : Sound.GarbageSmall).Play();
         }
         DrawTrashMeter();
         if (trash > 0) SendTrash(trash);
@@ -1316,7 +1312,7 @@ public sealed class Game : GameBase
         AlreadyHeld = false;
         Vel = 0;
         MoveCount = 0;
-        LockT.Reset();
+        LockT = -1;
         // Check for block out
         if (Matrix.Intersects(Current.Masks(X, Y))) IsDead = true;
         // Check for lock out

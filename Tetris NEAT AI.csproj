@@ -12,6 +12,8 @@
   <ItemGroup>
     <None Remove="Sounds\bfall.wav" />
     <None Remove="Sounds\double.wav" />
+    <None Remove="Sounds\garbagelarge.wav" />
+    <None Remove="Sounds\garbagesmall.wav" />
     <None Remove="Sounds\harddrop.wav" />
     <None Remove="Sounds\hold.wav" />
     <None Remove="Sounds\Korobeiniki Remix.wav" />
@@ -32,6 +34,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Sounds\double.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\garbagelarge.wav">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Sounds\garbagesmall.wav">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Sounds\harddrop.wav">

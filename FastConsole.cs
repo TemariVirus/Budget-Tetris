@@ -4,7 +4,9 @@ using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 static class FConsole
 {
@@ -16,6 +18,8 @@ static class FConsole
     static Action RenderCallback;
     static Action InputLoopCallback;
 
+    public static Thread SwitchFocusThread { get; private set; }
+
     // Throws an exception if it failed to grab the CONOUT$ file handle
     // Otherwise, starts the console update loop on a separate thread
     // The callback is called at the end of each frame
@@ -26,18 +30,33 @@ static class FConsole
         if (ConoutHandle.IsInvalid) throw new System.ComponentModel.Win32Exception();
         else
         {
+            // Rendering
             Width = (short)Console.BufferWidth;
             Height = (short)Console.BufferHeight;
             Console.CursorVisible = CursorVisible;
             ConsoleBuffer = new int[Width * Height];
-            Console.OutputEncoding = System.Text.Encoding.Unicode;
+            Console.OutputEncoding = Encoding.Unicode;
             RenderThread = new Thread(RenderLoop);
             RenderCallback = renderCallback;
+            RenderThread.Priority = ThreadPriority.Lowest;
             RenderThread.Start();
 
+            // Check for focus switching
+            SwitchFocusThread = new Thread(() =>
+            {
+                SwitchFocusDelegate = new WinEventDelegate((_, _, _, _, _, _, _) => IsFocused = WindowIsFocused());
+                IntPtr m_hhook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, SwitchFocusDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
+                Dispatcher.Run();
+            });
+            SwitchFocusThread.Priority = ThreadPriority.Lowest;
+            SwitchFocusThread.Start();
+            IsFocused = WindowIsFocused();
+
+            // Input
             InputThread = new Thread(InputLoop);
             InputThread.SetApartmentState(ApartmentState.STA);
             InputLoopCallback = inputCallback;
+            InputThread.Priority = ThreadPriority.Lowest;
             InputThread.Start();
         }
     }
@@ -214,7 +233,6 @@ static class FConsole
                 // Reset cursor visibility
                 Console.CursorVisible = CursorVisible;
             }
-            ForceRender();
 
             // Write fps
             long newT = Time.ElapsedTicks;
@@ -223,6 +241,7 @@ static class FConsole
             if (draw_times.Count > 16) oldT = draw_times.Dequeue();
             else oldT = draw_times.Peek();
             WriteAt($"{Math.Round((double)draw_times.Count / (newT - oldT) * Stopwatch.Frequency, 2)}fps".PadRight(10), 1, 0);
+            ForceRender();
 
             // Callback
             RenderCallback?.Invoke();
@@ -429,9 +448,28 @@ static class FConsole
 
     private static readonly List<KeyListener> KeyListeners = new List<KeyListener>();
 
+    private static bool IsFocused;
+
+    private static WinEventDelegate SwitchFocusDelegate;
+    delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
+
+    private const uint WINEVENT_OUTOFCONTEXT = 0;
+    private const uint EVENT_SYSTEM_FOREGROUND = 3;
+
+    [DllImport("user32.dll")]
+    static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
+
+    [DllImport("user32.dll")]
+    static extern bool UnhookWinEvent(IntPtr hWinEventHook);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
     private static void InputLoop()
     {
-        Queue<long> times = new Queue<long>();
         while (true)
         {
             long time = Time.ElapsedTicks;
@@ -440,15 +478,19 @@ static class FConsole
                 if (KeyListeners[i] != null)
                     if (KeyListeners[i].Remove)
                         KeyListeners.RemoveAt(i--);
-            // Check for key events
-            for (int i = 0; i < KeyListeners.Count; i++)
-                KeyListeners[i]?.Check();
 
-            // Callback function
-            InputLoopCallback?.Invoke();
+            if (IsFocused)
+            {
+                // Check for key events
+                for (int i = 0; i < KeyListeners.Count; i++)
+                    KeyListeners[i].Check();
+
+                // Callback function
+                InputLoopCallback?.Invoke();
+            }
 
             // Try to get ~2000 loops per second, since the smallest precision is a millisecond
-            while (Time.ElapsedTicks - time < Stopwatch.Frequency / 2400) Thread.Sleep(0);
+            while (Time.ElapsedTicks - time < Stopwatch.Frequency / 2100) Thread.Sleep(0);
         }
     }
 
@@ -491,6 +533,12 @@ static class FConsole
         }
     }
 
+    public static void RemoveAllListeners()
+    {
+        for (int i = 0; i < KeyListeners.Count; i++)
+            KeyListeners[i].Remove = true;
+    }
+
     public static void RemoveAllListeners(Key key)
     {
         for (int i = 0; i < KeyListeners.Count; i++)
@@ -506,5 +554,16 @@ static class FConsole
 
     public static void RemoveOnHoldListeners(Key key) =>
         RemoveListeners(key, true, true);
+
+    public static bool WindowIsFocused()
+    {
+        IntPtr handle = GetForegroundWindow();
+        StringBuilder sb = new StringBuilder(256);
+
+        if (GetWindowText(handle, sb, 256) > 0)
+            return sb.ToString() == Console.Title;
+
+        return false;
+    }
     #endregion
 }

@@ -23,12 +23,12 @@ static class Program
         FConsole.Set(FConsole.Width, FConsole.Height + 2);
         Game.IsPaused = true;
         Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        //left.Start(300, 0);
+        left.Start(300, 0);
         games[1].SetupPlayerInput();
-        //Bot right = new BotByScore(NN.LoadNN(BaseDirectory + @"NNs\Temare.txt"), games[1]);
-        //right.Start(100, 0);
+        Bot right = new BotByScore(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
+        //right.Start(300, 0);
         Game.IsPaused = false;
-
+        
         PCFinder pc = new PCFinder();
         FConsole.AddOnPressListener(Key.S, () => pc.ShowMode = !pc.ShowMode);
         //FConsole.AddOnPressListener(Key.W, () => pc.Wait = !pc.Wait);
@@ -44,8 +44,8 @@ static class Program
         {
             for (int j = 0; j < 10; j++)
             {
-                g.Matrix |= new MatrixMask() { LowLow = MatrixMask.FULL_LINE };
                 g.Matrix <<= 10;
+                g.Matrix |= new MatrixMask() { LowLow = MatrixMask.FULL_LINE };
                 bedrock_row.CopyTo(g.MatrixColors[j], 0);
             }
             g.CheckHeight();

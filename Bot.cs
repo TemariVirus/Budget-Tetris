@@ -182,10 +182,10 @@ public abstract class Bot
         //// Modify _trash(use trash sent * APL and offset it slightly)
         ////if (cleared != 0 && comb > 1) _trash = Math.FusedMultiplyAdd(_trash, _trash / cleared, -1.5);
 
-        trash = pc ? Game.PCTrash[cleared] :
-                tspin == 3 ? Game.TSpinTrash[cleared] :
-                             Game.LinesTrash[cleared];
-        if (combo > 0) trash += Game.ComboTrash[Math.Min(combo, Game.ComboTrash.Length) - 1];
+        trash = pc ? Game.Settings.PCTrash[cleared] :
+                tspin == 3 ? Game.Settings.TSpinTrash[cleared] :
+                             Game.Settings.LinesTrash[cleared];
+        if (combo > 0) trash += Game.Settings.ComboTrash[Math.Min(combo, Game.Settings.ComboTrash.Length) - 1];
         if ((tspin + cleared > 3) && b2b > 0) trash++;
 
         return clears;
@@ -218,7 +218,7 @@ public abstract class Bot
 
 public sealed class BotOld : Bot
 {
-    const double MIN_TRESH = -1, MAX_TRESH = -0.01, MOVE_MUL = 1.05, MOVE_TARGET = 5;
+    const double MIN_TRESH = -1, MAX_TRESH = -0.01, MOVE_MUL = 1.05, MOVE_TARGET = 6;
 
     public bool UsePCFinder = true;
     protected override double MoveTreshStart { get => -0.05; }
