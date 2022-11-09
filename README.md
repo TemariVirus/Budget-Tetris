@@ -8,7 +8,7 @@ I noticed that a number of people are interested in playing this, so I have deci
 Since the app requires Windows Forms for capturing input and playing audio, this only runs on Windows.
 This also requires the .NET 4.6 runtime, which already comes pre-installed on mordern Windows versions. However, if you do not have it, you can install it [here](https://dotnet.microsoft.com/en-us/download/dotnet-framework/thank-you/net46-web-installer).
 
-## Control [^Controls]
+## Control [^1]
 - ***Left/Right arrow keys***: Shift left/right. DAS is supported.
 - ***Up arrow/X key***: Rotate 90 degrees clockwise.
 - ***Z key***: Rotate 90 degrees counter-clockwise
@@ -65,7 +65,7 @@ It is a positive rational number that represents the amount of gravity *added* w
 A value of 20.0 or more will cause pieces to instantly drop down.
 
 #### LockDelay
-The delay, in milliseconds, after which a piece will lock after touching the ground without moving (provided [AutoLockGrace](https://github.com/Zemogus/Budget-Tetris/new/battle-bots-net4.6?readme=1#autolockgrace) has not been exceeded).
+The delay, in milliseconds, after which a piece will lock after touching the ground without moving (provided [AutoLockGrace](https://github.com/Zemogus/Budget-Tetris/tree/battle-bots-net4.6#autolockgrace) has not been exceeded).
 It must be a positive whole number.
 
 #### EraseDelay
@@ -88,5 +88,5 @@ The delay, in milliseconds, after which
 ## Setting up bots
 
 
-[^Controls]: I have plans to make the keybinds customisable in the future.
+[^1]: I have plans to make the keybinds customisable in the future.
 [^PCTrash]: Note you cannot do a perfect clear without clearing any lines, even though clearing 0 lines can still technically be considered a line clear.
