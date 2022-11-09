@@ -8,7 +8,7 @@ I noticed that a number of people are interested in playing this, so I have deci
 Since the app requires Windows Forms for capturing input and playing audio, this only runs on Windows.
 This also requires the .NET 4.6 runtime, which already comes pre-installed on mordern Windows versions. However, if you do not have it, you can install it [here](https://dotnet.microsoft.com/en-us/download/dotnet-framework/thank-you/net46-web-installer).
 
-## Control [^1]
+## Controls [^1]
 - ***Left/Right arrow keys***: Shift left/right. DAS is supported.
 - ***Up arrow/X key***: Rotate 90 degrees clockwise.
 - ***Z key***: Rotate 90 degrees counter-clockwise
