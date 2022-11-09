@@ -51,7 +51,7 @@ If the current combo exceeds the length of the array, the last number in the arr
 #### PCTrash
 The number of lines of trash to send for perfect clears.
 It is an array consisting of 4 positive whole numbers.
-The first element represents how much trash to send if 1 line is cleared, the second if 2 lines are cleared, the third if 3 lines are cleared, etc.[^PCTrash]
+The first element represents how much trash to send if 1 line is cleared, the second if 2 lines are cleared, the third if 3 lines are cleared, etc.[^2]
 
 #### G
 The gravity.
@@ -70,8 +70,8 @@ It must be a positive whole number.
 
 #### EraseDelay
 The delay, in milliseconds, after which the stats of the previous clear will be erased from the screen.
-It must be a positive whole number.
 If a new clear is done within the delay, the stats of the previous clear are overwritten and the delay is reset.
+It must be a positive whole number.
 
 #### GarbageDelay
 The delay, in milliseconds, after which garbage received will be dumped into the player's matrix (aka board/playing field).
@@ -83,10 +83,13 @@ Placing or holding a piece resets the counter.
 It must be a positive whole number.
 
 #### TargetChangeInteval
-The delay, in milliseconds, after which
+The delay, in milliseconds, after which the current targets will be changed.
+This setting only affects the *Random* targetting mode.[^3]
+It must be a positive whole number.
 
 ## Setting up bots
 
 
 [^1]: I have plans to make the keybinds customisable in the future.
-[^PCTrash]: Note you cannot do a perfect clear without clearing any lines, even though clearing 0 lines can still technically be considered a line clear.
+[^2]: Note you cannot do a perfect clear without clearing any lines, even though clearing 0 lines can still technically be considered a line clear.
+[^3]: The *Random* targetting mode is used by default and currently there is no way of changing it.
