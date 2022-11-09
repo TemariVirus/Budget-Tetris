@@ -242,17 +242,17 @@ public readonly struct MatrixMask
     {
         uint[] rows = new uint[24];
         int i = 0, shift;
-        for (shift = 10; i < 5; shift += 10)
+        for (shift = 0; i < 6; shift += 10)
             rows[i++] = (uint)((LowLow >> shift) & FULL_LINE);
         rows[i++] = (uint)((LowLow >> 60) | (LowHigh << 4) & FULL_LINE);
         if (rows[i - 1] == 0) return rows;
 
-        for (shift = 6; i < 11; shift += 10)
+        for (shift = 6; i < 12; shift += 10)
             rows[i++] = (uint)((LowHigh >> shift) & FULL_LINE);
         rows[i++] = (uint)((LowHigh >> 56) | (HighLow << 8) & FULL_LINE);
         if (rows[i - 1] == 0) return rows;
 
-        for (shift = 2; i < 18; shift += 10)
+        for (shift = 2; i < 19; shift += 10)
             rows[i++] = (uint)((HighLow >> shift) & FULL_LINE);
         rows[i++] = (uint)((HighLow >> 62) | (HighHigh << 2) & FULL_LINE);
         if (rows[i - 1] == 0) return rows;

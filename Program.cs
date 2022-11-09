@@ -23,18 +23,28 @@ static class Program
         FConsole.Set(FConsole.Width, FConsole.Height + 2);
         Game.IsPaused = true;
         Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        left.Start(300, 0);
+        //left.Start(300, 0);
         games[1].SetupPlayerInput();
         Bot right = new BotByScore(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
         //right.Start(300, 0);
         Game.IsPaused = false;
-        
+        for (int i = 0; i < 15; i++) games[0].Play(Moves.HardDrop);
+
         PCFinder pc = new PCFinder();
         FConsole.AddOnPressListener(Key.S, () => pc.ShowMode = !pc.ShowMode);
         //FConsole.AddOnPressListener(Key.W, () => pc.Wait = !pc.Wait);
         FConsole.AddOnPressListener(Key.N, () => pc.GoNext = true);
         FConsole.AddOnHoldListener(Key.N, () => pc.GoNext = true, 400, 25);
-        FConsole.AddOnPressListener(Key.P, () => new Thread(() => pc.TryFindPC(games[1], out _)).Start());
+        FConsole.AddOnPressListener(Key.P, () => new Thread(() =>
+        {
+            for (int i = 0; i < 20; i++)
+                games[0].MatrixColors[i] = new ConsoleColor[10].Select(x => ConsoleColor.Black).ToArray();
+            games[0].DrawAll();
+            pc.TryFindPC(games[1], out _);
+        }).Start());
+
+        
+        games[0].DrawAll();
     }
 
     static void HalfHeight()

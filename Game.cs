@@ -34,8 +34,8 @@ public readonly struct GameSettings
 {
     public static readonly string DefaultPath = AppContext.BaseDirectory + "Settings.json";
 
-    public double SFXVolume { get; init; }
     public double BGMVolume { get; init; }
+    public double SFXVolume { get; init; }
 
     public int[] LinesTrash { get; init; }
     public int[] TSpinTrash { get; init; }
@@ -55,8 +55,8 @@ public readonly struct GameSettings
 
     public static readonly GameSettings Default = new GameSettings()
     {
-        SFXVolume = 0.1,
         BGMVolume = 0.1,
+        SFXVolume = 0.1,
 
         LinesTrash = new int[] { 0, 0, 1, 2, 4 },
         TSpinTrash = new int[] { 0, 2, 4, 6 },
@@ -888,7 +888,7 @@ public sealed class Game : GameBase
         {
             Games[i].XOffset = (i % width) * (GameWidth + 1) + 1;
             Games[i].YOffset = (i / width) * GameHeight + 1;
-            if (Games[i].IsDead) Games[i].Restart();
+            Games[i].Restart();
             Games[i].DrawAll();
         }
     }
@@ -905,6 +905,7 @@ public sealed class Game : GameBase
         FConsole.AddOnHoldListener(Key.Right, () => Play(Moves.DASRight), 133, 15);
 
         FConsole.AddOnPressListener(Key.Up, () => Play(Moves.RotateCW));
+        FConsole.AddOnPressListener(Key.X, () => Play(Moves.RotateCW));
         FConsole.AddOnPressListener(Key.Z, () => Play(Moves.RotateCCW));
         FConsole.AddOnPressListener(Key.A, () => Play(Moves.Rotate180));
 
@@ -912,7 +913,16 @@ public sealed class Game : GameBase
         FConsole.AddOnPressListener(Key.Space, () => Play(Moves.HardDrop));
 
         FConsole.AddOnPressListener(Key.C, () => Play(Moves.Hold));
-        FConsole.AddOnPressListener(Key.R, () => Restart());
+        FConsole.AddOnPressListener(Key.R, () =>
+        {
+            int seed = PieceRand.Next();
+            foreach (Game game in Games)
+            {
+                game.PieceRand = new Random(seed);
+                game.Restart();
+                game.DrawAll();
+            }
+        });
         FConsole.AddOnPressListener(Key.Escape, () => IsPaused = !IsPaused);
         FConsole.AddOnPressListener(Key.M, () => Sound.IsMuted = !Sound.IsMuted);
     }
@@ -922,6 +932,7 @@ public sealed class Game : GameBase
         Matrix = new MatrixMask();
         CheckHeight();
         for (int i = 0; i < MatrixColors.Length; i++) MatrixColors[i] = new ConsoleColor[MatrixColors[i].Length];
+        Bag = new Piece[] { Piece.T, Piece.I, Piece.L, Piece.J, Piece.S, Piece.Z, Piece.O };
         BagIndex = Bag.Length;
         for (int i = 0; i < Next.Length; i++) Next[i] = NextPiece();
         Hold = Piece.EMPTY;
@@ -949,7 +960,6 @@ public sealed class Game : GameBase
         Targets.Clear();
 
         SpawnNextPiece();
-        DrawAll();
     }
 
     public void Tick()
