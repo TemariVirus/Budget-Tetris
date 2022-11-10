@@ -231,7 +231,7 @@ namespace Tetris {
             _Masks = new PieceMask[MaxX - MinX + 1][];
             for (int i = 0; i < _Masks.Length; i++)
             {
-                _Masks[i] = new PieceMask[32];
+                _Masks[i] = new PieceMask[40];
                 for (int j = 0; j < _Masks[i].Length; j++)
                     _Masks[i][j] = GetMask(i + MinX, j + MinY);
             }
@@ -277,7 +277,7 @@ namespace Tetris {
             for (int i = 0; i < 4; i++)
                 mask |= 1UL << (XYToPos(x + _X[i], y - _Y[i]) - start);
 
-            return new PieceMask(mask: mask, offset: start / 32);
+            return new PieceMask(mask: mask, offset: Math.Max(0, Math.Min(7, start / 32)));
         }
 
         private static int XYToPos(int x, int y) => (9 - x) + (10 * y);
@@ -742,8 +742,8 @@ namespace Tetris {
 
         const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
 
-        public const int GameWidth = 44;
-        public const int GameHeight = 24;
+        public static int GameWidth { get; private set; } = 44;
+        public static int GameHeight { get; private set; } = 24;
 
         static readonly string[] ClearText = { "SINGLE", "DOUBLE", "TRIPLE", "TETRIS" };
         public static readonly ConsoleColor[] PieceColors =
@@ -934,6 +934,7 @@ namespace Tetris {
                 {
                     game.PieceRand = new Random(seed);
                     game.Restart();
+                    game.ClearScreen();
                     game.DrawAll();
                 }
             });
@@ -945,11 +946,17 @@ namespace Tetris {
         {
             Games = games;
             GlobalTime.Restart();
+            GameHeight = games.Any(x => x.IsBot) ? 27 : 24;
 
-            // Find width and height (~2:1 ratio)
-            int width = (int)Math.Sqrt(Games.Length / 2) * 2, height = width / 2;
-            if (width * height < Games.Length) width++;
-            if (width * height < Games.Length) height++;
+            // Find width and height in terms of games (appox. 16:9 aspect ratio)
+            int width = (int)Math.Sqrt((double)games.Length * (GameWidth / 2) / GameHeight * 16D / 9D);
+            int height = Games.Length / width;
+            while (width * height < Games.Length)
+            {
+                width++;
+                if (width * height < Games.Length)
+                    height++;
+            }
 
             FConsole.Set(width * (GameWidth + 1) + 1, height * GameHeight + 1);
             FConsole.Clear();
@@ -960,6 +967,7 @@ namespace Tetris {
                 Games[i].XOffset = (i % width) * (GameWidth + 1) + 1;
                 Games[i].YOffset = (i / width) * GameHeight + 1;
                 Games[i].Restart();
+                Games[i].ClearScreen();
                 Games[i].DrawAll();
             }
         }
@@ -1140,6 +1148,8 @@ namespace Tetris {
                 if (MoveCount < AutoLockGrace) LockT = -1;
                 Vel -= Drop((int)Vel, softDrop ? 1 : 0); // Round Vel down
             }
+
+            DrawAll();
 
             // Write stats
             WriteAt(0, 20, ConsoleColor.White, $"Sent:{Sent}".PadRight(11));
@@ -1521,7 +1531,6 @@ namespace Tetris {
 
         public void DrawAll()
         {
-            ClearScreen();
             #region // Draw outlines
             WriteAt(17, 0, ConsoleColor.White, "LINES - ");
             WriteAt(25, 0, ConsoleColor.White, Lines.ToString().PadRight(45 - 26));
@@ -1565,6 +1574,8 @@ namespace Tetris {
             DrawCurrent(false);
             // Draw trash meter
             DrawTrashMeter();
+            // Write name
+            Name = Name;
         }
         #endregion
     }

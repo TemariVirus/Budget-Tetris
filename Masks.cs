@@ -246,7 +246,7 @@ namespace Tetris {
                 case 19:
                     row = (HighLow >> 62) | (HighHigh << 2);
                     break;
-                case int n when n < 25:
+                case int n when n < 26:
                     row = HighHigh >> ((height - 19) * 10 - 2);
                     break;
                 default:
@@ -257,7 +257,7 @@ namespace Tetris {
 
         public uint[] GetRows()
         {
-            uint[] rows = new uint[24];
+            uint[] rows = new uint[25];
             int i = 0, shift;
             for (shift = 0; i < 6; shift += 10)
                 rows[i++] = (uint)((LowLow >> shift) & FULL_LINE);
@@ -274,7 +274,7 @@ namespace Tetris {
             rows[i++] = (uint)((HighLow >> 62) | (HighHigh << 2) & FULL_LINE);
             if (rows[i - 1] == 0) return rows;
 
-            for (shift = 8; i < 24; shift += 10)
+            for (shift = 8; i < 25; shift += 10)
                 rows[i++] = (uint)((HighHigh >> shift) & FULL_LINE);
 
             return rows;
@@ -321,8 +321,8 @@ namespace Tetris {
 
         public PieceMask(ulong mask = 0, int offset = 0)
         {
-            this.Mask = mask;
-            this.Offset = offset;
+            Mask = mask;
+            Offset = offset;
         }
         
         public static PieceMask operator ~(PieceMask value) =>

@@ -1,5 +1,4 @@
-﻿using FastConsole;
-using NEAT;
+﻿using NEAT;
 using Tetris;
 
 using System;
@@ -10,11 +9,10 @@ using System.Runtime.Serialization.Json;
 using System.Text;
 
 // Inputs: standard height, caves, pillars, row transitions, col transitions, trash, cleared, intent
-// Outputs: score of state, intent(don't search further if it drops below a treshold)
+// Outputs: score of state, intent (don't search further if it drops below a treshold)
 //TODO:
 //-add RemoveAllListeners method that uses a predicate
 //-move PieceColors to Piece class
-//-handle games' widths and heights chaning mid-game
 namespace Tetris_NEAT_AI
 {
     [DataContract]
@@ -111,7 +109,6 @@ namespace Tetris_NEAT_AI
             }
             if (config.Bots.Length > 0)
             {
-                FConsole.Set(FConsole.Width, FConsole.Height + 2);
                 for (int i = 0; i < config.Bots.Length; i++)
                 {
                     NN nn = NN.LoadNN(AppContext.BaseDirectory + config.Bots[i].NNPath);
@@ -121,7 +118,9 @@ namespace Tetris_NEAT_AI
                     bot.Start(config.Bots[i].ThinkTime, config.Bots[i].MoveDelay);
                 }
             }
-
+            
+            Game.SetGames(games);
+            
             Game.IsPaused = false;
         }
     }

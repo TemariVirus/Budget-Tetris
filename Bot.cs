@@ -113,7 +113,7 @@ namespace Tetris
                 {
                     // Check if should stop
                     if (ToStop) break;
-                    if (Game.IsDead) Thread.Sleep(0);
+                    if (Game.IsDead || Game.IsPaused) Thread.Sleep(0);
 
                     // Find moves
                     Game.Tick();
@@ -131,11 +131,11 @@ namespace Tetris
                         }
                     }
                     // Stats
-                    Game.WriteAt(0, Game.GameHeight - 1, ConsoleColor.White, $"Depth: {(int)MaxDepth}".PadRight(Game.GameWidth));
+                    Game.WriteAt(0, Game.GameHeight - 4, ConsoleColor.White, $"Depth: {(int)MaxDepth}".PadRight(Game.GameWidth));
                     long count = NodeCounts.Aggregate(0, (aggregate, next) => (next == 0) ? aggregate : aggregate + 1);
                     if (count == 0) count++;
-                    Game.WriteAt(0, Game.GameHeight, ConsoleColor.White, $"Nodes: {NodeCounts.Sum() / count}".PadRight(Game.GameWidth));
-                    Game.WriteAt(0, Game.GameHeight + 1, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(16, '0'));
+                    Game.WriteAt(0, Game.GameHeight - 3, ConsoleColor.White, $"Nodes: {NodeCounts.Sum() / count}".PadRight(Game.GameWidth));
+                    Game.WriteAt(0, Game.GameHeight - 2, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(16, '0'));
                     for (int i = NodeCounts.Length - 1; i > 0; i--)
                         NodeCounts[i] = NodeCounts[i - 1];
                     NodeCounts[0] = 0;
@@ -150,9 +150,9 @@ namespace Tetris
             BotThread.Start();
 
             // Write stats
-            Game.WriteAt(0, Game.GameHeight - 1, ConsoleColor.White, $"Depth: 0".PadRight(Game.GameWidth));
-            Game.WriteAt(0, Game.GameHeight, ConsoleColor.White, $"Nodes: 0".PadRight(Game.GameWidth));
-            Game.WriteAt(0, Game.GameHeight + 1, ConsoleColor.White, $"Tresh: 0.000000");
+            Game.WriteAt(0, Game.GameHeight - 4, ConsoleColor.White, $"Depth: 0".PadRight(Game.GameWidth));
+            Game.WriteAt(0, Game.GameHeight - 3, ConsoleColor.White, $"Nodes: 0".PadRight(Game.GameWidth));
+            Game.WriteAt(0, Game.GameHeight - 2, ConsoleColor.White, $"Tresh: 0.000000");
         }
 
         public void Stop()
