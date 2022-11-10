@@ -113,7 +113,11 @@ namespace Tetris
                 {
                     // Check if should stop
                     if (ToStop) break;
-                    if (Game.IsDead || Game.IsPaused) Thread.Sleep(0);
+                    if (Game.IsDead || Game.IsPaused)
+                    {
+                        Thread.Sleep(0);
+                        continue;
+                    }
 
                     // Find moves
                     Game.Tick();
