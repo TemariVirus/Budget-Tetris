@@ -105,13 +105,19 @@ namespace Tetris_NEAT_AI
             Game.IsPaused = true;
 
             if (config.HasPlayer)
+            {
                 games[0].SetupPlayerInput();
+                games[0].Name = "You";
+            }
             if (config.Bots.Length > 0)
             {
                 FConsole.Set(FConsole.Width, FConsole.Height + 2);
                 for (int i = 0; i < config.Bots.Length; i++)
                 {
-                    Bot bot = new BotOld(NN.LoadNN(AppContext.BaseDirectory + config.Bots[i].NNPath), games[i + (config.HasPlayer ? 1 : 0)]);
+                    NN nn = NN.LoadNN(AppContext.BaseDirectory + config.Bots[i].NNPath);
+                    Bot bot = nn.OutputCount == 1 ?
+                        (Bot)new BotOld(nn, games[i + (config.HasPlayer ? 1 : 0)]) :
+                        (Bot)new BotByScore(nn, games[i + (config.HasPlayer ? 1 : 0)]);
                     bot.Start(config.Bots[i].ThinkTime, config.Bots[i].MoveDelay);
                 }
             }
