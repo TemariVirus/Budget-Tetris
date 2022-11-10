@@ -2,11 +2,11 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-	<TargetFramework>net6.0-windows</TargetFramework>
+	<TargetFramework>net4.6-windows</TargetFramework>
 	<RootNamespace>Tetris_NEAT_AI</RootNamespace>
 	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	<ImplicitUsings>enable</ImplicitUsings>
 	<UseWPF>true</UseWPF>
+	<AssemblyName>Budget Tetris</AssemblyName>
   </PropertyGroup>
 
   <ItemGroup>
@@ -85,6 +85,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.XAudio2.Redist" Version="1.2.10" />
+    <PackageReference Include="System.ValueTuple" Version="4.5.0" />
   </ItemGroup>
 
 </Project>

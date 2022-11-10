@@ -1,7 +1,13 @@
 ﻿using FastConsole;
 using NEAT;
-using System.Windows.Input;
 using Tetris;
+
+using System;
+using System.Linq;
+using System.Runtime.Serialization;
+using System.IO;
+using System.Runtime.Serialization.Json;
+using System.Text;
 
 // Inputs: standard height, caves, pillars, row transitions, col transitions, trash, cleared, intent
 // Outputs: score of state, intent(don't search further if it drops below a treshold)
@@ -9,57 +15,108 @@ using Tetris;
 //-add RemoveAllListeners method that uses a predicate
 //-move PieceColors to Piece class
 //-handle games' widths and heights chaning mid-game
-//-change stuff cuz piece coords got reverted
-//-fix volume
-static class Program
+namespace Tetris_NEAT_AI
 {
-    static void Main()
+    [DataContract]
+    public struct BotConfig
     {
-        Game.InitWindow();
-
-        int seed = new Random().Next();
-        Game[] games = new Game[2].Select(x => new Game(24, seed)).ToArray();
-        Game.SetGames(games);
-        FConsole.Set(FConsole.Width, FConsole.Height + 2);
-        Game.IsPaused = true;
-        Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        //left.Start(300, 0);
-        games[1].SetupPlayerInput();
-        Bot right = new BotByScore(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
-        //right.Start(300, 0);
-        Game.IsPaused = false;
-        for (int i = 0; i < 15; i++) games[0].Play(Moves.HardDrop);
-
-        PCFinder pc = new PCFinder();
-        FConsole.AddOnPressListener(Key.S, () => pc.ShowMode = !pc.ShowMode);
-        //FConsole.AddOnPressListener(Key.W, () => pc.Wait = !pc.Wait);
-        FConsole.AddOnPressListener(Key.N, () => pc.GoNext = true);
-        FConsole.AddOnHoldListener(Key.N, () => pc.GoNext = true, 400, 25);
-        FConsole.AddOnPressListener(Key.P, () => new Thread(() =>
-        {
-            for (int i = 0; i < 20; i++)
-                games[0].MatrixColors[i] = new ConsoleColor[10].Select(x => ConsoleColor.Black).ToArray();
-            games[0].DrawAll();
-            pc.TryFindPC(games[1], out _);
-        }).Start());
-
-        
-        games[0].DrawAll();
+        [DataMember]
+        public string NNPath { get; private set; }
+        [DataMember]
+        public int ThinkTime { get; private set; }
+        [DataMember]
+        public int MoveDelay { get; private set; }
     }
 
-    static void HalfHeight()
+    [DataContract]
+    public struct GameConfig
     {
-        ConsoleColor[] bedrock_row = new ConsoleColor[10].Select(x => Game.PieceColors[Piece.Bedrock]).ToArray();
-        foreach (Game g in Game.Games)
+        public static readonly string DefaultPath = AppContext.BaseDirectory + "Config.json";
+
+        public static readonly GameConfig Default = new GameConfig()
         {
-            for (int j = 0; j < 10; j++)
+            HasPlayer = true,
+            Bots = Array.Empty<BotConfig>(),
+        };
+
+        [DataMember]
+        public bool HasPlayer { get; private set; }
+        [DataMember]
+        public BotConfig[] Bots { get; private set; }
+        
+        
+        public static GameConfig LoadSettings(string path = null)
+        {
+            if (path == null)
+                path = DefaultPath;
+            if (!File.Exists(path))
             {
-                g.Matrix <<= 10;
-                g.Matrix |= new MatrixMask() { LowLow = MatrixMask.FULL_LINE };
-                bedrock_row.CopyTo(g.MatrixColors[j], 0);
+                if (path == DefaultPath)
+                    SaveSettings(Default, DefaultPath);
+
+                return Default;
             }
-            g.CheckHeight();
-            g.DrawAll();
+
+            var mem_stream = new MemoryStream(Encoding.UTF8.GetBytes(File.ReadAllText(path)));
+            var serializer = new DataContractJsonSerializer(typeof(GameConfig));
+            GameConfig settings;
+            try
+            {
+                settings = (GameConfig)serializer.ReadObject(mem_stream);
+            }
+            catch
+            {
+                settings = Default;
+            }
+            mem_stream.Dispose();
+            return settings;
+        }
+
+        public static void SaveSettings(GameConfig settings, string path = null)
+        {
+            if (path == null)
+                path = DefaultPath;
+
+            var mem_stream = new MemoryStream();
+            var serializer = new DataContractJsonSerializer(typeof(GameConfig));
+            serializer.WriteObject(mem_stream, settings);
+            mem_stream.Position = 0;
+            var sr = new StreamReader(mem_stream);
+
+            File.WriteAllText(path, sr.ReadToEnd());
+
+            sr.Dispose();
+            mem_stream.Dispose();
+        }
+    }
+
+    sealed class Program
+    {
+        static void Main()
+        {
+            Game.InitWindow();
+
+            GameConfig config = GameConfig.LoadSettings();
+            int player_count = (config.HasPlayer ? 1 : 0) + config.Bots.Length;
+            int seed = Guid.NewGuid().GetHashCode();
+            Game[] games = new Game[player_count].Select(x => new Game(Game.Settings.LookAheads, seed)).ToArray();
+            Game.SetGames(games);
+
+            Game.IsPaused = true;
+
+            if (config.HasPlayer)
+                games[0].SetupPlayerInput();
+            if (config.Bots.Length > 0)
+            {
+                FConsole.Set(FConsole.Width, FConsole.Height + 2);
+                for (int i = 0; i < config.Bots.Length; i++)
+                {
+                    Bot bot = new BotOld(NN.LoadNN(AppContext.BaseDirectory + config.Bots[i].NNPath), games[i + (config.HasPlayer ? 1 : 0)]);
+                    bot.Start(config.Bots[i].ThinkTime, config.Bots[i].MoveDelay);
+                }
+            }
+
+            Game.IsPaused = false;
         }
     }
 }

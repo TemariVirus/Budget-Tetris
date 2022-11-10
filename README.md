@@ -20,8 +20,11 @@ This also requires the .NET 4.6 runtime, which already comes pre-installed on mo
 - ***Escape key***: Pause/Unpause game.
 - ***M key***: Mute/Unmute.
 
+DAS settings may be changed in the "Settings.json" file.
+
 ## Settings
 The settings can be found and edited in the "Settings.json" file.
+Deleting the file will cause the app to generate a new one with the default settings.
 Below is an explaination of the different settings avaliable.
 
 #### BGMVolume
@@ -57,12 +60,27 @@ The first element represents how much trash to send if 1 line is cleared, the se
 The gravity.
 It is a positive rational number that represents how many lines the current piece will move down by each frame.
 A value of 20.0 or more will cause pieces to instantly drop down.
-Check footnotes for framerate.
+Check footnotes for framerate.[^3]
 
 #### SoftG
 The soft drop gravity.
 It is a positive rational number that represents the amount of gravity *added* when the soft drop key is pressed.
 A value of 20.0 or more will cause pieces to instantly drop down.
+
+#### LookAheads
+The number of lookaheads avaliable to all players.
+If it is negative or 0, the lookaheads will be hidden, but bots will still have 1 lookahead.
+It must be a whole number.
+
+#### DASDelay
+The delay, in milliseconds, after which DAS will start, when the shift left/right key is held down.
+A negative value will disable DAS.
+It must be a whole number.
+
+#### DASInterval
+The delay, in milliseconds, between movements caused by DAS, when the shift left/right key is held down.
+A value shorter than half the length of 1 frame will cause DAS to move the piece to either side instantaneously.
+It must be a positive whole number.
 
 #### LockDelay
 The delay, in milliseconds, after which a piece will lock after touching the ground without moving (provided [AutoLockGrace](https://github.com/Zemogus/Budget-Tetris/tree/battle-bots-net4.6#autolockgrace) has not been exceeded).
@@ -84,12 +102,56 @@ It must be a positive whole number.
 
 #### TargetChangeInteval
 The delay, in milliseconds, after which the current targets will be changed.
-This setting only affects the *Random* targetting mode.[^3]
+This setting only affects the *Random* targetting mode.[^4]
 It must be a positive whole number.
 
-## Setting up bots
+## Configuring the game and bots
+The game configurations can be found and edited in the "Config.json" file.
+
+#### HasPlayer
+Whether or not to include an extra game for a human player.
+This value should only be "true" or "false".
+
+#### Bots
+An array of bots to include in the game.
+If empty, the game will only include the human player.
+The configuration of each bot is explained below.
+
+##### NNPath
+The path of the file containing the neural network of the bot.
+You can find some of pre-trained models in the "NNs" folder.
+To use these, set *NNPath* to "NNs/model name.json".
+
+##### ThinkTime
+The amount of time, in milliseconds, that the bot will think before making a move.
+It must be a positive whole number.
+
+##### MoveDelay
+The delay, in milliseconds, between each of the bot's inputs.
+The bot will not think while making a move.
+It must be a positive whole number.
+
+An example of a configuration with 2 bots is shown below.
+```json
+{
+  "HasPlayer": true,
+  "Bots": [
+	{
+	  "NNPath": "NNs/plan2.json",
+	  "ThinkTime": 1000,
+	  "MoveDelay": 100
+	},
+	{
+	  "NNPath": "NNs/Zhodenifi.json",
+	  "ThinkTime": 100,
+	  "MoveDelay": 300
+	}
+  ]
+}
+```
 
 
 [^1]: I have plans to make the keybinds customisable in the future.
 [^2]: Note you cannot do a perfect clear without clearing any lines, even though clearing 0 lines can still technically be considered a line clear.
-[^3]: The *Random* targetting mode is used by default and currently there is no way of changing it.
+[^3]: The app runs at 30 frames per second. However, inputs are processed 2000 times per second, to ensure millisecond accuracy. I may consider adding an adjustable framerate in the future.
+[^4]: The *Random* targetting mode is used by default and currently there is no way of changing it.
