@@ -83,7 +83,7 @@ A value shorter than half the length of 1 frame will cause DAS to move the piece
 It must be a positive whole number.
 
 #### LockDelay
-The delay, in milliseconds, after which a piece will lock after touching the ground without moving (provided [AutoLockGrace](https://github.com/Zemogus/Budget-Tetris/tree/battle-bots-net4.6#autolockgrace) has not been exceeded).
+The delay, in milliseconds, after which a piece will lock after touching the ground without moving (provided *AutoLockGrace* has not been exceeded).
 It must be a positive whole number.
 
 #### EraseDelay
