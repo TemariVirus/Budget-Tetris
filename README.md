@@ -53,14 +53,14 @@ If the current combo exceeds the length of the array, the last number in the arr
 
 #### PCTrash
 The number of lines of trash to send for perfect clears.
-It is an array consisting of 4 positive whole numbers.
-The first element represents how much trash to send if 1 line is cleared, the second if 2 lines are cleared, the third if 3 lines are cleared, etc.[^2]
+It is an array consisting of 5 positive whole numbers.
+The first element represents how much trash to send if 0 lines are cleared, the second if 1 line is cleared, the third if 2 lines are cleared, etc.
 
 #### G
 The gravity.
 It is a positive rational number that represents how many lines the current piece will move down by each frame.
 A value of 20.0 or more will cause pieces to instantly drop down.
-Check footnotes for framerate.[^3]
+Check footnotes for framerate.[^2]
 
 #### SoftG
 The soft drop gravity.
@@ -102,7 +102,7 @@ It must be a positive whole number.
 
 #### TargetChangeInteval
 The delay, in milliseconds, after which the current targets will be changed.
-This setting only affects the *Random* targetting mode.[^4]
+This setting only affects the *Random* targetting mode.[^3]
 It must be a positive whole number.
 
 ## Configuring the game and bots
@@ -152,6 +152,5 @@ An example of a configuration with 2 bots is shown below.
 
 
 [^1]: I have plans to make the keybinds customisable in the future.
-[^2]: Note you cannot do a perfect clear without clearing any lines, even though clearing 0 lines can still technically be considered a line clear.
-[^3]: The app runs at 30 frames per second. However, inputs are processed 2000 times per second, to ensure millisecond accuracy. I may consider adding an adjustable framerate in the future.
-[^4]: The *Random* targetting mode is used by default and currently there is no way of changing it.
+[^2]: The app runs at 30 frames per second. However, inputs are processed 2000 times per second, to ensure millisecond accuracy. I may consider adding an adjustable framerate in the future.
+[^3]: The *Random* targetting mode is used by default and currently there is no way of changing it.
