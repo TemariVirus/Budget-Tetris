@@ -947,14 +947,18 @@ namespace Tetris {
             Games = games;
             GlobalTime.Restart();
             GameHeight = games.Any(x => x.IsBot) ? 27 : 24;
-
-            // Find width and height in terms of games (appox. 16:9 aspect ratio)
-            int width = (int)Math.Sqrt((double)games.Length * (GameWidth / 2) / GameHeight * 16D / 9D);
-            int height = Games.Length / width;
-            while (width * height < Games.Length)
+            double game_aspect = (GameWidth * 0.5D) / GameHeight;
+            double target_aspect = 16D / 9D;
+            // Find width and height (appox. 16:9 aspect ratio) in terms of GameWidth and GameHeight
+            double width_double = Math.Sqrt(games.Length * target_aspect / game_aspect);
+            double height_double = games.Length / width_double;
+            int width = (int)Math.Round(width_double);
+            int height = (int)Math.Round(height_double);
+            if (width * height < Games.Length)
             {
-                width++;
-                if (width * height < Games.Length)
+                if (width_double - width > height_double - height)
+                    width++;
+                else
                     height++;
             }
 
