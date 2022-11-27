@@ -44,24 +44,24 @@ namespace Tetris
         private static MediaPlayer BGMPlayer;
 
         public static readonly Sound BGM = new Sound("Korobeiniki Remix.wav"),
-                                      SoftDrop = new Sound("bfall.wav"),
-                                      HardDrop = new Sound("harddrop.wav"),
-                                      TSpin = new Sound("tspin.wav"),
-                                      PC = new Sound("pc.wav"),
-                                      GarbageSmall = new Sound("garbagesmall.wav"),
-                                      GarbageLarge = new Sound("garbagelarge.wav"),
-                                      Hold = new Sound("hold.wav"),
-                                      Slide = new Sound("move.wav"),
-                                      Rotate = new Sound("rotate.wav"),
-                                      Pause = new Sound("pause.wav");
+                                     SoftDrop = new Sound("bfall.wav"),
+                                     HardDrop = new Sound("harddrop.wav"),
+                                     TSpin = new Sound("tspin.wav"),
+                                     PC = new Sound("pc.wav"),
+                                     GarbageSmall = new Sound("garbagesmall.wav"),
+                                     GarbageLarge = new Sound("garbagelarge.wav"),
+                                     Hold = new Sound("hold.wav"),
+                                     Slide = new Sound("move.wav"),
+                                     Rotate = new Sound("rotate.wav"),
+                                     Pause = new Sound("pause.wav");
 
         public static readonly Sound[] ClearSounds =
         {
-        new Sound("single.wav"),
-        new Sound("double.wav"),
-        new Sound("triple.wav"),
-        new Sound("tetris.wav")
-    };
+            new Sound("single.wav"),
+            new Sound("double.wav"),
+            new Sound("triple.wav"),
+            new Sound("tetris.wav")
+        };
 
 
         public Uri Path { get; private set; }
