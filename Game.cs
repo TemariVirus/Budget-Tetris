@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using System.Runtime.Serialization;
+using System.Windows.Shapes;
 
 namespace Tetris {
     public enum Moves
@@ -737,6 +738,7 @@ namespace Tetris {
 
         public static Game[] Games { get; private set; }
         public static readonly Stopwatch GlobalTime = Stopwatch.StartNew();
+        public double StartTime { get; private set; }
         public static double CurrentTime { get => GlobalTime.Elapsed.TotalSeconds; }
         public static long CurrentMillis { get => GlobalTime.ElapsedMilliseconds; }
 
@@ -795,28 +797,6 @@ namespace Tetris {
             }
         }
 
-        private long _Score = 0;
-        public long Score
-        {
-            get => _Score;
-            private set
-            {
-                _Score = value;
-                WriteAt(1, 9, ConsoleColor.White, _Score.ToString().PadRight(8));
-            }
-        }
-        private int _Lines = 0;
-        public int Lines
-        {
-            get => _Lines;
-            private set
-            {
-                _Lines = value;
-                WriteAt(25, 0, ConsoleColor.White, _Lines.ToString().PadRight(45 - 26));
-                WriteAt(1, 11, ConsoleColor.White, Level.ToString());
-            }
-        }
-        public int Level { get => Lines / 10 + 1; }
         private static bool _IsPaused = false;
         public static bool IsPaused
         {
@@ -862,35 +842,52 @@ namespace Tetris {
         #endregion
 
         #region // Stats
-        public double StartTime { get; private set; }
+        private long _Score = 0;
+        private int _Lines = 0;
+
+        public long Score
+        {
+            get => _Score;
+            private set
+            {
+                _Score = value;
+                WriteAt(1, 9, ConsoleColor.White, _Score.ToString().PadRight(8));
+            }
+        }
+        public int Lines
+        {
+            get => _Lines;
+            private set
+            {
+                _Lines = value;
+                WriteAt(25, 0, ConsoleColor.White, _Lines.ToString().PadRight(45 - 26));
+                WriteAt(1, 11, ConsoleColor.White, Level.ToString());
+            }
+        }
+        public int GarbageCleared { get; private set; } = 0;
         public int Sent { get; private set; } = 0;
+        public int Level { get => Lines / 10 + 1; }
+        public int PiecesPlaced { get; private set; } = 0;
+        public int KeysPressed { get; private set; } = 0;
         public double APL
         {
-            get
-            {
-                if (Sent == 0) return 0;
-                return (double)Sent / Lines;
-            }
+            get => (Sent == 0) ? 0 : (double)Sent / Lines;
         }
-
-        public int PiecesPlaced { get; private set; } = 0;
+        public double APM
+        {
+            get => 60D * Sent / (CurrentTime - StartTime);
+        }
         public double PPS
         {
-            get
-            {
-                if (PiecesPlaced == 0) return 0;
-                return PiecesPlaced / (CurrentTime - StartTime);
-            }
+            get => (PiecesPlaced == 0) ? 0 : (double)PiecesPlaced / (CurrentTime - StartTime);
         }
-
-        public int KeysPressed { get; private set; } = 0;
         public double KPP
         {
-            get
-            {
-                if (PiecesPlaced == 0) return 0;
-                return (double)KeysPressed / PiecesPlaced;
-            }
+            get => (PiecesPlaced == 0) ? 0 : (double)KeysPressed / PiecesPlaced;
+        }
+        public double VS
+        {
+            get => 100D * (Sent + GarbageCleared) / (CurrentTime - StartTime);
         }
         #endregion
 
@@ -929,6 +926,7 @@ namespace Tetris {
 
             FConsole.AddOnPressListener(Key.R, () =>
             {
+                IsPaused = true;
                 int seed = Guid.NewGuid().GetHashCode();
                 foreach (Game game in Games)
                 {
@@ -937,6 +935,7 @@ namespace Tetris {
                     game.ClearScreen();
                     game.DrawAll();
                 }
+                IsPaused = false;
             });
             FConsole.AddOnPressListener(Key.Escape, () => IsPaused = !IsPaused);
             FConsole.AddOnPressListener(Key.M, () => Sound.IsMuted = !Sound.IsMuted);
@@ -1059,6 +1058,7 @@ namespace Tetris {
             IsDead = false;
             Score = 0;
             Lines = 0;
+            GarbageCleared = 0;
             Sent = 0;
             PiecesPlaced = 0;
 
@@ -1154,11 +1154,11 @@ namespace Tetris {
             }
 
             DrawAll();
-
+            
             // Write stats
-            WriteAt(0, 20, ConsoleColor.White, $"Sent:{Sent}".PadRight(11));
-            WriteAt(0, 21, ConsoleColor.White, $"PPS: {Math.Round(PPS, 3)}".PadRight(11));
-            WriteAt(0, 22, ConsoleColor.White, $"APL: {Math.Round(APL, 3)}".PadRight(11));
+            WriteAt(0, 20, ConsoleColor.White, $"PPS: {Math.Round(PPS, 3)}".PadRight(11));
+            WriteAt(0, 21, ConsoleColor.White, $"APL: {Math.Round(APL, 3)}".PadRight(11));
+            WriteAt(0, 22, ConsoleColor.White, $"VS: {Math.Round(VS, 2)}".PadRight(11));
         }
 
         #region // Player methods
@@ -1263,6 +1263,8 @@ namespace Tetris {
                 if (clears[i + 1] == 0) break;
                 for (int j = clears[i]; j < MatrixColors.Length - clears[i + 1]; j++)
                 {
+                    if (MatrixColors[j].Any(x => x == PieceColors[Piece.Garbage]))
+                        GarbageCleared++;
                     MatrixColors[j] = MatrixColors[j + clears[i + 1]];
                 }
             }
@@ -1321,10 +1323,12 @@ namespace Tetris {
             if (Combo > 0) WriteAt(1, 17, ConsoleColor.White, Combo + " COMBO!");
             if (pc) WriteAt(0, 18, ConsoleColor.White, "ALL CLEAR!");
             // Play sound
-            
+            if (pc) Sound.PC.Play();
+            else if (tspin > 0) Sound.TSpin.Play();
+            else if (cleared > 0) Sound.ClearSounds[cleared - 1].Play();
 
             // Trash sent
-            int trash = pc ? Settings.PCTrash[cleared] :
+            int trash = pc         ? Settings.PCTrash[cleared]    :
                         tspin == 3 ? Settings.TSpinTrash[cleared] :
                                      Settings.LinesTrash[cleared];
             if (Combo > 0) trash += Settings.ComboTrash[Math.Min(Combo, Settings.ComboTrash.Length) - 1];
