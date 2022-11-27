@@ -883,7 +883,11 @@ namespace Tetris {
         }
         public double KPP
         {
-            get => (PiecesPlaced == 0) ? 0 : (double)KeysPressed / PiecesPlaced;
+            get
+            {
+                if (PiecesPlaced == 0) return 0;
+                return (double)KeysPressed / PiecesPlaced;
+            }
         }
         public double VS
         {
