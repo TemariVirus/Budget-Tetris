@@ -780,7 +780,7 @@ namespace Tetris {
                 int space = GameWidth - value.Length;
                 int left_space = space / 2;
                 if (space < 0)
-                    WriteAt(0, -1, ConsoleColor.White, value.Substring(-left_space, 44));
+                    WriteAt(0, -1, ConsoleColor.White, value.Substring(-left_space, GameWidth));
                 else
                     WriteAt(0, -1, ConsoleColor.White, value.PadLeft(left_space + value.Length).PadRight(GameWidth));
             }
@@ -816,7 +816,7 @@ namespace Tetris {
                 }
             }
         }
-        public static bool IsMuted = false;
+        public static bool IsMuted { get; set; } = false;
 
         public int B2B { get; internal set; } = -1;
         public int Combo { get; internal set; } = -1;
@@ -860,7 +860,7 @@ namespace Tetris {
             private set
             {
                 _Lines = value;
-                WriteAt(25, 0, ConsoleColor.White, _Lines.ToString().PadRight(45 - 26));
+                WriteAt(25, 0, ConsoleColor.White, _Lines.ToString().PadRight(GameWidth - 25));
                 WriteAt(1, 11, ConsoleColor.White, Level.ToString());
             }
         }
@@ -1274,7 +1274,7 @@ namespace Tetris {
             }
             // Add new empty rows
             for (int i = MatrixColors.Length - cleared; i < MatrixColors.Length; i++)
-                MatrixColors[i] = new ConsoleColor[10].Select(x => ConsoleColor.Black).ToArray();
+                MatrixColors[i] = new ConsoleColor[10].Select(x => PieceColors[Piece.EMPTY]).ToArray();
             // Line clears
             int score_add = 0;
             score_add += new int[] { 0, 100, 300, 500, 800 }[cleared];
