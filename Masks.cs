@@ -9,11 +9,11 @@ public readonly struct MatrixMask
 {
     public const ulong FULL_LINE = (1 << 10) - 1;
 
-    public static readonly MatrixMask[] HeightMasks = new MatrixMask[25].Select((m, i) =>
+    public static readonly MatrixMask[] HeightMasks = new MatrixMask[26].Select((_, i) =>
     {
-        m = ~new MatrixMask();
-        m <<= i * 10;
-        return ~m << 10;
+        MatrixMask mask = ~new MatrixMask();    // Set it to all 1s
+        mask <<= i * 10;                        // Make the first i rows 0
+        return ~mask;                           // Invert it
     }).ToArray();
     public static readonly MatrixMask[] InverseHeightMasks = HeightMasks.Select((m) => ~m & HeightMasks[^1]).ToArray();
 
@@ -103,7 +103,6 @@ public readonly struct MatrixMask
 
         // Special treatment for multiples of 64
         if ((shift & 63) == 0)
-        {
             return (shift & 192) switch
             {
                 192 => new MatrixMask()
@@ -123,7 +122,6 @@ public readonly struct MatrixMask
                 },
                 _ => value
             };
-        }
 
         shift &= 255;
         return shift switch
@@ -158,7 +156,6 @@ public readonly struct MatrixMask
 
         // Special treatment for multiples of 64
         if ((shift & 63) == 0)
-        {
             return (shift & 192) switch
             {
                 192 => new MatrixMask()
@@ -178,7 +175,6 @@ public readonly struct MatrixMask
                 },
                 _ => value
             };
-        }
 
         shift &= 255;
         return shift switch
@@ -223,10 +219,10 @@ public readonly struct MatrixMask
         BitOperations.PopCount(HighHigh & 0x03FFFFFFFFFFFFFFUL) + // Exclude top 6 bits
         BitOperations.PopCount(HighLow) +
         BitOperations.PopCount(LowHigh) +
-        BitOperations.PopCount(LowLow & 0xFFFFFFFFFFFFFC00UL); // Exclude bottom 10 bits
+        BitOperations.PopCount(LowLow);
 
     public ulong GetRow(int row) =>
-        ((++row) switch
+        row switch
         {
             < 6 => LowLow >> (row * 10),
             6 => (LowLow >> 60) | (LowHigh << 4),
@@ -234,30 +230,30 @@ public readonly struct MatrixMask
             12 => (LowHigh >> 56) | (HighLow << 8),
             < 19 => HighLow >> ((row - 12) * 10 - 8),
             19 => (HighLow >> 62) | (HighHigh << 2),
-            < 25 => HighHigh >> ((row - 19) * 10 - 2),
-            _ => throw new ArgumentOutOfRangeException(nameof(row))
-        }) & FULL_LINE;
+            < 26 => HighHigh >> ((row - 19) * 10 - 2),
+            _ => throw new ArgumentOutOfRangeException(nameof(row)),
+        } & FULL_LINE;
 
     public uint[] GetRows()
     {
-        uint[] rows = new uint[24];
+        uint[] rows = new uint[25];
         int i = 0, shift;
-        for (shift = 10; i < 5; shift += 10)
+        for (shift = 0; i < 6; shift += 10)
             rows[i++] = (uint)((LowLow >> shift) & FULL_LINE);
         rows[i++] = (uint)((LowLow >> 60) | (LowHigh << 4) & FULL_LINE);
         if (rows[i - 1] == 0) return rows;
 
-        for (shift = 6; i < 11; shift += 10)
+        for (shift = 6; i < 12; shift += 10)
             rows[i++] = (uint)((LowHigh >> shift) & FULL_LINE);
         rows[i++] = (uint)((LowHigh >> 56) | (HighLow << 8) & FULL_LINE);
         if (rows[i - 1] == 0) return rows;
 
-        for (shift = 2; i < 18; shift += 10)
+        for (shift = 2; i < 19; shift += 10)
             rows[i++] = (uint)((HighLow >> shift) & FULL_LINE);
         rows[i++] = (uint)((HighLow >> 62) | (HighHigh << 2) & FULL_LINE);
         if (rows[i - 1] == 0) return rows;
 
-        for (shift = 8; i < 24; shift += 10)
+        for (shift = 8; i < 25; shift += 10)
             rows[i++] = (uint)((HighHigh >> shift) & FULL_LINE);
 
         return rows;
@@ -280,7 +276,7 @@ public readonly struct MatrixMask
     public override string ToString()
     {
         StringBuilder sb = new StringBuilder(275);
-        for (int i = 249; i >= 10; i--)
+        for (int i = 249; i >= 0; i--)
         {
             sb.Append((this >> i).LowLow & 1);
             if (i % 10 == 0) sb.Append(' ');

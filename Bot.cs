@@ -1,9 +1,9 @@
 ﻿namespace Tetris;
 
 using NEAT;
-using System;
 using System.Diagnostics;
 using System.Numerics;
+using static Game;
 
 public abstract class Bot
 {
@@ -15,8 +15,18 @@ public abstract class Bot
         get => _Game;
         set
         {
+            if (_Game != null)
+            {
+                _Game.SoftG = Settings.SoftG;
+                _Game.IsBot = false;
+            }
+            
             _Game = value;
-            _Game.SoftG = 40;
+            if (_Game != null)
+            {
+                _Game.SoftG = 40;
+                _Game.IsBot = true;
+            }
         }
     }
     protected GameBase Sim;
@@ -59,8 +69,8 @@ public abstract class Bot
 
     public Bot(string filePath, Game game) : this(NN.LoadNN(filePath), game)
     {
-        string name = filePath.Substring(Math.Max(0, filePath.LastIndexOf('\\')));
-        name = name.Substring(1, name.LastIndexOf('.') - 1);
+        string name = filePath[Math.Max(0, filePath.LastIndexOf('\\'))..];
+        name = name[1..name.LastIndexOf('.')];
         game.Name = name;
     }
 
@@ -112,11 +122,11 @@ public abstract class Bot
                     }
                 }
                 // Stats
-                Game.WriteAt(0, Game.GAMEHEIGHT - 1, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(Game.GAMEWIDTH));
+                Game.WriteAt(0, GameHeight - 1, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(GameWidth));
                 long count = NodeCounts.Aggregate(0, (aggregate, next) => (next == 0) ? aggregate : aggregate + 1);
                 if (count == 0) count++;
-                Game.WriteAt(0, Game.GAMEHEIGHT, ConsoleColor.White, $"Nodes: {NodeCounts.Sum() / count}".PadRight(Game.GAMEWIDTH));
-                Game.WriteAt(0, Game.GAMEHEIGHT + 1, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(Game.GAMEWIDTH));
+                Game.WriteAt(0, GameHeight, ConsoleColor.White, $"Nodes: {NodeCounts.Sum() / count}".PadRight(GameWidth));
+                Game.WriteAt(0, GameHeight + 1, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(GameWidth));
                 for (int i = NodeCounts.Length - 1; i > 0; i--)
                     NodeCounts[i] = NodeCounts[i - 1];
                 NodeCounts[0] = 0;
@@ -131,9 +141,9 @@ public abstract class Bot
         BotThread.Start();
 
         // Write stats
-        Game.WriteAt(0, Game.GAMEHEIGHT - 1, ConsoleColor.White, $"Depth: 0".PadRight(Game.GAMEWIDTH));
-        Game.WriteAt(0, Game.GAMEHEIGHT, ConsoleColor.White, $"Nodes: 0".PadRight(Game.GAMEWIDTH));
-        Game.WriteAt(0, Game.GAMEHEIGHT + 1, ConsoleColor.White, $"Tresh: 0.000000".PadRight(Game.GAMEWIDTH));
+        Game.WriteAt(0, GameHeight - 1, ConsoleColor.White, $"Depth: 0".PadRight(GameWidth));
+        Game.WriteAt(0, GameHeight, ConsoleColor.White, $"Nodes: 0".PadRight(GameWidth));
+        Game.WriteAt(0, GameHeight + 1, ConsoleColor.White, $"Tresh: 0.000000".PadRight(GameWidth));
     }
 
     public void Stop()
@@ -171,10 +181,10 @@ public abstract class Bot
         //// Modify _trash(use trash sent * APL and offset it slightly)
         ////if (cleared != 0 && comb > 1) _trash = Math.FusedMultiplyAdd(_trash, _trash / cleared, -1.5);
 
-        trash = pc         ? Game.PCTrash[cleared] :
-                tspin == 3 ? Game.TSpinTrash[cleared] :
-                             Game.LinesTrash[cleared];
-        if (combo > 0) trash += Game.ComboTrash[Math.Min(combo, Game.ComboTrash.Length) - 1];
+        trash = pc         ? Settings.PCTrash[cleared] :
+                tspin == 3 ? Settings.TSpinTrash[cleared] :
+                             Settings.LinesTrash[cleared];
+        if (combo > 0) trash += Settings.ComboTrash[Math.Min(combo, Settings.ComboTrash.Length) - 1];
         if ((tspin + cleared > 3) && b2b > 0) trash++;
 
         return clears;
@@ -263,7 +273,7 @@ public sealed class BotOld : Bot
 
                         Sim.Current = piece;
                         Sim.X = orix;
-                        Sim.Y = GameBase.START_Y;
+                        Sim.Y = Tetris.GameBase.START_Y;
                         // Hard drop
                         Sim.TryDrop(40);
                         int oriy = Sim.Y;
@@ -415,7 +425,7 @@ public sealed class BotOld : Bot
                     if (TimesUp) break;
 
                     Sim.X = orix;
-                    Sim.Y = GameBase.START_Y;
+                    Sim.Y = Tetris.GameBase.START_Y;
                     Sim.Current = piece;
                     Sim.TryDrop(40);
                     int oriy = Sim.Y;
@@ -816,7 +826,7 @@ public sealed class BotFixedTresh : Bot
                     if (TimesUp) break;
 
                     Sim.X = orix;
-                    Sim.Y = GameBase.START_Y;
+                    Sim.Y = Tetris.GameBase.START_Y;
                     Sim.Current = piece;
                     Sim.TryDrop(40);
                     int oriy = Sim.Y;
@@ -966,16 +976,16 @@ public sealed class BotFixedTresh : Bot
 
         return new double[] { h, caves, pillars, rowtrans, coltrans, sent, cleared, intent };
     }
-
-    protected ulong HashBoard(Piece piece, Piece _hold, int nexti, int depth, double cleared, double trash, double intent)
+    
+    private ulong HashBoard(Piece piece, Piece _hold, int nexti, int depth, double cleared, double trash, double intent)
     {
         ulong hash = PieceHashTable[piece.PieceType] ^ HoldHashTable[_hold.PieceType];
         for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++) hash ^= NextHashTable[i][Sim.Next[nexti + i]];
 
         return hash ^ HashState(cleared, trash, intent);
     }
-
-    protected ulong HashState(double cleared, double trash, double intent)
+    
+    private ulong HashState(double cleared, double trash, double intent)
     {
         ulong hash = 0;
         for (int i = 0, shift = 0; i < 4; i++)
@@ -1054,7 +1064,7 @@ public sealed class BotByScore : Bot
 
                         Sim.Current = piece;
                         Sim.X = orix;
-                        Sim.Y = GameBase.START_Y;
+                        Sim.Y = Tetris.GameBase.START_Y;
                         // Hard drop
                         Sim.TryDrop(40);
                         int oriy = Sim.Y;
@@ -1208,7 +1218,7 @@ public sealed class BotByScore : Bot
                     if (TimesUp) break;
 
                     Sim.X = orix;
-                    Sim.Y = GameBase.START_Y;
+                    Sim.Y = Tetris.GameBase.START_Y;
                     Sim.Current = piece;
                     Sim.TryDrop(40);
                     int oriy = Sim.Y;
@@ -1359,7 +1369,7 @@ public sealed class BotByScore : Bot
         return new double[] { h, caves, pillars, rowtrans, coltrans, sent, cleared, intent };
     }
 
-    protected ulong HashBoard(Piece piece, Piece _hold, int nexti, int depth, double cleared, double trash, double intent)
+    private ulong HashBoard(Piece piece, Piece _hold, int nexti, int depth, double cleared, double trash, double intent)
     {
         ulong hash = PieceHashTable[piece.PieceType] ^ HoldHashTable[_hold.PieceType];
         for (int i = 0; nexti + i < NextHashTable.Length && i < depth; i++)
@@ -1368,7 +1378,7 @@ public sealed class BotByScore : Bot
         return hash ^ HashState(cleared, trash, intent);
     }
 
-    protected ulong HashState(double cleared, double trash, double intent)
+    private ulong HashState(double cleared, double trash, double intent)
     {
         ulong hash = 0;
         for (int i = 0, shift = 0; i < 4; i++)

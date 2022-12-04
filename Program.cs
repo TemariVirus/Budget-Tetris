@@ -6,12 +6,14 @@ using Tetris;
 // Inputs: standard height, caves, pillars, row transitions, col transitions, trash, cleared, intent
 // Outputs: score of state, intent(don't search further if it drops below a treshold)
 // TODO:
+//- Death animation (lines disappear from bottom up
+//- make FConsole.AddListener methods return the listener, which can then be used to remove specific listeners
 //- Make GameBase sealed and use composition?
-//- laser chess?
-//- implement move generator and order moves by intent
-//- proper implementation of KPP?
-//- add height of trash and incoming trash as features
-//- add a featrue for t-spins
+//- Laser chess?
+//- Implement move generator and order moves by intent
+//- Add height of trash and incoming trash as features
+//- Add a featrue for t-spins
+//- Add a feature for B2B
 static class Program
 {
     const int MAX_LINES = 300;
@@ -24,26 +26,22 @@ static class Program
     static void Main()
     {
         // Set up console
-        Console.Title = "Tetris NEAT AI Training";
-        FConsole.Framerate = 30;
-        FConsole.CursorVisible = false;
-        FConsole.SetFont("Consolas", 16);
-        //FConsole.SetFont("Consolas", 40); // Biggest
-        FConsole.Initialise(FrameEndCallback);
+        Game.InitWindow();
+        // PlayerGame.InitWindow(40); // Biggest
 
         int seed = new Random().Next();
-        Game[] games = new Game[2].Select(x => new Game(16, seed)).ToArray();
+        Game[] games = new Game[2].Select(x => new Game(6, seed)).ToArray();
         Game.SetGames(games);
         FConsole.Set(FConsole.Width, FConsole.Height + 2);
         Game.IsPaused = true;
-        //Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        //left.Start(300, 0);
-        SetupPlayerInput(games[1]);
+        Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
+        left.Start(300, 0);
         //Bot right = new BotFixedTresh(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
         //right.Start(300, 0);
+        //games[1].SetupPlayerInput();
         Game.IsPaused = false;
-        
-        games[1].G = 0.02;
+
+        //games[1].G = 0.02;
         PCFinder pc = new PCFinder();
         FConsole.AddOnPressListener(Key.S, () => pc.ShowMode = !pc.ShowMode);
         //FConsole.AddOnPressListener(Key.W, () => pc.Wait = !pc.Wait);
@@ -53,38 +51,6 @@ static class Program
         
         // Train NNs
         //NN.Train(Population_path, FitnessFunctionVS, 8, 2, 50);
-    }
-
-    static void SetupPlayerInput(Game player_game)
-    {
-        player_game.SoftG = 40;
-        FConsole.AddOnPressListener(Key.Left, () => player_game.Play(Moves.Left));
-        //FastConsole.AddOnHoldListener(Key.Left, () => main.Play(Moves.Left), 133, 0);
-        FConsole.AddOnHoldListener(Key.Left, () => player_game.Play(Moves.DASLeft), 133, 15);
-
-        FConsole.AddOnPressListener(Key.Right, () => player_game.Play(Moves.Right));
-        //FastConsole.AddOnHoldListener(Key.Right, () => main.Play(Moves.Right), 133, 0);
-        FConsole.AddOnHoldListener(Key.Right, () => player_game.Play(Moves.DASRight), 133, 15);
-
-        FConsole.AddOnPressListener(Key.Up, () => player_game.Play(Moves.RotateCW));
-        FConsole.AddOnPressListener(Key.Z, () => player_game.Play(Moves.RotateCCW));
-        FConsole.AddOnPressListener(Key.A, () => player_game.Play(Moves.Rotate180));
-
-        FConsole.AddOnHoldListener(Key.Down, () => player_game.Play(Moves.SoftDrop), 0, 16);
-        FConsole.AddOnPressListener(Key.Space, () => player_game.Play(Moves.HardDrop));
-
-        FConsole.AddOnPressListener(Key.C, () => player_game.Play(Moves.Hold));
-        FConsole.AddOnPressListener(Key.R, () => player_game.Restart());
-        FConsole.AddOnPressListener(Key.Escape, () => Game.IsPaused = !Game.IsPaused);
-    }
-
-    static void FrameEndCallback()
-    {
-        if (Game.IsPaused || Game.Games == null) return;
-        foreach (Game g in Game.Games)
-        {
-            g.Tick();
-        }
     }
 
     static void FitnessFunctionTrainer(NN[] networks, int gen, double compat_tresh)

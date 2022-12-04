@@ -4,7 +4,9 @@ using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Windows.Input;
+using System.Windows.Threading;
 
 static class FConsole
 {
@@ -13,8 +15,10 @@ static class FConsole
     private static Stopwatch Time = Stopwatch.StartNew();
     public static Thread RenderThread { get; private set; }
     public static Thread InputThread { get; private set; }
-    static Action RenderCallback;
-    static Action InputLoopCallback;
+    public static Action RenderCallback { private get; set; }
+    public static Action InputLoopCallback { private get; set; }
+
+    public static Thread SwitchFocusThread { get; private set; }
 
     // Throws an exception if it failed to grab the CONOUT$ file handle
     // Otherwise, starts the console update loop on a separate thread
@@ -26,18 +30,33 @@ static class FConsole
         if (ConoutHandle.IsInvalid) throw new System.ComponentModel.Win32Exception();
         else
         {
+            // Rendering
             Width = (short)Console.BufferWidth;
             Height = (short)Console.BufferHeight;
             Console.CursorVisible = CursorVisible;
             ConsoleBuffer = new int[Width * Height];
-            Console.OutputEncoding = System.Text.Encoding.Unicode;
+            Console.OutputEncoding = Encoding.Unicode;
             RenderThread = new Thread(RenderLoop);
             RenderCallback = renderCallback;
+            RenderThread.Priority = ThreadPriority.Lowest;
             RenderThread.Start();
 
+            // Check for focus switching
+            SwitchFocusThread = new Thread(() =>
+            {
+                SwitchFocusDelegate = new WinEventDelegate((_, _1, _2, _3, _4, _5, _6) => IsFocused = WindowIsFocused());
+                IntPtr m_hhook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, SwitchFocusDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
+                Dispatcher.Run();
+            });
+            SwitchFocusThread.Priority = ThreadPriority.Lowest;
+            SwitchFocusThread.Start();
+            IsFocused = WindowIsFocused();
+
+            // Input
             InputThread = new Thread(InputLoop);
             InputThread.SetApartmentState(ApartmentState.STA);
             InputLoopCallback = inputCallback;
+            InputThread.Priority = ThreadPriority.Lowest;
             InputThread.Start();
         }
     }
@@ -132,8 +151,9 @@ static class FConsole
             Console.CursorVisible = value;
         }
     }
-    public static int CursorLeft = 0, CursorTop = 0;
-    public static double Framerate = 30;
+    public static int CursorLeft { get; set; } = 0;
+    public static int CursorTop { get; set; } = 0;
+    public static double Framerate { get; set; } = 30;
 
     static int[] ConsoleBuffer;
 
@@ -214,7 +234,6 @@ static class FConsole
                 // Reset cursor visibility
                 Console.CursorVisible = CursorVisible;
             }
-            ForceRender();
 
             // Write fps
             long newT = Time.ElapsedTicks;
@@ -222,7 +241,9 @@ static class FConsole
             long oldT;
             if (draw_times.Count > 16) oldT = draw_times.Dequeue();
             else oldT = draw_times.Peek();
-            WriteAt($"{Math.Round((double)draw_times.Count / (newT - oldT) * Stopwatch.Frequency, 2)}fps".PadRight(10), 1, 0);
+            double fps = Math.Round((double)draw_times.Count / (newT - oldT) * Stopwatch.Frequency, 2);
+            WriteAt($"{fps}{(fps == (int)fps ? "." : "")}".PadRight(5, '0') + "fps", 1, 0);
+            ForceRender();
 
             // Callback
             RenderCallback?.Invoke();
@@ -370,19 +391,19 @@ static class FConsole
     private class KeyListener
     {
         public readonly Key Key;
-        public readonly bool OnPress;
+        public readonly bool IsOnPress;
         public readonly int Delay, RepeatDelay;
         public readonly Action Action;
 
         public bool LastIsPressed;
         public long LastStateChangeTime;
 
-        public bool Remove = false;
+        public bool ToRemove = false;
 
         public KeyListener(Key key, bool onPress, int delayInMilliseconds, int repeatDelayInMilliseconds, Action action)
         {
             Key = key;
-            OnPress = onPress;
+            IsOnPress = onPress;
             Delay = delayInMilliseconds;
             RepeatDelay = repeatDelayInMilliseconds;
             Action = action;
@@ -404,51 +425,71 @@ static class FConsole
                 LastIsPressed = isPressed;
                 LastStateChangeTime = currentTime;
 
-                if (isPressed == OnPress)
-                {
-                    if (Delay <= 0)
-                        Action?.Invoke();
-                    if (Delay == 0)
-                        LastStateChangeTime += RepeatDelay; // - Delay, but Delay == 0
-                }
+                if (isPressed != IsOnPress) return;
+
+                if (Delay <= 0)
+                    Action?.Invoke();
+                if (Delay == 0)
+                    LastStateChangeTime += RepeatDelay; // - Delay, but Delay == 0
             }
             else if (Delay >= 0)
             {
-                if (isPressed == OnPress)
-                {
-                    if (currentTime - LastStateChangeTime > Delay)
-                    {
-                        Action?.Invoke();
-                        LastStateChangeTime = currentTime + RepeatDelay - Delay;
-                        if (RepeatDelay < 0) LastStateChangeTime = long.MinValue;
-                    }
-                }
+                if (isPressed != IsOnPress) return;
+                if (currentTime - LastStateChangeTime <= Delay) return;
+
+                Action?.Invoke();
+                LastStateChangeTime = currentTime + RepeatDelay - Delay;
+                if (RepeatDelay < 0) LastStateChangeTime = long.MinValue;
             }
         }
     }
 
     private static readonly List<KeyListener> KeyListeners = new List<KeyListener>();
 
+    private static bool IsFocused;
+
+    private static WinEventDelegate SwitchFocusDelegate;
+    delegate void WinEventDelegate(IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint dwEventThread, uint dwmsEventTime);
+
+    private const uint WINEVENT_OUTOFCONTEXT = 0;
+    private const uint EVENT_SYSTEM_FOREGROUND = 3;
+
+    [DllImport("user32.dll")]
+    static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr hmodWinEventProc, WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
+
+    [DllImport("user32.dll")]
+    static extern bool UnhookWinEvent(IntPtr hWinEventHook);
+
+    [DllImport("user32.dll")]
+    static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
+
     private static void InputLoop()
     {
-        Queue<long> times = new Queue<long>();
         while (true)
         {
             long time = Time.ElapsedTicks;
             // Remove listeners that are to be removed
             for (int i = 0; i < KeyListeners.Count; i++)
                 if (KeyListeners[i] != null)
-                    if (KeyListeners[i].Remove)
+                    if (KeyListeners[i].ToRemove)
                         KeyListeners.RemoveAt(i--);
-            // Check for key events
-            for (int i = 0; i < KeyListeners.Count; i++)
-                KeyListeners[i]?.Check();
+            
+            if (IsFocused)
+            {
+                // Check for key events
+                for (int i = 0; i < KeyListeners.Count; i++)
+                    KeyListeners[i]?.Check();
+                
+                // Callback function
+                InputLoopCallback?.Invoke();
+            }
 
-            // Callback function
-            InputLoopCallback?.Invoke();
 
             // Try to get ~2000 loops per second, since the smallest precision is a millisecond
-            while (Time.ElapsedTicks - time < Stopwatch.Frequency / 2400) Thread.Sleep(0);
+            while (Time.ElapsedTicks - time < Stopwatch.Frequency / 2100) Thread.Sleep(0);
         }
     }
 
@@ -457,8 +498,8 @@ static class FConsole
         InputLoopCallback = callback;
     }
 
-    private static void AddListener(Key key, bool onPress, int delayInMilliseconds, int repeatDelayInMilliseconds, Action action) =>
-        KeyListeners.Add(new KeyListener(key, onPress, delayInMilliseconds, repeatDelayInMilliseconds, action));
+    private static void AddListener(Key key, bool onPress, int delayMillis, int repeatDelayMillis, Action action) =>
+        KeyListeners.Add(new KeyListener(key, onPress, delayMillis, repeatDelayMillis, action));
 
     public static void AddOnPressListener(Key key, Action action) =>
         AddListener(key, true, -1, 0, action);
@@ -466,16 +507,16 @@ static class FConsole
     public static void AddOnReleaseListener(Key key, Action action) =>
         AddListener(key, false, -1, 0, action);
 
-    public static void AddOnHoldListener(Key key, Action action, int delayInMilliseconds, int repeatDelayInMilliseconds) =>
-        AddListener(key, true, delayInMilliseconds, repeatDelayInMilliseconds, action);
+    public static void AddOnHoldListener(Key key, Action action, int delayMillis, int repeatDelayMillis) =>
+        AddListener(key, true, delayMillis, repeatDelayMillis, action);
 
     private static void RemoveListeners(Key key, bool onPress, bool onHold)
     {
         for (int i = 0; i < KeyListeners.Count; i++)
         {
-            if (KeyListeners[i].Remove) continue;
+            if (KeyListeners[i].ToRemove) continue;
 
-            if (KeyListeners[i].Key == key && KeyListeners[i].OnPress == onPress)
+            if (KeyListeners[i].Key == key && KeyListeners[i].IsOnPress == onPress)
             {
                 //if (onHold)
                 //{
@@ -486,7 +527,7 @@ static class FConsole
                 //    KeyListeners[i].Remove = true;
 
                 // Same as above
-                KeyListeners[i].Remove = onHold ^ (KeyListeners[i].Delay < 0);
+                KeyListeners[i].ToRemove = onHold ^ (KeyListeners[i].Delay < 0);
             }
         }
     }
@@ -495,7 +536,7 @@ static class FConsole
     {
         for (int i = 0; i < KeyListeners.Count; i++)
             if (KeyListeners[i].Key == key)
-                KeyListeners[i].Remove = true;
+                KeyListeners[i].ToRemove = true;
     }
 
     public static void RemoveOnPressListeners(Key key) =>
@@ -506,5 +547,16 @@ static class FConsole
 
     public static void RemoveOnHoldListeners(Key key) =>
         RemoveListeners(key, true, true);
+
+    public static bool WindowIsFocused()
+    {
+        IntPtr handle = GetForegroundWindow();
+        StringBuilder sb = new StringBuilder(256);
+
+        if (GetWindowText(handle, sb, 256) > 0)
+            return sb.ToString() == Console.Title;
+
+        return false;
+    }
     #endregion
 }
