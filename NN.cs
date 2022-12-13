@@ -4,10 +4,11 @@ using System.Reflection;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Collections;
 
 public class NN
 {
-    public enum ActivationTypes
+    internal enum ActivationTypes : byte
     {
         Sigmoid,
         TanH,
@@ -20,53 +21,61 @@ public class NN
         SoftPlus
     }
 
-    public struct TrainingData
+    internal struct TrainingData
     {
         public int Gen;
-        public double CompatTresh;
+        public float CompatTresh;
         public NNData[] NNData;
     }
 
-    public struct NNData
+    internal struct NNData
     {
         public string Name;
         public bool Played;
-        public int Inputs, Outputs;
-        public int Age;
-        public double Fitness;
-        public double Mu, Delta;
+        public ushort Inputs, Outputs;
+        public short Age;
+        public float Fitness;
+        public float Mu, Delta;
         public List<ConnectionData> Connections;
         public List<ActivationTypes> Activations;
 
         public NNData(NN network)
         {
+            if (network.InputCount <= 0 || network.OutputCount <= 0)
+                throw new ArgumentException("Invalid count of input or output nodes");
+
             Name = network.Name;
             Played = network.Played;
-            Inputs = network.InputCount;
-            Outputs = network.OutputCount;
-            Age = network.Age;
-            Fitness = network.Fitness;
-            Mu = network.Mu;
-            Delta = network.Delta;
+            Inputs = (ushort)network.InputCount;
+            Outputs = (ushort)network.OutputCount;
+            Age = (short)network.Age;
+            Fitness = (float)network.Fitness;
+            Mu = (float)network.Mu;
+            Delta = (float)network.Delta;
             Connections = new List<ConnectionData>();
             foreach (Connection c in network.Connections.Values)
+            {
+                if (c.Input < 0 || c.Output < 0)
+                    throw new ArgumentException("Invalid connection found");
+                
                 Connections.Add(new ConnectionData
                 {
                     Enabled = c.Enabled,
-                    Input = c.Input,
-                    Output = c.Output,
-                    Weight = c.Weight
+                    Input = (ushort)c.Input,
+                    Output = (ushort)c.Output,
+                    Weight = (float)c.Weight
                 });
+            }
             Activations = new List<ActivationTypes>();
             foreach (Node n in network.Nodes) Activations.Add(ToFuncType(n.Activation));
         }
     }
 
-    public struct ConnectionData
+    internal struct ConnectionData
     {
         public bool Enabled;
-        public int Input, Output;
-        public double Weight;
+        public ushort Input, Output;
+        public float Weight;
     }
 
     private class Node
@@ -125,8 +134,7 @@ public class NN
             }
         }
 
-        public Connection(ConnectionData data) : this(data.Input, data.Output, data.Weight, data.Enabled)
-        { }
+        public Connection(ConnectionData data) : this(data.Input, data.Output, data.Weight, data.Enabled) { }
 
         public Connection Clone()
         {
@@ -409,18 +417,33 @@ public class NN
         File.WriteAllText(path, json, Encoding.UTF8);
     }
 
+    public static void SaveNNBin(string path, NN network, bool remove_unused = false) =>
+        File.WriteAllBytes(path, ToByteArray(network, remove_unused));
+
     public static void SaveNNs(string path, NN[] networks, int gen, double compat_tresh)
     {
-        NNData[] networks_data = networks.Select(x => new NNData(x)).ToArray();
-        TrainingData training_data = new TrainingData
+        if (path.EndsWith(".bin"))
         {
-            Gen = gen,
-            CompatTresh = compat_tresh,
-            NNData = networks_data
-        };
-        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
-        string json = JsonSerializer.Serialize(training_data, options);
-        File.WriteAllText(path, json, Encoding.UTF8);
+            List<byte> bytes = new List<byte>();
+            bytes.AddRange(BitConverter.GetBytes(gen));
+            bytes.AddRange(BitConverter.GetBytes((float)compat_tresh));
+            bytes.AddRange(BitConverter.GetBytes(networks.Length));
+            foreach (NN network in networks) bytes.AddRange(ToByteArray(network));
+            File.WriteAllBytes(path, bytes.ToArray());
+        }
+        else
+        {
+            NNData[] networks_data = networks.Select(x => new NNData(x)).ToArray();
+            TrainingData training_data = new TrainingData
+            {
+                Gen = gen,
+                CompatTresh = (float)compat_tresh,
+                NNData = networks_data
+            };
+            var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+            string json = JsonSerializer.Serialize(training_data, options);
+            File.WriteAllText(path, json, Encoding.UTF8);
+        }
     }
 
     public static NN LoadNN(string path)
@@ -432,23 +455,137 @@ public class NN
         return new NN(data);
     }
 
+    public static NN LoadNNBin(string path) => FromByteArray(File.ReadAllBytes(path), out int _);
+
     public static NN[] LoadNNs(string path, out int gen, out double compat_tresh)
     {
-        string jsonString = File.ReadAllText(path);
-        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
-        TrainingData training_data = JsonSerializer.Deserialize<TrainingData>(jsonString, options)!;
-        gen = training_data.Gen;
-        compat_tresh = training_data.CompatTresh;
-        NN[] networks = training_data.NNData
-                                     .Select(x => new NN(x))
-                                     .ToArray();
+        if (path.EndsWith(".bin"))
+        {
+            byte[] bytes = File.ReadAllBytes(path);
+            gen = BitConverter.ToInt32(bytes, 0);
+            compat_tresh = BitConverter.ToSingle(bytes, 4);
+            int pop_count = BitConverter.ToInt32(bytes, 8);
+            NN[] networks = new NN[pop_count];
+            int offset = 12;
+            for (int i = 0; i < pop_count; i++)
+            {
+                networks[i] = FromByteArray(bytes, out int size, offset);
+                offset += size;
+            }
+            return networks;
+        }
+        else
+        {
+            string jsonString = File.ReadAllText(path);
+            var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+            TrainingData training_data = JsonSerializer.Deserialize<TrainingData>(jsonString, options)!;
+            gen = training_data.Gen;
+            compat_tresh = training_data.CompatTresh;
+            NN[] networks = training_data.NNData
+                                         .Select(x => new NN(x))
+                                         .ToArray();
 
-        return networks;
+            return networks;
+        }
+    }
+
+    private static byte[] ToByteArray(NN network, bool remove_unused = false)
+    {
+        List<byte> bytes = new List<byte>();
+        NNData data = new NNData(network);
+        int connection_count = data.Connections.Count(x => !remove_unused | x.Enabled);
+        BitList bools = new BitList(connection_count + 1);
+
+        // Add name
+        bytes.Add((byte)data.Name.Length);
+        bytes.AddRange(data.Name.ToArray().Select(x => (byte)x));
+        // Add input and output count
+        bytes.AddRange(BitConverter.GetBytes(data.Inputs));
+        bytes.AddRange(BitConverter.GetBytes(data.Outputs));
+        // Add played and age
+        bools.Add(data.Played);
+        bytes.AddRange(BitConverter.GetBytes(data.Age));
+        // Add fitness, mu and delta
+        bytes.AddRange(BitConverter.GetBytes(data.Fitness));
+        bytes.AddRange(BitConverter.GetBytes(data.Mu));
+        bytes.AddRange(BitConverter.GetBytes(data.Delta));
+        // Add connections
+        bytes.AddRange(BitConverter.GetBytes((ushort)connection_count));
+        foreach (var c in data.Connections)
+        {
+            if (remove_unused && !c.Enabled) continue;
+
+            bools.Add(c.Enabled);
+            bytes.AddRange(BitConverter.GetBytes(c.Input));
+            bytes.AddRange(BitConverter.GetBytes(c.Output));
+            bytes.AddRange(BitConverter.GetBytes(c.Weight));
+        }
+        // Add activations
+        bytes.AddRange(BitConverter.GetBytes((ushort)data.Activations.Count));
+        bytes.AddRange(data.Activations.Select(x => (byte)x));
+        // Add played and enabled bools as a bit array
+        bytes.AddRange(bools.GetBytes());
+
+        return bytes.ToArray();
+    }
+    
+    private static NN FromByteArray(byte[] bytes, out int size, int offset = 0)
+    {
+        NNData data = new NNData();
+        int i = offset;
+        // Get name
+        int name_length = bytes[i++];
+        data.Name = Encoding.UTF8.GetString(bytes, i, name_length);
+        i += name_length;
+        // Get input and output count
+        data.Inputs = BitConverter.ToUInt16(bytes, i);
+        i += 2;
+        data.Outputs = BitConverter.ToUInt16(bytes, i);
+        i += 2;
+        // Get age
+        data.Age = BitConverter.ToInt16(bytes, i);
+        i += 2;
+        // Get fitness, mu and delta
+        data.Fitness = BitConverter.ToSingle(bytes, i);
+        i += 4;
+        data.Mu = BitConverter.ToSingle(bytes, i);
+        i += 4;
+        data.Delta = BitConverter.ToSingle(bytes, i);
+        i += 4;
+        // Get connections
+        int connection_count = BitConverter.ToUInt16(bytes, i);
+        i += 2;
+        int activation_count = BitConverter.ToUInt16(bytes, i + connection_count * 8);
+        BitList bools = new BitList(bytes[(i + connection_count * 8 + activation_count + 2)..], connection_count + 1);
+        data.Played = bools[0];
+        data.Connections = new List<ConnectionData>(connection_count);
+        for (int j = 0; j < connection_count; j++)
+        {
+            var c = new ConnectionData();
+            c.Enabled = bools[j + 1];
+            c.Input = BitConverter.ToUInt16(bytes, i);
+            i += 2;
+            c.Output = BitConverter.ToUInt16(bytes, i);
+            i += 2;
+            c.Weight = BitConverter.ToSingle(bytes, i);
+            i += 4;
+            data.Connections.Add(c);
+        }
+        // Get activations
+        activation_count = BitConverter.ToUInt16(bytes, i);
+        i += 2;
+        data.Activations = new List<ActivationTypes>(activation_count);
+        for (int j = 0; j < activation_count; j++)
+            data.Activations.Add((ActivationTypes)bytes[i++]);
+        i += bools.ByteCount;
+
+        size = i - offset;
+        return new NN(data);
     }
 
     public static NN[] Train(string path, Action<NN[], int, double> fitness_func, int inputs, int outputs, int pop_size)
     {
-        string save_path = path.Insert(path.LastIndexOf('.'), " save");
+        const int SAVE_EVERY = 5;
 
         // Initialise/load NNs
         int gen = 0;
@@ -518,7 +655,8 @@ public class NN
             }
 
             // Make save file before mating
-            SaveNNs(save_path, NNs, gen, compat_tresh);
+            SaveNNs(path.Insert(path.LastIndexOf('.'), " latest gen"), NNs, gen, compat_tresh);
+            if (gen % SAVE_EVERY == 0) SaveNNs(path[..path.LastIndexOf('.')] + $" gen {gen}.bin", NNs, gen, compat_tresh);
 
             // Mating season
             List<NN> new_NNs = new List<NN>();
@@ -585,8 +723,10 @@ public class NN
 
     public static List<List<NN>> Speciate(NN[] networks, double compat_tresh)
     {
-        List<List<NN>> species = new List<List<NN>>();
-        species.Add(new List<NN> { networks[0] });
+        List<List<NN>> species = new List<List<NN>>
+        {
+            new List<NN> { networks[0] }
+        };
         for (int i = 1; i < networks.Length; i++)
         {
             bool existing_sp = false;
@@ -616,7 +756,7 @@ public class NN
     static double UniformRand() => Math.FusedMultiplyAdd(Rand.NextDouble(), 2, -1);
     // Most activation functions here may not be so useful as there were made with the vanishing/exploding gradient problem in mind
     // But hey, no harm having them at our disposal
-#region // Activation functions
+    #region // Activation functions
     static Func<double, double> ToFunc(ActivationTypes type)
     {
         MethodInfo[] methods = typeof(NN).GetMethods(BindingFlags.Static | BindingFlags.NonPublic);
@@ -640,6 +780,7 @@ public class NN
         throw new MissingMemberException("Activation type not found!");
     }
 
+#pragma warning disable IDE0051 // Remove unused private members
     static double Sigmoid(double x) => 1 / (1 + Math.Exp(-x));
     static double TanH(double x) => Math.Tanh(x);
     static double ReLU(double x) => x >= 0 ? x : 0;
@@ -653,5 +794,97 @@ public class NN
         return 0.5D * x * (1 + Math.Tanh(C * Math.FusedMultiplyAdd(0.044715D, Math.Pow(x, 3), x)));
     }
     static double SoftPlus(double x) => Math.Log(1 + Math.Exp(x));
-#endregion
+#pragma warning restore IDE0051 // Remove unused private members
+    #endregion
+}
+
+sealed class BitList : ICollection, IEnumerable, ICloneable
+{
+    public const byte TRUE = 1, FLASE = 0;
+    
+    private byte[] _m;
+    public int Count { get; private set; }
+    public int ByteCount { get => (Count - 1) / 8 + 1; }
+
+    public bool IsSynchronized => false;
+    public object SyncRoot => null;
+
+    public bool this[int index]
+    {
+        get
+        {
+            if (index < 0 || index >= Count)
+                throw new IndexOutOfRangeException();
+
+            return (_m[index / 8] >> (index % 8) & 1) == TRUE;
+        }
+        set
+        {
+            if (index < 0 || index >= Count)
+                throw new IndexOutOfRangeException();
+
+            if (value)
+                _m[index / 8] |= (byte)(1 << (index % 8));
+            else
+                _m[index / 8] &= (byte)~(1 << (index % 8));
+        }
+    }
+
+    public BitList()
+    {
+        _m = Array.Empty<byte>();
+        Count = 0;
+    }
+
+    public BitList(int capacity)
+    {
+        _m = new byte[(capacity - 1) / 8 + 1];
+        Count = 0;
+    }
+
+    public BitList(byte[] bytes, int count = -1)
+    {
+        Count = count == -1 ? bytes.Length * 8 : count;
+        _m = bytes[..ByteCount];
+    }
+
+    public void Add(bool bit)
+    {
+        // Resize array if needed
+        if (Count >= _m.Length * 8)
+        {
+            byte[] new_m = new byte[_m.Length * 2];
+            _m.CopyTo(new_m, 0);
+            _m = new_m;
+        }
+
+        // Add bit
+        this[Count++] = bit;
+    }
+    
+    public void Clear()
+    {
+        for (int i = 0; i < ByteCount; i++)
+            _m[i] = 0;
+    }
+
+    public IEnumerator GetEnumerator() =>
+        _m.SelectMany((x, index) =>
+        {
+            bool[] bits = new bool[Math.Min(8, Count - (index * 8))];
+            for (int i = 0; i < 8; i++)
+                bits[i] = this[index * 8 + i];
+            return bits;
+        }).GetEnumerator();
+
+    public byte[] GetBytes() => _m.Take(ByteCount).ToArray();
+
+    public void CopyTo(Array array, int index) => _m.CopyTo(array, index);
+
+    public object Clone() =>
+        new BitList
+        {
+            _m = (byte[])_m.Clone(),
+            Count = Count
+        };
 }
