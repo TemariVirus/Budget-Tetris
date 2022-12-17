@@ -340,9 +340,9 @@ public class NN
             // Enable/disable connection
             if (Rand.NextDouble() < CON_ENABLE_CHANCE) c.Enabled = !c.Enabled;
             // Keep weight within bounds
-#if BOUND_WEIGHTS
+            #if BOUND_WEIGHTS
             c.Weight = c.Weight < 0 ? Math.Max(c.Weight, -MUTATE_POW * 2) : Math.Min(c.Weight, MUTATE_POW * 2);
-#endif
+            #endif
         }
 
         // Add connection between existing nodes
