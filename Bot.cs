@@ -100,8 +100,17 @@ public abstract class Bot
         ToStop = false;
         BotThread = new Thread(() =>
         {
-            while (!Game.IsDead)
+            while (true)
             {
+                // Check if should stop
+                if (ToStop) break;
+
+                if (IsPaused)
+                {
+                    Thread.Sleep(1);
+                    continue;
+                }
+                
                 // Find moves
                 Game.Tick();
                 List<Moves> moves = FindMoves();
@@ -126,12 +135,9 @@ public abstract class Bot
                 for (int i = NodeCounts.Length - 1; i > 0; i--)
                     NodeCounts[i] = NodeCounts[i - 1];
                 NodeCounts[0] = 0;
-                // Check if should stop
-                if (ToStop) break;
             }
 
             ToStop = false;
-            return;
         })
         {
             Priority = ThreadPriority.Highest
