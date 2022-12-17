@@ -4,53 +4,56 @@ using System.Windows.Input;
 using Tetris;
 
 // Inputs: standard height, caves, pillars, row transitions, col transitions, trash, cleared, intent
-// Outputs: score of state, intent(don't search further if it drops below a treshold)
+// Outputs: score of state, intent
 // TODO:
-//- Death animation (lines disappear from bottom up
+//- Death animation (lines disappear from bottom up)
 //- make FConsole.AddListener methods return the listener, which can then be used to remove specific listeners
 //- Make GameBase sealed and use composition?
 //- Laser chess?
 //- Implement move generator and order moves by intent
 //- Add height of trash and incoming trash as features
 //- Add a featrue for t-spins
-//- Add a feature for B2B
+//- Add a feature for B2B (1 for no B2B -> B2B, -1 for B2B -> no B2B, 0 for no change)
+//- Seperate trash and cleared into diff categories (combo, tspins, pcs)
 static class Program
 {
-    const int MAX_LINES = 300;
+    const int MAX_LINES = 500;
     const int MAX_PIECES = MAX_LINES * 5 / 2;
-    const int THINK_TIME_IN_MILLIS = 100, MOVE_DELAY_IN_MILLIS = 0;
+    const int THINK_TIME_MILLIS = 50, MOVE_DELAY_MILLIS = 0;
     const int PLAY_TIMES = 4;
     const double DELTA_TRESH = 0.0487; // Just less than 5% error (e^0.0487 ~ 1.0499)
-    static readonly string Population_path = AppContext.BaseDirectory + @"Pops\double out deep score.json";
+    static readonly string Population_path = AppContext.BaseDirectory + @"Pops\speed double out";
+    //static readonly string Population_path = AppContext.BaseDirectory + @"Pops\many in.json";
         
     static void Main()
     {
         // Set up console
         Game.InitWindow();
-        // PlayerGame.InitWindow(40); // Biggest
+        // Game.InitWindow(40); // Biggest
 
-        int seed = new Random().Next();
-        Game[] games = new Game[2].Select(x => new Game(6, seed)).ToArray();
-        Game.SetGames(games);
-        FConsole.Set(FConsole.Width, FConsole.Height + 2);
-        Game.IsPaused = true;
-        Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
-        left.Start(300, 0);
+        //int seed = new Random().Next();
+        //Game[] games = new Game[2].Select(x => new Game(6, seed)).ToArray();
+        //Game.SetGames(games);
+        //FConsole.Set(FConsole.Width, FConsole.Height + 2);
+        //Game.IsPaused = true;
+        //Bot left = new BotOld(NN.LoadNN(AppContext.BaseDirectory + @"NNs\plan2.txt"), games[0]);
+        //left.Start(300, 0);
         //Bot right = new BotFixedTresh(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Temare.txt"), games[1]);
         //right.Start(300, 0);
         //games[1].SetupPlayerInput();
-        Game.IsPaused = false;
+        //Game.IsPaused = false;
 
         //games[1].G = 0.02;
-        PCFinder pc = new PCFinder();
-        FConsole.AddOnPressListener(Key.S, () => pc.ShowMode = !pc.ShowMode);
-        //FConsole.AddOnPressListener(Key.W, () => pc.Wait = !pc.Wait);
-        FConsole.AddOnPressListener(Key.N, () => pc.GoNext = true);
-        FConsole.AddOnHoldListener(Key.N, () => pc.GoNext = true, 400, 25);
-        FConsole.AddOnPressListener(Key.P, () => new Thread(() => pc.TryFindPC(games[1], out _)).Start());
-        
+        //PCFinder pc = new PCFinder();
+        //FConsole.AddOnPressListener(Key.S, () => pc.ShowMode = !pc.ShowMode);
+        ////FConsole.AddOnPressListener(Key.W, () => pc.Wait = !pc.Wait);
+        //FConsole.AddOnPressListener(Key.N, () => pc.GoNext = true);
+        //FConsole.AddOnHoldListener(Key.N, () => pc.GoNext = true, 400, 25);
+        //FConsole.AddOnPressListener(Key.P, () => new Thread(() => pc.TryFindPC(games[1], out _)).Start());
+
         // Train NNs
-        //NN.Train(Population_path, FitnessFunctionVS, 8, 2, 50);
+        //NN.Train(Population_path, FitnessFunctionPCless, 14, 2, 50);
+        NN.Train(Population_path, FitnessFunctionPCless, 8, 2, 50);
     }
 
     static void FitnessFunctionTrainer(NN[] networks, int gen, double compat_tresh)
@@ -72,27 +75,20 @@ static class Program
                 Game.SetGames(games);
 
                 // Show info on console
-                FConsole.Set(FConsole.Width, FConsole.Height + 8);
-                FConsole.CursorVisible = false;
-                FConsole.WriteAt($"Gen: {gen}\n", 1, 28);
-                NN best_nn = networks.Aggregate((max, current) => (current.Fitness > max.Fitness) ? current : max);
-                FConsole.WriteLine($" Best: {best_nn.Fitness} by {best_nn.Name}");
-                FConsole.WriteLine($" Average fitness: {(networks.Any(x => x.Played) ? networks.Where(x => x.Played).Average(x => x.Fitness) : 0)}");
-                FConsole.WriteLine($" Average Size: {networks.Average(x => x.GetSize())}");
-                FConsole.WriteLine($" No. of Species: {NN.Speciate(networks, compat_tresh).Count}");
+                DisplayInfo(networks, gen, compat_tresh);
 
                 // Start bots
                 BotOld trainer = new BotOld(trainer_nn, games[0]); // Old trained ai
                 BotFixedTresh trainee = new BotFixedTresh(trainee_nn, games[1]); // new ai
                 Game.IsPaused = false;
-                trainer.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);
-                trainee.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);
+                trainer.Start(THINK_TIME_MILLIS, MOVE_DELAY_MILLIS);
+                trainee.Start(THINK_TIME_MILLIS, MOVE_DELAY_MILLIS);
 
                 // Wait until one dies or game takes too long
                 while (games.All(x => !x.IsDead)
                     && total_pieces + games[1].PiecesPlaced < MAX_PIECES
                     && total_lines + games[1].Lines < MAX_LINES)
-                    Thread.Sleep(THINK_TIME_IN_MILLIS / 2);
+                    Thread.Sleep(THINK_TIME_MILLIS / 2);
                 total_pieces += games[1].PiecesPlaced;
                 total_lines += games[1].Lines;
                 trainee_nn.Fitness += games[1].Sent;
@@ -100,7 +96,7 @@ static class Program
                 Game alive = trainer.Game.IsDead ? trainee.Game : trainer.Game;
                 int placed = alive.PiecesPlaced;
                 while (alive.PiecesPlaced - placed < 6 && !alive.IsDead)
-                    Thread.Sleep(THINK_TIME_IN_MILLIS / 2);
+                    Thread.Sleep(THINK_TIME_MILLIS / 2);
 
                 // End game
                 Game.IsPaused = true;
@@ -119,46 +115,143 @@ static class Program
         return;
     }
 
-    static void FitnessFunctionAPL(NN[] networks, int gen, double compat_tresh)
+    static void FitnessFunctionTrash(NN[] networks, int gen, double compat_tresh)
     {
         int seed = new Random().Next();
-        foreach (NN network in networks)
+
+        networks = networks
+                   .OrderByDescending(x => x.Played)
+                   .ToArray();
+        for (int i = 0; i < networks.Length; i++)
         {
-            if (network.Played) continue;
+            if (networks[i].Played) continue;
 
             // Prepare games
-            Game game = new Game(5, seed);
-            Game.SetGames(new Game[] { game });
+            Game.SetGames(new Game[Math.Min(4, networks.Length - i) + 1]
+                          .Select(x => new Game(16, seed))
+                          .ToArray());
+
+            // Create bots
+            Bot[] bots = new Bot[Game.Games.Length - 1]
+                         .Select((x, index) => new BotByScore(networks[i++], Game.Games[index]))
+                         .ToArray();
+            Bot trainer = new BotByScore(NN.LoadNN(AppContext.BaseDirectory + @"NNs\Soqyme.json"), Game.Games[^1]);
+            Game.SetGames(Game.Games);
+            // Start bots
+            foreach (Bot b in bots)
+            {
+                b.Game.TargetMode = TargetModes.None;
+                b.Start(THINK_TIME_MILLIS, MOVE_DELAY_MILLIS);
+            }
+            trainer.Game.TargetMode = TargetModes.AllButSelf;
+            trainer.Start(90, 0);
 
             // Show info on console
-            FConsole.Set(FConsole.Width, FConsole.Height + 8);
-            FConsole.CursorVisible = false;
-            FConsole.WriteAt($" Gen: {gen}\n", 0, 28);
-            NN best_nn = networks.Aggregate((max, current) => (current.Played && current.Fitness > max.Fitness) ? current : max);
-            FConsole.WriteLine($" Best: {best_nn.Fitness} by {best_nn.Name}");
-            double avg = 0;
-            if (networks.Any(x => x.Played))
-                avg = networks.Where(x => x.Played).Average(x => x.Fitness);
-            FConsole.WriteLine($" Average Fitness: {avg}");
-            FConsole.WriteLine($" Average Size: {networks.Average(x => x.GetSize())}");
-            FConsole.WriteLine($" No. of Species: {NN.Speciate(networks, compat_tresh).Count}");
+            DisplayInfo(networks, gen, compat_tresh);
 
-            // Start bots
-            BotFixedTresh bot = new BotFixedTresh(network, game);
-            bot.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);
+            // Wait until bot dies or game takes too long
+            while (bots.Any(x => !x.Game.IsDead && x.Game.PiecesPlaced < MAX_PIECES))
+            {
+                foreach (Bot b in bots)
+                {
+                    if (b.Network.Played) continue;
 
-            // Wait bot dies or game takes too long
-            while (!game.IsDead && game.Lines < MAX_LINES)
-                Thread.Sleep(THINK_TIME_IN_MILLIS / 2);
+                    if (b.Game.PiecesPlaced >= MAX_PIECES)
+                        b.Stop();
+                }
+                if (trainer.Game.IsDead)
+                    trainer.Game.Restart();
+                Thread.Sleep(THINK_TIME_MILLIS / 2);
+            }
 
             // End game
-            bot.Stop();
-            network.Fitness = game.Sent;
-            network.Played = true;
+            foreach (Bot b in bots)
+            {
+                b.Stop();
+                b.Network.Fitness = b.Game.Sent;
+                b.Network.Played = true;
+            }
+            trainer.Stop();
 
             // Save progress
             NN.SaveNNs(Population_path, networks, gen, compat_tresh);
         }
+    }
+
+    static void FitnessFunctionPCless(NN[] networks, int gen, double compat_tresh)
+    {
+        // Prepare games
+        Queue<NN> queued = new Queue<NN>(networks.Where(nn => !nn.Played));
+        Game[] games = new Game[5].Select(x => new Game(next_length: 16)).ToArray();
+        Game.SetGames(games);
+        Bot[] active_bots = new Bot[games.Length]
+        .Select((_, i) =>
+            {
+                if (!queued.TryDequeue(out NN nn)) return null;
+
+                games[i].TargetMode = TargetModes.None;
+                games[i].Matrix = new MatrixMask() { LowLow = 1 };
+                games[i].MatrixColors[0][^1] = Game.PieceColors[Piece.Garbage];
+                games[i].CheckHeight();
+
+                Bot bot = new BotByScore(nn, games[i]);
+                bot.Start(THINK_TIME_MILLIS, MOVE_DELAY_MILLIS);
+
+                return bot;
+            })
+        .ToArray();
+        Game.SetGames(games);
+        DisplayInfo(networks, gen, compat_tresh);
+        
+        // Start bots
+        while (queued.Count > 0 || Game.Games.Any(g => g.IsBot && !g.IsDead && (g.PiecesPlaced < MAX_PIECES)))
+        {
+            // Replace dead bots with new ones
+            foreach (var (game, i) in Game.Games.Select((g, i) => (g, i)))
+            {
+                if (!game.IsDead && game.PiecesPlaced < MAX_PIECES)
+                    continue;
+                if (!game.IsBot)
+                    continue;
+                
+                // Save progress
+                active_bots[i].Stop();
+                active_bots[i].Network.Fitness = game.Sent;
+                active_bots[i].Network.Played = true;
+                NN.SaveNNs(Population_path, networks, gen, compat_tresh);
+
+                // Get next NN
+                if (!queued.TryDequeue(out NN nn)) break;
+
+                game.Restart();
+                game.TargetMode = TargetModes.None;
+                game.Matrix = new MatrixMask() { LowLow = 1 };
+                game.MatrixColors[0][^1] = Game.PieceColors[Piece.Garbage];
+                game.CheckHeight();
+                active_bots[i] = new BotByScore(nn, game);
+                active_bots[i].Start(THINK_TIME_MILLIS, MOVE_DELAY_MILLIS);
+            }
+
+            Thread.Sleep(THINK_TIME_MILLIS / 2);
+        }
+
+        foreach (Bot bot in active_bots)
+            bot?.Stop();
+    }
+
+    private static void DisplayInfo(NN[] networks, int gen, double compat_tresh)
+    {
+        FConsole.Set(FConsole.Width, FConsole.Height + 5);
+        FConsole.CursorVisible = false;
+        FConsole.WriteAt($" Gen: {gen}\n", 0, FConsole.Height - 6);
+        NN best_nn = networks.MaxBy(x => x.Fitness);
+        FConsole.WriteAt($" Best: {best_nn.Fitness} by {best_nn.Name}", 0, FConsole.Height - 5);
+        double avg = 0;
+        if (networks.Any(x => x.Played || x.Age > 0))
+            avg = networks.Where(x => x.Played || x.Age > 0).Average(x => x.Fitness);
+        FConsole.WriteAt($" Average Fitness: {avg}", 0, FConsole.Height - 4);
+        FConsole.WriteAt($" Average Size: {networks.Average(x => x.GetSize())}", 0, FConsole.Height - 3);
+        FConsole.WriteAt($" No. of Species: {NN.Speciate(networks, compat_tresh).Count}", 0, FConsole.Height - 2);
     }
 
     // Own rating system:
@@ -248,19 +341,19 @@ static class Program
                 Bot left_bot = new BotByScore(left, games[0]);
                 Bot right_bot = new BotByScore(right, games[1]);
                 Game.IsPaused = false;
-                left_bot.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);
-                right_bot.Start(THINK_TIME_IN_MILLIS, MOVE_DELAY_IN_MILLIS);
+                left_bot.Start(THINK_TIME_MILLIS, MOVE_DELAY_MILLIS);
+                right_bot.Start(THINK_TIME_MILLIS, MOVE_DELAY_MILLIS);
 
                 // Wait until one dies or game takes too long
                 while (games.All(x => !x.IsDead) && games.All(x => x.Lines < MAX_LINES))
-                    Thread.Sleep(THINK_TIME_IN_MILLIS / 2);
+                    Thread.Sleep(THINK_TIME_MILLIS / 2);
                 // If only one is alive, wait a while to see if it kills itself
                 if (left_bot.Game.IsDead ^ right_bot.Game.IsDead)
                 {
                     Game alive = left_bot.Game.IsDead ? right_bot.Game : left_bot.Game;
                     int placed = alive.PiecesPlaced;
                     while (alive.PiecesPlaced - placed < 10 && !alive.IsDead)
-                        Thread.Sleep(THINK_TIME_IN_MILLIS / 2);
+                        Thread.Sleep(THINK_TIME_MILLIS / 2);
                 }
 
                 // End game

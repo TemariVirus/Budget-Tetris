@@ -13,31 +13,36 @@ public abstract class Bot
     public Game Game
     {
         get => _Game;
-        set
+        init
         {
             if (_Game != null)
             {
                 _Game.SoftG = Settings.SoftG;
                 _Game.IsBot = false;
+                _Game.Name = "";
             }
             
             _Game = value;
-            if (_Game != null)
+            if (value != null)
             {
                 _Game.SoftG = 40;
                 _Game.IsBot = true;
+                _Game.Name = Network.Name ?? "Bot";
+                NextHashTable = RandomArray(_Game.Next.Length, 8);
+                Discounts = new double[_Game.Next.Length];
+                for (int i = 0; i < _Game.Next.Length; i++) Discounts[i] = Math.Pow(DISCOUNT_FACTOR, i);
             }
         }
     }
     protected GameBase Sim;
-    protected readonly NN Network;
+    public readonly NN Network;
 
     protected int CurrentDepth;
     protected double MaxDepth;
 
     protected readonly Dictionary<ulong, double> CachedValues = new Dictionary<ulong, double>();
     protected readonly Dictionary<ulong, double> CachedStateValues = new Dictionary<ulong, double>();
-    protected readonly ulong[][] MatrixHashTable = RandomArray(16, 65536), NextHashTable;
+    protected readonly ulong[][] MatrixHashTable = RandomArray(32, 256), NextHashTable;
     protected readonly ulong[] PieceHashTable = RandomArray(8), HoldHashTable = RandomArray(8);
     protected readonly double[] Discounts;
 
@@ -52,19 +57,11 @@ public abstract class Bot
     protected const int RunAvgCount = 20;
     protected long[] NodeCounts;
 
-    protected Bot(Game game)
+    public Bot(NN network, Game game)
     {
-        Game = game;
-        NextHashTable = RandomArray(game.Next.Length, 8);
-        Discounts = new double[game.Next.Length];
-        for (int i = 0; i < game.Next.Length; i++) Discounts[i] = Math.Pow(DISCOUNT_FACTOR, i);
         MoveTresh = MoveTreshStart;
-    }
-
-    public Bot(NN network, Game game) : this(game)
-    {
         Network = network;
-        game.Name = network.Name ?? "Bot";
+        Game = game;
     }
 
     public Bot(string filePath, Game game) : this(NN.LoadNN(filePath), game)
@@ -95,9 +92,8 @@ public abstract class Bot
 
     public void Start(int think_time, int move_delay)
     {
-        if (BotThread != null)
-            if (BotThread.IsAlive)
-                return;
+        if (BotThread?.IsAlive ?? false)
+            return;
 
         ThinkTicks = think_time * Stopwatch.Frequency / 1000;
         NodeCounts = new long[RunAvgCount];
@@ -122,11 +118,11 @@ public abstract class Bot
                     }
                 }
                 // Stats
-                Game.WriteAt(0, GameHeight - 1, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(GameWidth));
+                Game.WriteAt(0, GameHeight - 4, ConsoleColor.White, $"Depth: {MaxDepth}".PadRight(GameWidth));
                 long count = NodeCounts.Aggregate(0, (aggregate, next) => (next == 0) ? aggregate : aggregate + 1);
                 if (count == 0) count++;
-                Game.WriteAt(0, GameHeight, ConsoleColor.White, $"Nodes: {NodeCounts.Sum() / count}".PadRight(GameWidth));
-                Game.WriteAt(0, GameHeight + 1, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(GameWidth));
+                Game.WriteAt(0, GameHeight - 3, ConsoleColor.White, $"Nodes: {NodeCounts.Sum() / count}".PadRight(GameWidth));
+                Game.WriteAt(0, GameHeight - 2, ConsoleColor.White, $"Tresh: {Math.Round(MoveTresh, 6)}".PadRight(GameWidth));
                 for (int i = NodeCounts.Length - 1; i > 0; i--)
                     NodeCounts[i] = NodeCounts[i - 1];
                 NodeCounts[0] = 0;
@@ -136,14 +132,16 @@ public abstract class Bot
 
             ToStop = false;
             return;
-        });
-        BotThread.Priority = ThreadPriority.Highest;
+        })
+        {
+            Priority = ThreadPriority.Highest
+        };
         BotThread.Start();
 
         // Write stats
-        Game.WriteAt(0, GameHeight - 1, ConsoleColor.White, $"Depth: 0".PadRight(GameWidth));
-        Game.WriteAt(0, GameHeight, ConsoleColor.White, $"Nodes: 0".PadRight(GameWidth));
-        Game.WriteAt(0, GameHeight + 1, ConsoleColor.White, $"Tresh: 0.000000".PadRight(GameWidth));
+        Game.WriteAt(0, GameHeight - 4, ConsoleColor.White, $"Depth: 0".PadRight(GameWidth));
+        Game.WriteAt(0, GameHeight - 3, ConsoleColor.White, $"Nodes: 0".PadRight(GameWidth));
+        Game.WriteAt(0, GameHeight - 2, ConsoleColor.White, $"Tresh: 0.000000".PadRight(GameWidth));
     }
 
     public void Stop()
@@ -152,7 +150,7 @@ public abstract class Bot
         BotThread.Join();
     }
 
-    protected abstract List<Moves> FindMoves();
+    public abstract List<Moves> FindMoves();
 
     protected virtual int[] SearchScore(bool last_rot, ref int combo, ref int b2b, out double trash, out int cleared)
     {
@@ -202,13 +200,12 @@ public abstract class Bot
     protected virtual ulong HashState(double trash)
     {
         ulong hash = BitConverter.DoubleToUInt64Bits(trash);
-        for (int i = 0, shift = 0; i < 4; i++)
+        for (int i = 0, shift = 0; i < 8; i++, shift += 8)
         {
-            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFFFF];
-            hash ^= MatrixHashTable[i + 4][(Sim.Matrix.LowHigh >> shift) & 0xFFFF];
-            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.HighLow >> shift) & 0xFFFF];
-            hash ^= MatrixHashTable[i + 12][(Sim.Matrix.HighHigh >> shift) & 0xFFFF];
-            shift += 16;
+            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.LowHigh >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 16][(Sim.Matrix.HighLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 24][(Sim.Matrix.HighHigh >> shift) & 0xFF];   
         }
 
         return hash;
@@ -226,7 +223,7 @@ public sealed class BotOld : Bot
 
     public BotOld(string filePath, Game game) : base(filePath, game) { }
 
-    protected override List<Moves> FindMoves()
+    public override List<Moves> FindMoves()
     {
         // Get copy of attached game
         Sim = Game.Clone();
@@ -273,7 +270,7 @@ public sealed class BotOld : Bot
 
                         Sim.Current = piece;
                         Sim.X = orix;
-                        Sim.Y = Tetris.GameBase.START_Y;
+                        Sim.Y = GameBase.START_Y;
                         // Hard drop
                         Sim.TryDrop(40);
                         int oriy = Sim.Y;
@@ -425,7 +422,7 @@ public sealed class BotOld : Bot
                     if (TimesUp) break;
 
                     Sim.X = orix;
-                    Sim.Y = Tetris.GameBase.START_Y;
+                    Sim.Y = GameBase.START_Y;
                     Sim.Current = piece;
                     Sim.TryDrop(40);
                     int oriy = Sim.Y;
@@ -619,7 +616,7 @@ public sealed class BotFixedTresh : Bot
 
     public BotFixedTresh(string filePath, Game game) : base(NN.LoadNN(filePath), game) { }
 
-    protected override List<Moves> FindMoves()
+    public override List<Moves> FindMoves()
     {
         // Get copy of attached game
         Sim = Game.Clone();
@@ -826,7 +823,7 @@ public sealed class BotFixedTresh : Bot
                     if (TimesUp) break;
 
                     Sim.X = orix;
-                    Sim.Y = Tetris.GameBase.START_Y;
+                    Sim.Y = GameBase.START_Y;
                     Sim.Current = piece;
                     Sim.TryDrop(40);
                     int oriy = Sim.Y;
@@ -988,13 +985,12 @@ public sealed class BotFixedTresh : Bot
     private ulong HashState(double cleared, double trash, double intent)
     {
         ulong hash = 0;
-        for (int i = 0, shift = 0; i < 4; i++)
+        for (int i = 0, shift = 0; i < 8; i++, shift += 8)
         {
-            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFFFF];
-            hash ^= MatrixHashTable[i + 4][(Sim.Matrix.LowHigh >> shift) & 0xFFFF];
-            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.HighLow >> shift) & 0xFFFF];
-            hash ^= MatrixHashTable[i + 12][(Sim.Matrix.HighHigh >> shift) & 0xFFFF];
-            shift += 16;
+            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.LowHigh >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 16][(Sim.Matrix.HighLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 24][(Sim.Matrix.HighHigh >> shift) & 0xFF];
         }
         hash ^= BitConverter.DoubleToUInt64Bits(trash) << 3;
         hash ^= BitConverter.DoubleToUInt64Bits(cleared) >> 5;
@@ -1013,8 +1009,8 @@ public sealed class BotByScore : Bot
     public BotByScore(NN network, Game game) : base(network, game) { }
 
     public BotByScore(string filePath, Game game) : base(NN.LoadNN(filePath), game) { }
-
-    protected override List<Moves> FindMoves()
+    
+    public override List<Moves> FindMoves()
     {
         // Get copy of attached game
         Sim = Game.Clone();
@@ -1381,13 +1377,12 @@ public sealed class BotByScore : Bot
     private ulong HashState(double cleared, double trash, double intent)
     {
         ulong hash = 0;
-        for (int i = 0, shift = 0; i < 4; i++)
+        for (int i = 0, shift = 0; i < 8; i++, shift += 8)
         {
-            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFFFF];
-            hash ^= MatrixHashTable[i + 4][(Sim.Matrix.LowHigh >> shift) & 0xFFFF];
-            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.HighLow >> shift) & 0xFFFF];
-            hash ^= MatrixHashTable[i + 12][(Sim.Matrix.HighHigh >> shift) & 0xFFFF];
-            shift += 16;
+            hash ^= MatrixHashTable[i + 0][(Sim.Matrix.LowLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 8][(Sim.Matrix.LowHigh >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 16][(Sim.Matrix.HighLow >> shift) & 0xFF];
+            hash ^= MatrixHashTable[i + 24][(Sim.Matrix.HighHigh >> shift) & 0xFF];
         }
         hash ^= BitConverter.DoubleToUInt64Bits(trash) << 3;
         hash ^= BitConverter.DoubleToUInt64Bits(cleared) >> 5;

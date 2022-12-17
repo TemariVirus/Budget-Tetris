@@ -21,7 +21,7 @@ public class NN
         SoftPlus
     }
 
-    internal struct TrainingData
+    internal struct PopData
     {
         public int Gen;
         public float CompatTresh;
@@ -57,7 +57,7 @@ public class NN
             {
                 if (c.Input < 0 || c.Output < 0)
                     throw new ArgumentException("Invalid connection found");
-                
+
                 Connections.Add(new ConnectionData
                 {
                     Enabled = c.Enabled,
@@ -164,6 +164,9 @@ public class NN
     public const double CON_PURTURB_CHANCE = 0.8, CON_ENABLE_CHANCE = 0.1, CON_ADD_CHANCE = 0.1, NODE_ADD_CHANCE = 0.02;
     public const int TRY_ADD_CON_TIMES = 20;
     #endregion
+
+    public const string NN_FILE_END = ".nn";
+    public const string POPULATION_FILE_END = ".nnpop";
 
     static readonly Random Rand = new();
     static readonly List<int> InNodes = new List<int>(), OutNodes = new List<int>();
@@ -337,9 +340,9 @@ public class NN
             // Enable/disable connection
             if (Rand.NextDouble() < CON_ENABLE_CHANCE) c.Enabled = !c.Enabled;
             // Keep weight within bounds
-            #if BOUND_WEIGHTS
+#if BOUND_WEIGHTS
             c.Weight = c.Weight < 0 ? Math.Max(c.Weight, -MUTATE_POW * 2) : Math.Min(c.Weight, MUTATE_POW * 2);
-            #endif
+#endif
         }
 
         // Add connection between existing nodes
@@ -411,18 +414,24 @@ public class NN
 
     public static void SaveNN(string path, NN network)
     {
+        if (path.EndsWith(NN_FILE_END))
+        {
+            SaveNNBin(path, network);
+            return;
+        }
+
         NNData data = new NNData(network);
         var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
         string json = JsonSerializer.Serialize(data, options);
         File.WriteAllText(path, json, Encoding.UTF8);
     }
 
-    public static void SaveNNBin(string path, NN network, bool remove_unused = false) =>
+    private static void SaveNNBin(string path, NN network, bool remove_unused = false) =>
         File.WriteAllBytes(path, ToByteArray(network, remove_unused));
 
     public static void SaveNNs(string path, NN[] networks, int gen, double compat_tresh)
     {
-        if (path.EndsWith(".bin"))
+        if (path.EndsWith(POPULATION_FILE_END))
         {
             List<byte> bytes = new List<byte>();
             bytes.AddRange(BitConverter.GetBytes(gen));
@@ -434,7 +443,7 @@ public class NN
         else
         {
             NNData[] networks_data = networks.Select(x => new NNData(x)).ToArray();
-            TrainingData training_data = new TrainingData
+            PopData training_data = new PopData
             {
                 Gen = gen,
                 CompatTresh = (float)compat_tresh,
@@ -448,18 +457,23 @@ public class NN
 
     public static NN LoadNN(string path)
     {
+        if (path.EndsWith(NN_FILE_END))
+        {
+            return LoadNNBin(path);
+        }
+
         string jsonString = File.ReadAllText(path);
-        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
+        var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true, AllowTrailingCommas = true };
         NNData data = JsonSerializer.Deserialize<NNData>(jsonString, options);
 
         return new NN(data);
     }
 
-    public static NN LoadNNBin(string path) => FromByteArray(File.ReadAllBytes(path), out int _);
+    private static NN LoadNNBin(string path) => FromByteArray(File.ReadAllBytes(path), out int _);
 
     public static NN[] LoadNNs(string path, out int gen, out double compat_tresh)
     {
-        if (path.EndsWith(".bin"))
+        if (path.EndsWith(POPULATION_FILE_END))
         {
             byte[] bytes = File.ReadAllBytes(path);
             gen = BitConverter.ToInt32(bytes, 0);
@@ -478,7 +492,7 @@ public class NN
         {
             string jsonString = File.ReadAllText(path);
             var options = new JsonSerializerOptions { WriteIndented = true, IncludeFields = true };
-            TrainingData training_data = JsonSerializer.Deserialize<TrainingData>(jsonString, options)!;
+            PopData training_data = JsonSerializer.Deserialize<PopData>(jsonString, options)!;
             gen = training_data.Gen;
             compat_tresh = training_data.CompatTresh;
             NN[] networks = training_data.NNData
@@ -528,7 +542,7 @@ public class NN
 
         return bytes.ToArray();
     }
-    
+
     private static NN FromByteArray(byte[] bytes, out int size, int offset = 0)
     {
         NNData data = new NNData();
@@ -591,9 +605,15 @@ public class NN
         int gen = 0;
         double compat_tresh = 0.5;
         NN[] NNs = new NN[pop_size];
-        if (File.Exists(path))
+        if (!path.EndsWith('\\'))
+            path += '\\';
+        Directory.CreateDirectory(path);
+        string population_file = Directory.GetFiles(path)
+            .Where(f => f[f.LastIndexOf('\\')..f.LastIndexOf('.')] == "\\current")
+            .FirstOrDefault(string.Empty);
+        if (population_file != string.Empty)
         {
-            NNs = LoadNNs(path, out gen, out compat_tresh);
+            NNs = LoadNNs(population_file, out gen, out compat_tresh);
             // Add extra NNs if too few
             if (NNs.Length < pop_size)
             {
@@ -607,7 +627,7 @@ public class NN
             for (int i = 0; i < pop_size; i++)
                 NNs[i] = new NN(inputs, outputs);
         }
-        SaveNNs(path, NNs, gen, compat_tresh);
+        SaveNNs(path + @"current.json", NNs, gen, compat_tresh);
 
         // Train
         for (; gen < MAX_GENERATIONS || MAX_GENERATIONS == -1;)
@@ -655,8 +675,11 @@ public class NN
             }
 
             // Make save file before mating
-            SaveNNs(path.Insert(path.LastIndexOf('.'), " latest gen"), NNs, gen, compat_tresh);
-            if (gen % SAVE_EVERY == 0) SaveNNs(path[..path.LastIndexOf('.')] + $" gen {gen}.bin", NNs, gen, compat_tresh);
+            SaveNNs(path + @$"gen {gen}.json", NNs, gen, compat_tresh);
+            if (File.Exists(path + $@"gen {gen - 1}.json"))
+                File.Delete(path + $@"gen {gen - 1}.json");
+            if (gen % SAVE_EVERY == 0)
+                SaveNNs(path + @$"gen {gen}" + POPULATION_FILE_END, NNs, gen, compat_tresh);
 
             // Mating season
             List<NN> new_NNs = new List<NN>();
@@ -715,7 +738,7 @@ public class NN
 
             // Save new generation
             gen++;
-            SaveNNs(path, NNs, gen, compat_tresh);
+            SaveNNs(path + @"current.json", NNs, gen, compat_tresh);
         }
 
         return NNs;
@@ -801,7 +824,7 @@ public class NN
 sealed class BitList : ICollection, IEnumerable, ICloneable
 {
     public const byte TRUE = 1, FLASE = 0;
-    
+
     private byte[] _m;
     public int Count { get; private set; }
     public int ByteCount { get => (Count - 1) / 8 + 1; }
@@ -861,7 +884,7 @@ sealed class BitList : ICollection, IEnumerable, ICloneable
         // Add bit
         this[Count++] = bit;
     }
-    
+
     public void Clear()
     {
         for (int i = 0; i < ByteCount; i++)

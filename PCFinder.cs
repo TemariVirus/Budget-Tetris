@@ -3,7 +3,7 @@
 using System;
 using System.Diagnostics;
 
-class PCFinder
+public class PCFinder
 {   
     private sealed class DoublyLinkedMatrix
     {
@@ -383,7 +383,7 @@ class PCFinder
 
     public bool ShowMode = false, Wait = false, GoNext = false;
     long NodeCount, PCCount;
-    Stopwatch sw = new Stopwatch();
+    readonly Stopwatch sw = new Stopwatch();
 
     bool Busy = false, CanHold;
     GameBase PathFind;

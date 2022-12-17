@@ -28,6 +28,7 @@ public enum TargetModes
 {
     Random,
     All,
+    AllButSelf,
     Self,
     None
 }
@@ -161,7 +162,7 @@ public sealed class Piece
     public readonly int Id;
     public readonly int PieceType, R;
     public readonly int Highest, Lowest, Height;
-    public readonly int MinX, MaxX, MinY;
+    public readonly int MinX, MaxX, MinY, MaxY;
     private readonly PieceMask[][] _Masks;
     private readonly int[] _X, _Y;
     private readonly int[] _KicksCWX, _KicksCWY;
@@ -180,6 +181,10 @@ public sealed class Piece
         MinX = -_X.Min();
         MaxX = 9 - _X.Max();
         MinY = _Y.Max();
+        unsafe
+        {
+            MaxY = (int)Math.Ceiling(sizeof(MatrixMask) * 8D / 10D) - MinY;
+        }
         Highest = -_Y.Min();
         Lowest = -_Y.Max();
         Height = Highest - Lowest + 1;
@@ -190,7 +195,7 @@ public sealed class Piece
         _Masks = new PieceMask[MaxX - MinX + 1][];
         for (int i = 0; i < _Masks.Length; i++)
         {
-            _Masks[i] = new PieceMask[40];
+            _Masks[i] = new PieceMask[MaxY - MinY + 1];
             for (int j = 0; j < _Masks[i].Length; j++)
                 _Masks[i][j] = GetMask(i + MinX, j + MinY);
         }
@@ -238,9 +243,17 @@ public sealed class Piece
         return new PieceMask() { Mask = mask, Offset = Math.Clamp(start / 32, 0, 7) };
     }
 
-    private static int XYToPos(int x, int y) => (9 - x) + (10 * y);
+    static int XYToPos(int x, int y) => (9 - x) + (10 * y);
 
-    public PieceMask Masks(int x, int y) => _Masks[x - MinX][y - MinY];
+    public PieceMask Masks(int x, int y)
+    {
+        if (y < MinY || y > MaxY) return new PieceMask();
+
+        //x -= MinX;
+        //if (x < 0 || x >= MaxX - MinX + 1) return new PieceMask();
+        
+        return _Masks[x - MinX][y - MinY];
+    }
     public int X(int i) => _X[i];
     public int Y(int i) => _Y[i];
     public int KicksCWX(int i) => _KicksCWX[i];
@@ -265,10 +278,11 @@ public class GameBase
     // Try out array of heights as well
     public int Highest { get; private set; } = 0;
     public MatrixMask Matrix = new MatrixMask();
-    internal int X, Y;
+    internal int X { get; set; }
+    internal int Y { get; set; }
 
-    public Piece Current { get; internal set; } = Piece.EMPTY;
-    public Piece Hold { get; internal set; } = Piece.EMPTY;
+    public Piece Current { get; set; } = Piece.EMPTY;
+    public Piece Hold { get; set; } = Piece.EMPTY;
     public Piece[] Next { get; protected set; } = Array.Empty<Piece>();
 
     protected Random PieceRand = new Random();
@@ -473,6 +487,10 @@ public class GameBase
     /// <returns>The number of blocks moved down by.</returns> 
     public int TryDrop(int dy)
     {
+#if DEBUG
+        if (dy < 0)
+            throw new ArgumentOutOfRangeException(nameof(dy), "dy must be non-negative.");
+#endif
         int diff = Y + Current.Lowest - Highest - 1;
         if (diff >= dy)
         {
@@ -718,10 +736,10 @@ public sealed class Game : GameBase
     private static readonly ConsoleColor[] GarbageLineColor = new ConsoleColor[10].Select(x => PieceColors[Piece.Garbage]).ToArray();
 
     #region // Fields and Properties
-    public readonly ConsoleColor[][] MatrixColors = new ConsoleColor[24][]; // [y][x]
+    public readonly ConsoleColor[][] MatrixColors = new ConsoleColor[25][]; // [y][x]
 
-    private int XOffset = 0;
-    private int YOffset = 0;
+    public int XOffset { get; private set; } = 0;
+    public int YOffset { get; private set; } = 0;
 
     private string _Name = "";
     public string Name
@@ -730,16 +748,10 @@ public sealed class Game : GameBase
         set
         {
             _Name = value;
-            // Center text
-            int space = GameWidth - value.Length;
-            int left_space = space / 2;
-            if (space < 0)
-                WriteAt(0, -1, ConsoleColor.White, value.Substring(-left_space, GameWidth));
-            else
-                WriteAt(0, -1, ConsoleColor.White, value.PadLeft(left_space + value.Length).PadRight(GameWidth));
+            DrawName(value);
         }
     }
-    public bool IsBot = false;
+    public bool IsBot { get; internal set; } = false;
     private bool _IsDead = true;
     public bool IsDead
     {
@@ -826,18 +838,27 @@ public sealed class Game : GameBase
     public int Level { get => Lines / 10 + 1; }
     public int PiecesPlaced { get; private set; } = 0;
     public int KeysPressed { get; private set; } = 0;
+    // Attack per line
     public double APL
     {
         get => (Sent == 0) ? 0 : (double)Sent / Lines;
     }
+    // Attack per piece
+    public double APP
+    {
+        get => (double)Sent / PiecesPlaced;
+    }
+    // Attack per minute
     public double APM
     {
         get => 60D * Sent / (CurrentSeconds - StartSeconds);
     }
+    // Pieces per second
     public double PPS
     {
         get => (PiecesPlaced == 0) ? 0 : (double)PiecesPlaced / (CurrentSeconds - StartSeconds);
     }
+    // Keys per piece
     public double KPP
     {
         get
@@ -846,6 +867,7 @@ public sealed class Game : GameBase
             return (double)KeysPressed / PiecesPlaced;
         }
     }
+    // VS score
     public double VS
     {
         get => 100D * (Sent + GarbageCleared) / (CurrentSeconds - StartSeconds);
@@ -902,8 +924,8 @@ public sealed class Game : GameBase
                 height++;
         }
 
-        FConsole.Set(width * (GameWidth + 1) + 1, height * GameHeight + 1);
         FConsole.Clear();
+        FConsole.Set(width * (GameWidth + 1) + 1, height * GameHeight + 1);
 
         // Set up and re-draw games
         for (int i = 0; i < Games.Length; i++)
@@ -1000,6 +1022,7 @@ public sealed class Game : GameBase
         Lines = 0;
         GarbageCleared = 0;
         Sent = 0;
+        KeysPressed = 0;
         PiecesPlaced = 0;
 
         Vel = 0;
@@ -1029,9 +1052,9 @@ public sealed class Game : GameBase
 
         // Play queued moves (it's up to the input adapter to time the moves, the queue is a buffer jic)
         bool softDrop = false;
-        while (MoveQueue.Count != 0 && !IsDead)
+        while (MoveQueue.TryDequeue(out Moves move) && !IsDead)
         {
-            switch (MoveQueue.Dequeue())
+            switch (move)
             {
                 case Moves.Hold:
                     HoldPiece();
@@ -1056,11 +1079,10 @@ public sealed class Game : GameBase
                     break;
                 case Moves.SoftDrop:
                     softDrop = true;
-                    Drop((int)SoftG, 1);
-                    Vel += SoftG - Math.Floor(SoftG);
+                    Vel += SoftG;
                     break;
                 case Moves.HardDrop:
-                    Drop(40, 2);
+                    Score += 2 * TryDrop(Y - Current.MinY);
                     PlacePiece();
                     break;
                 case Moves.RotateCW:
@@ -1090,12 +1112,13 @@ public sealed class Game : GameBase
         else
         {
             if (MoveCount < AutoLockGrace) LastMoveMillis = -1;
-            Vel -= Drop((int)Vel, softDrop ? 1 : 0); // Round Vel down
+            if (Vel >= 1)
+                Vel -= Drop((int)Vel, softDrop ? 1 : 0); // Round Vel down
         }
         
         // Write stats
         WriteAt(0, 20, ConsoleColor.White, $"PPS: {Math.Round(PPS, 3)}".PadRight(11));
-        WriteAt(0, 21, ConsoleColor.White, $"APL: {Math.Round(APL, 3)}".PadRight(11));
+        WriteAt(0, 21, ConsoleColor.White, $"APP: {Math.Round(APP, 3)}".PadRight(11));
         WriteAt(0, 22, ConsoleColor.White, $"VS: {Math.Round(VS, 2)}".PadRight(11));
     }
 
@@ -1192,7 +1215,8 @@ public sealed class Game : GameBase
         int tspin = TSpinType(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
         // Place piece in MatrixColors
         for (int i = 0; i < 4; i++)
-            MatrixColors[Y - Current.Y(i)][X + Current.X(i)] = PieceColors[Current.PieceType];
+            if (Y - Current.Y(i) < MatrixColors.Length)
+                MatrixColors[Y - Current.Y(i)][X + Current.X(i)] = PieceColors[Current.PieceType];
         // Clear lines
         int[] clears = Place(out int cleared);
         for (int i = 0; i < clears.Length; i += 2)
@@ -1215,7 +1239,7 @@ public sealed class Game : GameBase
         if (tspin == 3) score_add += new int[] { 400, 700, 900, 1100 }[cleared];
         if (tspin == 2) score_add += 100;
         // Perfect clear
-        bool pc = Matrix.GetRow(0) == 0;
+        bool pc = cleared > 0 && Matrix.GetRow(0) == 0;
         if (pc) score_add += new int[] { 800, 1200, 1800, 2000 }[cleared - 1];
         // B2B
         bool is_hard_clear = tspin + cleared > 3;
@@ -1268,7 +1292,7 @@ public sealed class Game : GameBase
         int trash = pc         ? Settings.PCTrash[cleared] :
                     tspin == 3 ? Settings.TSpinTrash[cleared] :
                                  Settings.LinesTrash[cleared];
-        if (Combo > 0) trash += Settings.ComboTrash[Math.Min(Combo, Settings.ComboTrash.Length) - 1];
+        if (Combo > 0) trash += Settings.ComboTrash[Math.Min(Combo, Settings.ComboTrash.Length - 1)];
         if (b2b_active) trash++;
 
         // Stats
@@ -1310,7 +1334,7 @@ public sealed class Game : GameBase
                 for (int y = MatrixColors.Length - lines_to_add - 1; y > bedrock_height - 1; y--)
                     MatrixColors[y + lines_to_add] = MatrixColors[y];
                 // Add garbage
-                for (int y = bedrock_height; y < bedrock_height + lines_to_add; y++)
+                for (int y = bedrock_height; y < Math.Min(MatrixColors.Length, bedrock_height + lines_to_add); y++)
                 {
                     MatrixMask garbage_line = new MatrixMask() { LowLow = ~(1UL << (9 - hole)) } & MatrixMask.HeightMasks[1];
                     garbage_line <<= y * 10;
@@ -1347,7 +1371,7 @@ public sealed class Game : GameBase
                 {
                     LastTargetChangeTime = time;
                     Targets.Clear();
-                    List<Game> aliveGames = Games.Where(x => !x.IsDead).ToList();
+                    List<Game> aliveGames = Games.Where(g => !g.IsDead).ToList();
                     if (aliveGames.Count <= 1) break;
                     int i = new Random().Next(aliveGames.Count - 1);
                     if (i >= aliveGames.IndexOf(this)) i = (i + 1) % aliveGames.Count;
@@ -1355,7 +1379,10 @@ public sealed class Game : GameBase
                 }
                 break;
             case TargetModes.All:
-                Targets = Games.Where(x => !x.IsDead).ToList();
+                Targets = Games.Where(g => !g.IsDead).ToList();
+                break;
+            case TargetModes.AllButSelf:
+                Targets = Games.Where(g => !g.IsDead && g != this).ToList();
                 break;
             case TargetModes.Self:
                 Targets.Clear();
@@ -1401,6 +1428,17 @@ public sealed class Game : GameBase
     #region // Drawing methods
     public void WriteAt(int x, int y, ConsoleColor color, string text) =>
         FConsole.WriteAt(text, x + XOffset, y + YOffset, foreground: color);
+
+    void DrawName(string name)
+    {
+        // Center text
+        int space = GameWidth - name.Length;
+        int left_space = space / 2;
+        if (space < 0)
+            WriteAt(0, -1, ConsoleColor.White, name.Substring(-left_space, GameWidth));
+        else
+            WriteAt(0, -1, ConsoleColor.White, name.PadLeft(left_space + name.Length).PadRight(GameWidth));
+    }
 
     void DrawCurrent(bool black)
     {
@@ -1520,7 +1558,7 @@ public sealed class Game : GameBase
         // Draw trash meter
         DrawTrashMeter();
         // Write name
-        Name = Name;
+        DrawName(Name);
     }
     #endregion
 }

@@ -8,17 +8,17 @@ using System.Text;
 using System.Windows.Input;
 using System.Windows.Threading;
 
-static class FConsole
+public static class FConsole
 {
-    static SafeFileHandle ConoutHandle;
+    private static SafeFileHandle ConoutHandle;
 
-    private static Stopwatch Time = Stopwatch.StartNew();
-    public static Thread RenderThread { get; private set; }
-    public static Thread InputThread { get; private set; }
+    private static readonly Stopwatch Time = Stopwatch.StartNew();
+    private static Thread RenderThread;
+    private static Thread InputThread;
+    private static Thread SwitchFocusThread;
     public static Action RenderCallback { private get; set; }
     public static Action InputLoopCallback { private get; set; }
 
-    public static Thread SwitchFocusThread { get; private set; }
 
     // Throws an exception if it failed to grab the CONOUT$ file handle
     // Otherwise, starts the console update loop on a separate thread
@@ -33,30 +33,36 @@ static class FConsole
             // Rendering
             Width = (short)Console.BufferWidth;
             Height = (short)Console.BufferHeight;
-            Console.CursorVisible = CursorVisible;
+            CursorVisible = Console.CursorVisible;
             ConsoleBuffer = new int[Width * Height];
             Console.OutputEncoding = Encoding.Unicode;
-            RenderThread = new Thread(RenderLoop);
+            RenderThread = new Thread(RenderLoop)
+            {
+                Priority = ThreadPriority.Lowest
+            };
             RenderCallback = renderCallback;
-            RenderThread.Priority = ThreadPriority.Lowest;
             RenderThread.Start();
 
             // Check for focus switching
             SwitchFocusThread = new Thread(() =>
             {
-                SwitchFocusDelegate = new WinEventDelegate((_, _1, _2, _3, _4, _5, _6) => IsFocused = WindowIsFocused());
+                SwitchFocusDelegate = new WinEventDelegate((_, _, _, _, _, _, _) => IsFocused = WindowIsFocused());
                 IntPtr m_hhook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, SwitchFocusDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
                 Dispatcher.Run();
-            });
-            SwitchFocusThread.Priority = ThreadPriority.Lowest;
+            })
+            {
+                Priority = ThreadPriority.Lowest
+            };
             SwitchFocusThread.Start();
             IsFocused = WindowIsFocused();
 
             // Input
-            InputThread = new Thread(InputLoop);
+            InputThread = new Thread(InputLoop)
+            {
+                Priority = ThreadPriority.BelowNormal
+            };
             InputThread.SetApartmentState(ApartmentState.STA);
             InputLoopCallback = inputCallback;
-            InputThread.Priority = ThreadPriority.Lowest;
             InputThread.Start();
         }
     }
@@ -138,10 +144,12 @@ static class FConsole
     #endregion
 
     #region // Rendering
+    public const int TabWidth = 8;
+    
     public static int Width { get; private set; }
     public static int Height { get; private set; }
     private static int XOffset, YOffset;
-    private static bool _CursorVisible = true;
+    private static bool _CursorVisible;
     public static bool CursorVisible
     {
         get => _CursorVisible;
@@ -153,11 +161,24 @@ static class FConsole
     }
     public static int CursorLeft { get; set; } = 0;
     public static int CursorTop { get; set; } = 0;
-    public static double Framerate { get; set; } = 30;
+    private static PeriodicTimer RenderTimer;
+    private static double _Framerate = 30;
+    public static double Framerate
+    {
+        get => _Framerate;
+        set
+        {
+            if (value <= 0)
+                throw new ArgumentOutOfRangeException(nameof(value), "Framerate must be greater than 0!");
 
-    static int[] ConsoleBuffer;
+            _Framerate = value;
+            RenderTimer = new PeriodicTimer(TimeSpan.FromSeconds(1D / value));
+        }
+    }
 
-    [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+    private static int[] ConsoleBuffer;
+
+    [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     static extern SafeFileHandle CreateFile(
         string fileName,
         [MarshalAs(UnmanagedType.U4)] uint fileAccess,
@@ -208,11 +229,11 @@ static class FConsole
 
     private static async void RenderLoop()
     {
-        PeriodicTimer timer = new PeriodicTimer(TimeSpan.FromSeconds(1D / Framerate));
+        RenderTimer ??= new PeriodicTimer(TimeSpan.FromSeconds(1D / Framerate));
 
         Queue<long> draw_times = new Queue<long>(16);
         long prevT = 0;
-        while (await timer.WaitForNextTickAsync())
+        while (await RenderTimer.WaitForNextTickAsync())
         {
             // Handle window being resized
             try
@@ -270,16 +291,22 @@ static class FConsole
         if (width != Width || height != Height) ResizeBuffer(width, height);
     }
 
-    public static void Set(int width, int height) => Set(width, height, width, height);
+    public static void Set(int width, int height) =>
+        Set(width, height, width, height);
 
     public static void Set(int window_width, int window_height, int buffer_width, int buffer_height)
     {
+        if (buffer_width != Width || buffer_height != Height)
+            ResizeBuffer(buffer_width, buffer_height);
+
         try
         {
-            if (window_width <= Console.BufferWidth) Console.WindowWidth = window_width;
+            if (window_width <= Console.BufferWidth) 
+                Console.WindowWidth = window_width;
         }
         catch { }
-        if (buffer_width != Width) Console.BufferWidth = buffer_width;
+        if (buffer_width != Width)
+            Console.BufferWidth = buffer_width;
         try
         {
             Console.WindowWidth = window_width;
@@ -287,18 +314,17 @@ static class FConsole
         catch { }
         try
         {
-            if (window_height <= Console.BufferHeight) Console.WindowHeight = window_height;
+            if (window_height <= Console.BufferHeight)
+                Console.WindowHeight = window_height;
         }
         catch { }
-        if (buffer_height != Height) Console.BufferHeight = buffer_height;
+        if (buffer_height != Height)
+            Console.BufferHeight = buffer_height;
         try
         {
             Console.WindowHeight = window_height;
         }
         catch { }
-
-        if (buffer_width != Width || buffer_height != Height)
-            ResizeBuffer(buffer_width, buffer_height);
     }
 
     static void ResizeBuffer(int width, int height)
@@ -314,41 +340,27 @@ static class FConsole
         ConsoleBuffer = new_buff;
     }
 
-    public static void Write(string text)
-    {
+    public static void Write(string text) =>
         WriteAt(text, CursorLeft, CursorTop);
-    }
 
-    public static void Write(object obj)
-    {
-        WriteAt(obj.ToString(), CursorLeft, CursorTop);
-    }
+    public static void Write(object obj) =>
+        Write(obj.ToString());
 
-    public static void WriteLine()
-    {
-        Write("\n");
-    }
-
-    public static void WriteLine(string text)
-    {
+    public static void WriteLine(string text = "") =>
         Write(text + '\n');
-    }
-
-    public static void WriteLine(object obj)
-    {
-        Write(obj.ToString() + '\n');
-    }
+   
+    public static void WriteLine(object obj) =>
+        WriteLine(obj.ToString());
 
     public static void WriteAt(string text, int x, int y, ConsoleColor foreground = ConsoleColor.White, ConsoleColor background = ConsoleColor.Black)
     {
         int pos = y * Width + x;
         for (int i = 0; i < text.Length && pos < Height * Width; i++, pos++)
         {
-            // might need to do checks for tab, return and newline?
             if (text[i] == '\t')
             {
-                int space_end = pos + 8 - (pos % Width % 8);
-                for (; pos < space_end && pos < Height * Width; pos++)
+                int space_end = pos + TabWidth - ((pos % Width) % TabWidth);
+                for ( ; pos < space_end && pos < Height * Width; pos++)
                     ConsoleBuffer[pos] = ' ' | ((int)foreground << 16) | ((int)background << 20);
             }
             else if (text[i] == '\r')
@@ -370,10 +382,8 @@ static class FConsole
         CursorTop = cursor_pos / Width;
     }
 
-    public static void WriteAt(object obj, int x, int y, ConsoleColor foreground = ConsoleColor.White, ConsoleColor background = ConsoleColor.Black) 
-    {
+    public static void WriteAt(object obj, int x, int y, ConsoleColor foreground = ConsoleColor.White, ConsoleColor background = ConsoleColor.Black) =>
         WriteAt(obj.ToString(), x, y, foreground, background);
-    }
 
     public static void Clear()
     {

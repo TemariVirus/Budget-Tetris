@@ -4,7 +4,7 @@ using System.IO;
 using System.Windows.Media;
 using System.Windows.Threading;
 
-class Sound
+public class Sound
 {
     public const string SoundsFolder = @"Sounds\";
     public const int MaxSounds = 16;
