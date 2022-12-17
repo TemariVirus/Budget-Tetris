@@ -94,14 +94,26 @@ public abstract class Bot
     {
         if (BotThread?.IsAlive ?? false)
             return;
+        
+        // Set lock delay
+        Game.LockDelay = Math.Max(think_time, move_delay) + 50;
 
         ThinkTicks = think_time * Stopwatch.Frequency / 1000;
         NodeCounts = new long[RunAvgCount];
         ToStop = false;
         BotThread = new Thread(() =>
         {
-            while (!Game.IsDead)
+            while (true)
             {
+                // Check if should stop
+                if (ToStop) break;
+
+                if (IsPaused || Game.IsDead)
+                {
+                    Thread.Sleep(0);
+                    continue;
+                }
+                
                 // Find moves
                 Game.Tick();
                 List<Moves> moves = FindMoves();
@@ -126,12 +138,9 @@ public abstract class Bot
                 for (int i = NodeCounts.Length - 1; i > 0; i--)
                     NodeCounts[i] = NodeCounts[i - 1];
                 NodeCounts[0] = 0;
-                // Check if should stop
-                if (ToStop) break;
             }
 
             ToStop = false;
-            return;
         })
         {
             Priority = ThreadPriority.Highest
