@@ -1,0 +1,51 @@
+﻿{
+  "Name": "PC",
+  "Played": false,
+  "Inputs": 6,
+  "Outputs": 1,
+  "Fitness": 1719,
+  "Connections": [
+    {
+      "Enabled": true,
+      "Input": 1,
+      "Output": 7,
+      "Weight": -0.42464951483539726
+    },
+    {
+      "Enabled": true,
+      "Input": 3,
+      "Output": 7,
+      "Weight": -0.012976071950915227
+    },
+    {
+      "Enabled": true,
+      "Input": 5,
+      "Output": 7,
+      "Weight": 0.12528928857630672
+    },
+    {
+      "Enabled": true,
+      "Input": 6,
+      "Output": 7,
+      "Weight": 0.5157992088682986
+    },
+    {
+      "Enabled": true,
+      "Input": 5,
+      "Output": 4,
+      "Weight": 0.1750847642186524
+    },
+    {
+      "Enabled": true,
+      "Input": 1,
+      "Output": 5,
+      "Weight": 0.34104334710989315
+    },
+    {
+      "Enabled": true,
+      "Input": 0,
+      "Output": 1,
+      "Weight": -0.20659876155339052
+    }
+  ]
+}

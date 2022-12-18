@@ -1,0 +1,152 @@
+{
+  "Name": "Fapaemesa",
+  "Played": true,
+  "Inputs": 8,
+  "Outputs": 2,
+  "Age": 1,
+  "Fitness": 742,
+  "Mu": 0,
+  "Delta": 0,
+  "Connections": [
+    {
+      "Enabled": false,
+      "Input": 0,
+      "Output": 9,
+      "Weight": -0.04586508444917677
+    },
+    {
+      "Enabled": false,
+      "Input": 0,
+      "Output": 10,
+      "Weight": -0.11182570963231396
+    },
+    {
+      "Enabled": true,
+      "Input": 1,
+      "Output": 9,
+      "Weight": -0.22233792121834706
+    },
+    {
+      "Enabled": false,
+      "Input": 1,
+      "Output": 10,
+      "Weight": 0.3606838553137015
+    },
+    {
+      "Enabled": false,
+      "Input": 2,
+      "Output": 9,
+      "Weight": 0.06638940742214518
+    },
+    {
+      "Enabled": true,
+      "Input": 2,
+      "Output": 10,
+      "Weight": -0.13480100699568262
+    },
+    {
+      "Enabled": true,
+      "Input": 3,
+      "Output": 9,
+      "Weight": -0.09562903280967137
+    },
+    {
+      "Enabled": true,
+      "Input": 3,
+      "Output": 10,
+      "Weight": 0.12245700398206051
+    },
+    {
+      "Enabled": true,
+      "Input": 4,
+      "Output": 9,
+      "Weight": 0.05665482887700813
+    },
+    {
+      "Enabled": true,
+      "Input": 4,
+      "Output": 10,
+      "Weight": -0.5947733364657176
+    },
+    {
+      "Enabled": true,
+      "Input": 5,
+      "Output": 9,
+      "Weight": 0.3295238413214634
+    },
+    {
+      "Enabled": false,
+      "Input": 5,
+      "Output": 10,
+      "Weight": -0.1679348920493055
+    },
+    {
+      "Enabled": false,
+      "Input": 6,
+      "Output": 9,
+      "Weight": -0.05515131455366319
+    },
+    {
+      "Enabled": false,
+      "Input": 6,
+      "Output": 10,
+      "Weight": 0.22254591904715615
+    },
+    {
+      "Enabled": true,
+      "Input": 7,
+      "Output": 9,
+      "Weight": -0.5038728673047594
+    },
+    {
+      "Enabled": true,
+      "Input": 7,
+      "Output": 10,
+      "Weight": -0.29031714762181754
+    },
+    {
+      "Enabled": true,
+      "Input": 8,
+      "Output": 9,
+      "Weight": 0.25188905844764076
+    },
+    {
+      "Enabled": true,
+      "Input": 8,
+      "Output": 10,
+      "Weight": -0.02345232732263925
+    },
+    {
+      "Enabled": false,
+      "Input": 4,
+      "Output": 11,
+      "Weight": 0.05063281866875836
+    },
+    {
+      "Enabled": false,
+      "Input": 11,
+      "Output": 10,
+      "Weight": -0.13386768719230324
+    },
+    {
+      "Enabled": false,
+      "Input": 0,
+      "Output": 3,
+      "Weight": 0.005266346298637658
+    }
+  ],
+  "Activations": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    4,
+    4,
+    2
+  ]
+}

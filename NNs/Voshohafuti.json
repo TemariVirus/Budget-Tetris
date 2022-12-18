@@ -1,0 +1,139 @@
+{
+      "Name": "Voshohafuti",
+      "Played": false,
+      "Inputs": 8,
+      "Outputs": 2,
+      "Age": 0,
+      "Fitness": 0,
+      "Mu": 1.444720087102058,
+      "Delta": 0.06025346002140426,
+      "Connections": [
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 9,
+          "Weight": -0.49248104758543565
+        },
+        {
+          "Enabled": true,
+          "Input": 0,
+          "Output": 10,
+          "Weight": 0.36428826701690675
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 9,
+          "Weight": 0.0878429747204365
+        },
+        {
+          "Enabled": true,
+          "Input": 1,
+          "Output": 10,
+          "Weight": -0.165475523346945
+        },
+        {
+          "Enabled": false,
+          "Input": 2,
+          "Output": 9,
+          "Weight": -0.3895378291972585
+        },
+        {
+          "Enabled": true,
+          "Input": 2,
+          "Output": 10,
+          "Weight": -0.056703058844277704
+        },
+        {
+          "Enabled": true,
+          "Input": 3,
+          "Output": 9,
+          "Weight": -0.1778738857753948
+        },
+        {
+          "Enabled": false,
+          "Input": 3,
+          "Output": 10,
+          "Weight": -0.27549103642788175
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 9,
+          "Weight": 0.038874510379085694
+        },
+        {
+          "Enabled": true,
+          "Input": 4,
+          "Output": 10,
+          "Weight": -0.17544518081947447
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 9,
+          "Weight": 0.3596446220724866
+        },
+        {
+          "Enabled": true,
+          "Input": 5,
+          "Output": 10,
+          "Weight": 0.2499765295897579
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 9,
+          "Weight": -0.24815672243194237
+        },
+        {
+          "Enabled": false,
+          "Input": 6,
+          "Output": 10,
+          "Weight": -0.281793251449798
+        },
+        {
+          "Enabled": true,
+          "Input": 7,
+          "Output": 9,
+          "Weight": 0.3915900675392238
+        },
+        {
+          "Enabled": false,
+          "Input": 7,
+          "Output": 10,
+          "Weight": 0.0015786888855326836
+        },
+        {
+          "Enabled": false,
+          "Input": 8,
+          "Output": 9,
+          "Weight": -0.16160228280768868
+        },
+        {
+          "Enabled": true,
+          "Input": 8,
+          "Output": 10,
+          "Weight": 0.5531282332615751
+        },
+        {
+          "Enabled": false,
+          "Input": 4,
+          "Output": 5,
+          "Weight": 0.18348167626643336
+        }
+      ],
+      "Activations": [
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        2,
+        4,
+        4
+      ]
+    }

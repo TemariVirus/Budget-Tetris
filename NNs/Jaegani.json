@@ -1,0 +1,152 @@
+{
+  "Name": "Jaegani",
+  "Played": true,
+  "Inputs": 8,
+  "Outputs": 2,
+  "Age": 1,
+  "Fitness": 821,
+  "Mu": 0,
+  "Delta": 0,
+  "Connections": [
+    {
+      "Enabled": false,
+      "Input": 0,
+      "Output": 9,
+      "Weight": 0.12575960668288486
+    },
+    {
+      "Enabled": true,
+      "Input": 0,
+      "Output": 10,
+      "Weight": -0.056474028776260364
+    },
+    {
+      "Enabled": true,
+      "Input": 1,
+      "Output": 9,
+      "Weight": -0.10128634592897792
+    },
+    {
+      "Enabled": true,
+      "Input": 1,
+      "Output": 10,
+      "Weight": 0.30306437223338933
+    },
+    {
+      "Enabled": false,
+      "Input": 2,
+      "Output": 9,
+      "Weight": -0.1157781055405605
+    },
+    {
+      "Enabled": true,
+      "Input": 2,
+      "Output": 10,
+      "Weight": -0.19575155919596776
+    },
+    {
+      "Enabled": true,
+      "Input": 3,
+      "Output": 9,
+      "Weight": -0.09366963211563371
+    },
+    {
+      "Enabled": false,
+      "Input": 3,
+      "Output": 10,
+      "Weight": -0.46590765898507625
+    },
+    {
+      "Enabled": false,
+      "Input": 4,
+      "Output": 9,
+      "Weight": 0.10941026665273158
+    },
+    {
+      "Enabled": true,
+      "Input": 4,
+      "Output": 10,
+      "Weight": -0.22591889278372326
+    },
+    {
+      "Enabled": true,
+      "Input": 5,
+      "Output": 9,
+      "Weight": 0.2853562369968651
+    },
+    {
+      "Enabled": false,
+      "Input": 5,
+      "Output": 10,
+      "Weight": 0.12347377604402655
+    },
+    {
+      "Enabled": true,
+      "Input": 6,
+      "Output": 9,
+      "Weight": -0.19201275999742787
+    },
+    {
+      "Enabled": false,
+      "Input": 6,
+      "Output": 10,
+      "Weight": -0.01542376310739517
+    },
+    {
+      "Enabled": true,
+      "Input": 7,
+      "Output": 9,
+      "Weight": -0.1656146420753496
+    },
+    {
+      "Enabled": false,
+      "Input": 7,
+      "Output": 10,
+      "Weight": -0.2474773968365861
+    },
+    {
+      "Enabled": true,
+      "Input": 8,
+      "Output": 9,
+      "Weight": 0.42351265717456393
+    },
+    {
+      "Enabled": true,
+      "Input": 8,
+      "Output": 10,
+      "Weight": 0.2711705149091924
+    },
+    {
+      "Enabled": true,
+      "Input": 4,
+      "Output": 11,
+      "Weight": 0.3170542653098595
+    },
+    {
+      "Enabled": false,
+      "Input": 11,
+      "Output": 10,
+      "Weight": 0.031366874817705406
+    },
+    {
+      "Enabled": true,
+      "Input": 2,
+      "Output": 7,
+      "Weight": -0.09983013240655411
+    }
+  ],
+  "Activations": [
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    4,
+    4,
+    2
+  ]
+}

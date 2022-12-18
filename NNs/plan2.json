@@ -1,0 +1,51 @@
+﻿{
+  "Name": "Plan 2",
+  "Played": false,
+  "Inputs": 6,
+  "Outputs": 1,
+  "Fitness": 818,
+  "Connections": [
+    {
+      "Enabled": true,
+      "Input": 3,
+      "Output": 7,
+      "Weight": -0.01458765962007038
+    },
+    {
+      "Enabled": true,
+      "Input": 6,
+      "Output": 7,
+      "Weight": 0.7073548513412174
+    },
+    {
+      "Enabled": true,
+      "Input": 5,
+      "Output": 8,
+      "Weight": 0.16311338612649293
+    },
+    {
+      "Enabled": true,
+      "Input": 8,
+      "Output": 7,
+      "Weight": 0.23307237188773203
+    },
+    {
+      "Enabled": true,
+      "Input": 1,
+      "Output": 5,
+      "Weight": 0.09448967429025337
+    },
+    {
+      "Enabled": true,
+      "Input": 1,
+      "Output": 6,
+      "Weight": 0.028151470890751387
+    },
+    {
+      "Enabled": true,
+      "Input": 6,
+      "Output": 4,
+      "Weight": -0.44748970845881714
+    }
+  ]
+}

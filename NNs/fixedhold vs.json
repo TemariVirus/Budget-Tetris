@@ -1,0 +1,39 @@
+﻿{
+  "Name": "Fixed Hold",
+  "Played": false,
+  "Inputs": 6,
+  "Outputs": 1,
+  "Fitness": 251.46668580097585,
+  "Connections": [
+    {
+      "Enabled": true,
+      "Input": 3,
+      "Output": 7,
+      "Weight": -0.004897491472849866
+    },
+    {
+      "Enabled": true,
+      "Input": 5,
+      "Output": 7,
+      "Weight": 0.03454834797984496
+    },
+    {
+      "Enabled": true,
+      "Input": 6,
+      "Output": 7,
+      "Weight": -0.20476039658426493
+    },
+    {
+      "Enabled": true,
+      "Input": 6,
+      "Output": 8,
+      "Weight": 0.5153360671914964
+    },
+    {
+      "Enabled": true,
+      "Input": 8,
+      "Output": 7,
+      "Weight": 0.9721220146372843
+    }
+  ]
+}
