@@ -62,6 +62,7 @@ namespace Tetris
             DASDelay = 133,
             DASInterval = 66,
             LockDelay = 500,
+            LineClearDelay = 0,
             EraseDelay = 1000,
             GarbageDelay = 500,
 
@@ -98,6 +99,8 @@ namespace Tetris
         public int DASInterval { get; private set; }
         [DataMember]
         public int LockDelay { get; private set; }
+        [DataMember]
+        public int LineClearDelay { get; private set; }
         [DataMember]
         public int EraseDelay { get; private set; }
         [DataMember]
@@ -829,7 +832,8 @@ namespace Tetris
             }
         }
         public static bool IsMuted { get; set; } = false;
-
+        public bool IsFrozen { get; set; } = false;
+        
         public int B2B { get; internal set; } = -1;
         public int Combo { get; internal set; } = -1;
 
@@ -875,7 +879,7 @@ namespace Tetris
                 WriteAt(1, 11, ConsoleColor.White, Level.ToString());
             }
         }
-        public int GarbageCleared { get; private set; } = 0;
+        public int GarbageLinesCleared { get; private set; } = 0;
         public int Sent { get; private set; } = 0;
         public int Level { get => Lines / 10 + 1; }
         public int PiecesPlaced { get; private set; } = 0;
@@ -908,7 +912,7 @@ namespace Tetris
         // VS score
         public double VS
         {
-            get => (CurrentSeconds - StartSeconds == 0) ? 0 : 100D * (Sent + GarbageCleared) / (CurrentSeconds - StartSeconds);
+            get => (CurrentSeconds - StartSeconds == 0) ? 0 : 100D * (Sent + GarbageLinesCleared) / (CurrentSeconds - StartSeconds);
         }
         #endregion
 
@@ -1070,9 +1074,10 @@ namespace Tetris
             B2B = -1; Combo = -1;
 
             IsDead = false;
+            IsFrozen = false;
             Score = 0;
             Lines = 0;
-            GarbageCleared = 0;
+            GarbageLinesCleared = 0;
             Sent = 0;
             KeysPressed = 0;
             PiecesPlaced = 0;
@@ -1096,7 +1101,7 @@ namespace Tetris
 
         public void Tick()
         {
-            if (IsDead || IsPaused) return;
+            if (IsDead || IsPaused || IsFrozen) return;
 
             // Timekeeping
             double deltaT = CurrentSeconds - LastFrameTime;
@@ -1268,17 +1273,22 @@ namespace Tetris
             for (int i = 0; i < 4; i++)
                 if (Y - Current.Y(i) < MatrixColors.Length)
                     MatrixColors[Y - Current.Y(i)][X + Current.X(i)] = PieceColors[Current.PieceType];
+            DrawMatrix();
             // Clear lines
             int[] clears = Place(out int cleared);
             for (int i = 0; i < clears.Length; i += 2)
             {
+                // Break if no more clears
                 if (clears[i + 1] == 0) break;
+
+                // Check garbage cleared
+                for (int j = 0; j < clears[i + 1]; j++)
+                    if (MatrixColors[clears[i] + j].Any(x => x == PieceColors[Piece.Garbage]))
+                        GarbageLinesCleared++;
+
+                // Shift lines down
                 for (int j = clears[i]; j < MatrixColors.Length - clears[i + 1]; j++)
-                {
-                    if (MatrixColors[j].Any(x => x == PieceColors[Piece.Garbage]))
-                        GarbageCleared++;
                     MatrixColors[j] = MatrixColors[j + clears[i + 1]];
-                }
             }
             // Add new empty rows
             for (int i = MatrixColors.Length - cleared; i < MatrixColors.Length; i++)
@@ -1298,7 +1308,7 @@ namespace Tetris
             else if (is_hard_clear) B2B++;
             bool b2b_active = is_hard_clear && B2B > 0;
             if (b2b_active) score_add += score_add / 2; //B2B bonus
-                                                        // Combo
+            // Combo
             Combo = cleared == 0 ? -1 : Combo + 1;
             if (Combo > -1) score_add += 50 * Combo;
             // Score
@@ -1405,6 +1415,7 @@ namespace Tetris
             if (trash > 0) SendTrash(trash);
 
             // Redraw matrix
+            LineClearAnimation(clears);
             DrawMatrix();
 
             CheckHeight();
@@ -1563,6 +1574,35 @@ namespace Tetris
             // Clear console section
             for (int i = 0; i < GameHeight; i++)
                 WriteAt(0, i, ConsoleColor.White, "".PadLeft(GameWidth));
+        }
+
+        void LineClearAnimation(int[] clears)
+        {
+            // Skip if no line clear delay or if no clears
+            if (Settings.LineClearDelay == 0 || clears[1] == 0)
+                return;
+
+            IsFrozen = true;
+            double start = CurrentSeconds;
+            for (int x = 4; x >= 0; x--)
+            {
+                // Clear 2 columns
+                for (int i = 0; i < clears.Length; i += 2)
+                {
+                    if (clears[i + 1] == 0) break;
+
+                    for (int y = clears[i]; y < clears[i] + clears[i + 1]; y++)
+                    {
+                        WriteAt(x * 2 + 12, 21 - y, PieceColors[Piece.EMPTY], BLOCKSOLID); // Left side
+                        WriteAt(-x * 2 + 30, 21 - y, PieceColors[Piece.EMPTY], BLOCKSOLID); // Right side
+                    }
+                }
+
+                // Wait for delay
+                while (CurrentSeconds - start < Settings.LineClearDelay / 5000D * (5 - x)) 
+                    Thread.Sleep(0);
+            }
+            IsFrozen = false;
         }
 
         void DeathAnimation()
