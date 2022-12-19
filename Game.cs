@@ -936,9 +936,7 @@ namespace Tetris
             {
                 if (IsPaused || Games == null) return;
                 foreach (Game g in Games)
-                {
                     g.Tick();
-                }
             });
 
             GameSettings.SaveSettings(Settings);
@@ -1142,6 +1140,7 @@ namespace Tetris
                     case Moves.HardDrop:
                         Score += 2 * TryDrop(Y - Current.MinY);
                         PlacePiece();
+                        if (IsFrozen) return;
                         break;
                     case Moves.RotateCW:
                         Rotate(1);
@@ -1165,7 +1164,10 @@ namespace Tetris
                     LastMoveMillis = CurrentMillis;
                 // Lock piece
                 if ((MoveCount > AutoLockGrace) || (CurrentMillis - LastMoveMillis > LockDelay))
+                {
                     PlacePiece();
+                    if (IsFrozen) return;
+                }
             }
             else
             {
@@ -1185,7 +1187,7 @@ namespace Tetris
         #region // Player methods
         public void Play(Moves move)
         {
-            if (IsDead || IsPaused) return;
+            if (IsDead || IsPaused || IsFrozen) return;
 
             MoveQueue.Enqueue(move);
             if (move != Moves.None &&
@@ -1416,7 +1418,6 @@ namespace Tetris
 
             // Redraw matrix
             LineClearAnimation(clears);
-            DrawMatrix();
 
             CheckHeight();
             SpawnNextPiece();
@@ -1505,6 +1506,8 @@ namespace Tetris
 
         void DrawCurrent(bool black)
         {
+            if (IsFrozen) return;
+            
             // Ghost
             GameBase clone = this.Clone();
             clone.TryDrop(40);
@@ -1519,13 +1522,15 @@ namespace Tetris
 
         void DrawPieceAt(Piece piece, int x, int y, bool black)
         {
+            if (IsFrozen) return;
+            
             for (int i = 0; i < 4; i++)
                 WriteAt(piece.X(i) * 2 + x, piece.Y(i) + y, black ? ConsoleColor.Black : PieceColors[piece.PieceType], BLOCKSOLID);
         }
 
         void DrawNext()
         {
-            if (Settings.LookAheads <= 0) return;
+            if (IsFrozen || Settings.LookAheads <= 0) return;
 
             // Outline
             WriteAt(34, 1, ConsoleColor.White, "╔══NEXT══╗");
@@ -1541,6 +1546,8 @@ namespace Tetris
 
         void DrawMatrix()
         {
+            if (IsFrozen) return;
+
             for (int x = 0; x < 10; x++)
                 for (int y = 0; y < 20; y++)
                     WriteAt(x * 2 + 12, 21 - y, MatrixColors[y][x], BLOCKSOLID);
@@ -1548,6 +1555,8 @@ namespace Tetris
 
         void DrawTrashMeter()
         {
+            if (IsFrozen) return;
+
             int y = 21;
             if (Garbage.Count != 0)
             {
@@ -1580,29 +1589,36 @@ namespace Tetris
         {
             // Skip if no line clear delay or if no clears
             if (Settings.LineClearDelay == 0 || clears[1] == 0)
+            {
+                DrawMatrix();
                 return;
+            }
 
             IsFrozen = true;
             double start = CurrentSeconds;
-            for (int x = 4; x >= 0; x--)
+            Task.Run(() =>
             {
-                // Clear 2 columns
-                for (int i = 0; i < clears.Length; i += 2)
+                for (int x = 4; x >= 0; x--)
                 {
-                    if (clears[i + 1] == 0) break;
-
-                    for (int y = clears[i]; y < clears[i] + clears[i + 1]; y++)
+                    // Clear 2 columns
+                    for (int i = 0; i < clears.Length; i += 2)
                     {
-                        WriteAt(x * 2 + 12, 21 - y, PieceColors[Piece.EMPTY], BLOCKSOLID); // Left side
-                        WriteAt(-x * 2 + 30, 21 - y, PieceColors[Piece.EMPTY], BLOCKSOLID); // Right side
-                    }
-                }
+                        if (clears[i + 1] == 0) break;
 
-                // Wait for delay
-                while (CurrentSeconds - start < Settings.LineClearDelay / 5000D * (5 - x)) 
-                    Thread.Sleep(0);
-            }
-            IsFrozen = false;
+                        for (int y = clears[i]; y < clears[i] + clears[i + 1]; y++)
+                        {
+                            WriteAt(x * 2 + 12, 21 - y, PieceColors[Piece.EMPTY], BLOCKSOLID); // Left side
+                            WriteAt(-x * 2 + 30, 21 - y, PieceColors[Piece.EMPTY], BLOCKSOLID); // Right side
+                        }
+                    }
+
+                    // Wait for delay
+                    while (CurrentSeconds - start < Settings.LineClearDelay / 5000D * (5 - x))
+                        Thread.Sleep(0);
+                }
+                IsFrozen = false;
+                Tick();
+            });
         }
 
         void DeathAnimation()

@@ -112,7 +112,7 @@ namespace Tetris
                 {
                     // Check if should stop
                     if (ToStop) break;
-                    if (Game.IsDead || Game.IsPaused)
+                    if (Game.IsFrozen || Game.IsDead || Game.IsPaused)
                     {
                         Thread.Sleep(0);
                         continue;
