@@ -10,75 +10,75 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Sounds\bfall.wav" />
-    <None Remove="Sounds\double.wav" />
-    <None Remove="Sounds\garbagelarge.wav" />
-    <None Remove="Sounds\garbagesmall.wav" />
-    <None Remove="Sounds\harddrop.wav" />
-    <None Remove="Sounds\hold.wav" />
-    <None Remove="Sounds\Korobeiniki Remix.wav" />
-    <None Remove="Sounds\lvlup.wav" />
-    <None Remove="Sounds\move.wav" />
-    <None Remove="Sounds\pause.wav" />
-    <None Remove="Sounds\pc.wav" />
-    <None Remove="Sounds\rotate.wav" />
-    <None Remove="Sounds\single.wav" />
-    <None Remove="Sounds\softdrop.wav" />
-    <None Remove="Sounds\tetris.wav" />
-    <None Remove="Sounds\triple.wav" />
-    <None Remove="Sounds\tspin.wav" />
+    <None Remove="Sounds\bfall.mp3" />
+    <None Remove="Sounds\double.mp3" />
+    <None Remove="Sounds\garbagelarge.mp3" />
+    <None Remove="Sounds\garbagesmall.mp3" />
+    <None Remove="Sounds\harddrop.mp3" />
+    <None Remove="Sounds\hold.mp3" />
+    <None Remove="Sounds\Korobeiniki Remix.mp3" />
+    <None Remove="Sounds\lvlup.mp3" />
+    <None Remove="Sounds\move.mp3" />
+    <None Remove="Sounds\pause.mp3" />
+    <None Remove="Sounds\pc.mp3" />
+    <None Remove="Sounds\rotate.mp3" />
+    <None Remove="Sounds\single.mp3" />
+    <None Remove="Sounds\softdrop.mp3" />
+    <None Remove="Sounds\tetris.mp3" />
+    <None Remove="Sounds\triple.mp3" />
+    <None Remove="Sounds\tspin.mp3" />
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Sounds\bfall.wav">
+    <Content Include="Sounds\bfall.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\double.wav">
+    <Content Include="Sounds\double.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\garbagelarge.wav">
+    <Content Include="Sounds\garbagelarge.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\garbagesmall.wav">
+    <Content Include="Sounds\garbagesmall.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\harddrop.wav">
+    <Content Include="Sounds\harddrop.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\hold.wav">
+    <Content Include="Sounds\hold.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\Korobeiniki Remix.wav">
+    <Content Include="Sounds\Korobeiniki Remix.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\lvlup.wav">
+    <Content Include="Sounds\lvlup.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\move.wav">
+    <Content Include="Sounds\move.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\pause.wav">
+    <Content Include="Sounds\pause.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\pc.wav">
+    <Content Include="Sounds\pc.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\rotate.wav">
+    <Content Include="Sounds\rotate.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\single.wav">
+    <Content Include="Sounds\single.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\softdrop.wav">
+    <Content Include="Sounds\softdrop.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\tetris.wav">
+    <Content Include="Sounds\tetris.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\triple.wav">
+    <Content Include="Sounds\triple.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Sounds\tspin.wav">
+    <Content Include="Sounds\tspin.mp3">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

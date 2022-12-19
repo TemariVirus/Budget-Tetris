@@ -83,23 +83,23 @@ namespace Tetris
 
         private static readonly int BGMHandle = 0;
 
-        public static readonly Sound SoftDrop = new Sound("bfall.wav"),
-                                     HardDrop = new Sound("harddrop.wav"),
-                                     TSpin = new Sound("tspin.wav"),
-                                     PC = new Sound("pc.wav"),
-                                     GarbageSmall = new Sound("garbagesmall.wav"),
-                                     GarbageLarge = new Sound("garbagelarge.wav"),
-                                     Hold = new Sound("hold.wav"),
-                                     Slide = new Sound("move.wav"),
-                                     Rotate = new Sound("rotate.wav"),
-                                     Pause = new Sound("pause.wav");
+        public static readonly Sound SoftDrop = new Sound("bfall.mp3"),
+                                     HardDrop = new Sound("harddrop.mp3"),
+                                     TSpin = new Sound("tspin.mp3"),
+                                     PC = new Sound("pc.mp3"),
+                                     GarbageSmall = new Sound("garbagesmall.mp3"),
+                                     GarbageLarge = new Sound("garbagelarge.mp3"),
+                                     Hold = new Sound("hold.mp3"),
+                                     Slide = new Sound("move.mp3"),
+                                     Rotate = new Sound("rotate.mp3"),
+                                     Pause = new Sound("pause.mp3");
 
         public static readonly Sound[] ClearSounds =
         {
-            new Sound("single.wav"),
-            new Sound("double.wav"),
-            new Sound("triple.wav"),
-            new Sound("tetris.wav")
+            new Sound("single.mp3"),
+            new Sound("double.mp3"),
+            new Sound("triple.mp3"),
+            new Sound("tetris.mp3")
         };
 
         public bool HasSource { get; private set; }
@@ -110,7 +110,7 @@ namespace Tetris
             BASS_Init(-1, 44100, 0, IntPtr.Zero, IntPtr.Zero);
 
             // Play BGM looping
-            string path = new Uri(SoundsFolder + "Korobeiniki Remix.wav", UriKind.Relative).ToString();
+            string path = new Uri(SoundsFolder + "Korobeiniki Remix.mp3", UriKind.Relative).ToString();
             if (!File.Exists(path)) return;
 
             BGMHandle = BASS_StreamCreateFileUnicode(false, path, 0, 0, int.MinValue);
