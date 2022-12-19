@@ -9,7 +9,7 @@ namespace Tetris
     {
         private class SoundFile
         {
-            const int MaxStreams = 4;
+            const int MaxStreams = 6;
 
             private readonly string Path;
             private readonly List<int> Streams;

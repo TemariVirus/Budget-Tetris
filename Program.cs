@@ -1,4 +1,5 @@
-﻿using NEAT;
+﻿using FastConsole;
+using NEAT;
 using System;
 using System.IO;
 using System.Linq;
@@ -93,15 +94,11 @@ namespace Tetris
                 // Terminate sound
                 BASS_Free();
 
-                // Terminate rendering
-                bool doneRender = false;
-                FastConsole.FConsole.RenderCallback = () =>
-                {
-                    doneRender = true;
-                    Thread.CurrentThread.Join();
-                };
-                while (!doneRender) Thread.Sleep(0);
-                
+                // Terminate rendering & input
+                FConsole.RenderCallback = () => Thread.Sleep(-1);
+                FConsole.InputLoopCallback = () => Thread.Sleep(-1);
+                Thread.Sleep(50);
+
                 // Print exception
                 Console.Clear();
                 Console.WriteLine("An unhandled exception has occurred:");
@@ -112,15 +109,13 @@ namespace Tetris
                 Environment.Exit(Environment.ExitCode);
             };
 
-            Game.InitWindow();
+            Game.InitWindow(20);
 
             GameConfig config = GameConfig.LoadSettings();
             int player_count = (config.HasPlayer ? 1 : 0) + config.Bots.Length;
             int seed = Guid.NewGuid().GetHashCode();
             Game[] games = new Game[player_count].Select(x => new Game(Game.Settings.LookAheads, seed)).ToArray();
             Game.SetGames(games);
-
-            Game.IsPaused = true;
 
             if (config.HasPlayer)
             {
@@ -141,9 +136,7 @@ namespace Tetris
 
             Game.SetGames(games);
 
-            Game.IsPaused = false;
-
-            FastConsole.FConsole.RenderThread.Join();
+            FConsole.InputThread.Join();
         }
 
         [DllImport("bass")]

@@ -755,6 +755,7 @@ namespace Tetris
         public static long CurrentMillis { get => GlobalStopwatch.ElapsedMilliseconds; }
 
         const string BLOCKSOLID = "██", BLOCKGHOST = "▒▒";
+        const string DEADFACE = "(x╭╮x)";
 
         public static int GameWidth { get; private set; } = 44;
         public static int GameHeight { get; private set; } = 24;
@@ -800,12 +801,9 @@ namespace Tetris
             private set
             {
                 _IsDead = value;
-                if (_IsDead)
-                {
-                    // Death animation
+                if (!_IsDead) return;
 
-                    EraseClearStats();
-                }
+                DeathAnimation();
             }
         }
 
@@ -819,9 +817,11 @@ namespace Tetris
                 if (_IsPaused)
                 {
                     GlobalStopwatch.Stop();
+                    FConsole.WriteAt("Paused", (FConsole.Width - 6) / 2, FConsole.Height / 2, ConsoleColor.White, ConsoleColor.Black);
                 }
                 else
                 {
+                    FConsole.WriteAt("      ", (FConsole.Width - 6) / 2, FConsole.Height / 2, ConsoleColor.White, ConsoleColor.Black);
                     GlobalStopwatch.Start();
                     foreach (Game g in Games)
                         Task.Delay(Settings.GarbageDelay).ContinueWith(t => g.DrawTrashMeter());
@@ -1264,7 +1264,7 @@ namespace Tetris
         void PlacePiece()
         {
             int tspin = TSpinType(IsLastMoveRotate); //0 = no spin, 2 = mini, 3 = t-spin
-                                                     // Place piece in MatrixColors
+            // Place piece in MatrixColors
             for (int i = 0; i < 4; i++)
                 if (Y - Current.Y(i) < MatrixColors.Length)
                     MatrixColors[Y - Current.Y(i)][X + Current.X(i)] = PieceColors[Current.PieceType];
@@ -1563,6 +1563,33 @@ namespace Tetris
             // Clear console section
             for (int i = 0; i < GameHeight; i++)
                 WriteAt(0, i, ConsoleColor.White, "".PadLeft(GameWidth));
+        }
+
+        void DeathAnimation()
+        {
+            Task.Run(() =>
+            {
+                // Erase matrix line-by-line
+                for (int y = 0; y < 20; y++)
+                {
+                    // Add delay
+                    Thread.Sleep(100);
+
+                    // Stop if game restarted
+                    if (!IsDead) return;
+
+                    for (int x = 0; x < 10; x++)
+                        WriteAt(x * 2 + 12, 21 - y, PieceColors[Piece.EMPTY], BLOCKSOLID);
+                }
+
+                // Draw funny face
+                WriteAt(19, 9, ConsoleColor.White, DEADFACE);
+
+                // Erase clear stats and trash meter
+                EraseClearStats();
+                Garbage.Clear();
+                DrawTrashMeter();
+            });
         }
 
         public void DrawAll()

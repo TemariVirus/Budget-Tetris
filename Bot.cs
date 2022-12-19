@@ -94,19 +94,19 @@ namespace Tetris
             return arr;
         }
 
-        public void Start(int think_time, int move_delay)
+        public void Start(int thinkMillis, int moveMillis)
         {
             if (BotThread != null)
                 if (BotThread.IsAlive)
                     return;
 
-            ThinkTicks = think_time * Stopwatch.Frequency / 1000;
+            ThinkTicks = thinkMillis * Stopwatch.Frequency / 1000;
             NodeCounts = new long[RunAvgCount];
             ToStop = false;
             BotThread = new Thread(() =>
             {
                 // Set lock delay
-                Game.LockDelay = Math.Max(think_time, move_delay) + 50;
+                Game.LockDelay = Math.Max(thinkMillis, moveMillis) + 50;
 
                 while (true)
                 {
@@ -122,15 +122,15 @@ namespace Tetris
                     Game.Tick();
                     List<Moves> moves = FindMoves();
                     // Wait out excess think time
-                    while (Sw.ElapsedTicks < ThinkTicks) Thread.Sleep(0);
+                    //while (Sw.ElapsedTicks < ThinkTicks) Thread.Sleep(0);
                     // Play moves
                     foreach (Moves move in moves)
                     {
                         Game.Play(move);
-                        if (move_delay != 0)
+                        if (moveMillis != 0)
                         {
                             Game.Tick();
-                            Thread.Sleep(move_delay);
+                            //Thread.Sleep(moveMillis);
                         }
                     }
                     // Stats
