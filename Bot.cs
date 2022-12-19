@@ -122,7 +122,7 @@ namespace Tetris
                     Game.Tick();
                     List<Moves> moves = FindMoves();
                     // Wait out excess think time
-                    //while (Sw.ElapsedTicks < ThinkTicks) Thread.Sleep(0);
+                    while (Sw.ElapsedTicks < ThinkTicks) Thread.Sleep(0);
                     // Play moves
                     foreach (Moves move in moves)
                     {
@@ -130,7 +130,7 @@ namespace Tetris
                         if (moveMillis != 0)
                         {
                             Game.Tick();
-                            //Thread.Sleep(moveMillis);
+                            Thread.Sleep(moveMillis);
                         }
                     }
                     // Stats
