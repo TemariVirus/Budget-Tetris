@@ -2,10 +2,11 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Text;
-using Tetris;
+using System.Threading;
 
 namespace Tetris
 {
@@ -86,6 +87,31 @@ namespace Tetris
     {
         static void Main()
         {
+            // Global exception handler
+            AppDomain.CurrentDomain.UnhandledException += (object sender, UnhandledExceptionEventArgs e) =>
+            {
+                // Terminate sound
+                BASS_Free();
+
+                // Terminate rendering
+                bool doneRender = false;
+                FastConsole.FConsole.RenderCallback = () =>
+                {
+                    doneRender = true;
+                    Thread.CurrentThread.Join();
+                };
+                while (!doneRender) Thread.Sleep(0);
+                
+                // Print exception
+                Console.Clear();
+                Console.WriteLine("An unhandled exception has occurred:");
+                Console.WriteLine(e.ExceptionObject);
+                Console.WriteLine("\nPress any key to close this window . . .");
+                Console.ReadKey(true);
+
+                Environment.Exit(Environment.ExitCode);
+            };
+
             Game.InitWindow();
 
             GameConfig config = GameConfig.LoadSettings();
@@ -116,6 +142,12 @@ namespace Tetris
             Game.SetGames(games);
 
             Game.IsPaused = false;
+
+            FastConsole.FConsole.RenderThread.Join();
         }
+
+        [DllImport("bass")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool BASS_Free();
     }
 }

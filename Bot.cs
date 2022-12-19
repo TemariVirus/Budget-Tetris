@@ -148,8 +148,10 @@ namespace Tetris
                 Game.IsBot = false;
                 Game.SoftG = Game.Settings.SoftG;
                 return;
-            });
-            BotThread.Priority = ThreadPriority.Highest;
+            })
+            {
+                IsBackground = true
+            };
             BotThread.Start();
 
             // Write stats
@@ -291,7 +293,7 @@ namespace Tetris
                             int oriy = Sim.Y;
                             // Update screen
                             int new_combo = combo, new_b2b = b2b;
-                            int[] clears = SearchScore(false, ref new_combo, ref new_b2b, out double garbage, out int cleared);
+                            int[] clears = SearchScore(false, ref new_combo, ref new_b2b, out double garbage, out int _);
                             // Check if better
                             double newvalue = nexti < Sim.Next.Length ?
                                               Search(depth, nexti + 1, Sim.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage) :
@@ -329,7 +331,7 @@ namespace Tetris
                                         int x = Sim.X, y = Sim.Y;
                                         new_combo = combo;
                                         new_b2b = b2b;
-                                        clears = SearchScore(true, ref new_combo, ref new_b2b, out garbage, out cleared);
+                                        clears = SearchScore(true, ref new_combo, ref new_b2b, out garbage, out _);
                                         // Check if better
                                         newvalue = nexti < Sim.Next.Length ?
                                                    Search(depth, nexti + 1, Sim.Next[nexti], hold, false, new_combo, new_b2b, out1, garbage) :
@@ -450,7 +452,7 @@ namespace Tetris
                         {
                             // Update matrix
                             int new_comb = comb, new_b2b = b2b;
-                            clears = SearchScore(false, ref new_comb, ref new_b2b, out double garbage, out int cleared);
+                            clears = SearchScore(false, ref new_comb, ref new_b2b, out double garbage, out int _);
                             // Check if better
                             _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sim.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], discount * garbage + _trash));
                             // Revert matrix
@@ -477,7 +479,7 @@ namespace Tetris
                                     Piece rotated = Sim.Current;
                                     // Update matrix
                                     int new_comb = comb, new_b2b = b2b;
-                                    clears = SearchScore(true, ref new_comb, ref new_b2b, out double garbage, out int cleared);
+                                    clears = SearchScore(true, ref new_comb, ref new_b2b, out double garbage, out int _);
                                     // Check if better
                                     _value = Math.Max(_value, Search(depth - 1, nexti + 1, Sim.Next[nexti], _hold, false, new_comb, new_b2b, outs[0], discount * garbage + _trash));
                                     // Revert matrix

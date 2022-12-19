@@ -13,13 +13,13 @@ namespace FastConsole
 {
     static class FConsole
     {
-        static SafeFileHandle ConoutHandle;
+        private static readonly SafeFileHandle ConoutHandle = CreateFile("CONOUT$", 0x40000000, 2, IntPtr.Zero, FileMode.Open, 0, IntPtr.Zero);
 
-        private static Stopwatch Time = Stopwatch.StartNew();
+        private static readonly Stopwatch Time = Stopwatch.StartNew();
         public static Thread RenderThread { get; private set; }
         public static Thread InputThread { get; private set; }
-        static Action RenderCallback;
-        static Action InputLoopCallback;
+        public static Action RenderCallback { private get; set; }
+        public static Action InputLoopCallback { private get; set; }
 
         public static Thread SwitchFocusThread { get; private set; }
 
@@ -28,9 +28,8 @@ namespace FastConsole
         // The callback is called at the end of each frame
         public static void Initialise(Action renderCallback = null, Action inputCallback = null)
         {
-            ConoutHandle = CreateFile("CONOUT$", 0x40000000, 2, IntPtr.Zero, FileMode.Open, 0, IntPtr.Zero);
-
-            if (ConoutHandle.IsInvalid) throw new System.ComponentModel.Win32Exception();
+            if (ConoutHandle.IsInvalid)
+                throw new System.ComponentModel.Win32Exception();
             else
             {
                 // Rendering
@@ -39,9 +38,11 @@ namespace FastConsole
                 Console.CursorVisible = CursorVisible;
                 ConsoleBuffer = new int[Width * Height];
                 Console.OutputEncoding = Encoding.Unicode;
-                RenderThread = new Thread(RenderLoop);
+                RenderThread = new Thread(RenderLoop)
+                {
+                    IsBackground = true
+                };
                 RenderCallback = renderCallback;
-                RenderThread.Priority = ThreadPriority.Lowest;
                 RenderThread.Start();
 
                 // Check for focus switching
@@ -50,16 +51,20 @@ namespace FastConsole
                     SwitchFocusDelegate = new WinEventDelegate((_, _1, _2, _3, _4, _5, _6) => IsFocused = WindowIsFocused());
                     IntPtr m_hhook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, IntPtr.Zero, SwitchFocusDelegate, 0, 0, WINEVENT_OUTOFCONTEXT);
                     Dispatcher.Run();
-                });
-                SwitchFocusThread.Priority = ThreadPriority.Lowest;
+                })
+                {
+                    IsBackground = true
+                };
                 SwitchFocusThread.Start();
                 IsFocused = WindowIsFocused();
 
                 // Input
-                InputThread = new Thread(InputLoop);
+                InputThread = new Thread(InputLoop)
+                {
+                    IsBackground = true
+                };
                 InputThread.SetApartmentState(ApartmentState.STA);
                 InputLoopCallback = inputCallback;
-                InputThread.Priority = ThreadPriority.Lowest;
                 InputThread.Start();
             }
         }

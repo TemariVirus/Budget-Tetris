@@ -216,12 +216,14 @@ namespace NEAT
 
         public void SaveNN(string path)
         {
-            NNData data = new NNData();
-            data.Name = Name;
-            data.Inputs = InputCount;
-            data.Outputs = OutputCount;
-            data.Fitness = Fitness;
-            data.Connections = new List<ConnectionData>();
+            NNData data = new NNData
+            {
+                Name = Name,
+                Inputs = InputCount,
+                Outputs = OutputCount,
+                Fitness = Fitness,
+                Connections = new List<ConnectionData>()
+            };
             foreach (Connection c in Connections.Values)
                 data.Connections.Add(new ConnectionData()
                 {
@@ -271,6 +273,7 @@ namespace NEAT
             throw new MissingMemberException("Activation type not found!");
         }
 
+#pragma warning disable IDE0051 // Remove unused private members
         static double Sigmoid(double x) => 1 / (1 + Math.Exp(-x));
         static double TanH(double x) => Math.Tanh(x);
         static double ReLU(double x) => x >= 0 ? x : 0;
@@ -284,6 +287,7 @@ namespace NEAT
             return 0.5D * x * (1 + Math.Tanh(C * (0.044715D * Math.Pow(x, 3) + x)));
         }
         static double SoftPlus(double x) => Math.Log(1 + Math.Exp(x));
+#pragma warning restore IDE0051 // Remove unused private members
         #endregion
     }
 }

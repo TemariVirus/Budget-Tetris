@@ -46,8 +46,8 @@ namespace Tetris
 
         public static readonly GameSettings Default = new GameSettings()
         {
-            BGMVolume = 0.1,
-            SFXVolume = 0.1,
+            BGMVolume = 0.1f,
+            SFXVolume = 0.1f,
 
             LinesTrash = new int[] { 0, 0, 1, 2, 4 },
             TSpinTrash = new int[] { 0, 2, 4, 6 },
@@ -70,9 +70,9 @@ namespace Tetris
         };
 
         [DataMember]
-        public double BGMVolume { get; private set; }
+        public float BGMVolume { get; private set; }
         [DataMember]
-        public double SFXVolume { get; private set; }
+        public float SFXVolume { get; private set; }
 
         [DataMember]
         public int[] LinesTrash { get; private set; }
@@ -923,7 +923,6 @@ namespace Tetris
         {
             Sound.SFXVolume = Settings.SFXVolume;
             Sound.BGMVolume = Settings.BGMVolume;
-            Sound.InitSound();
             // Set up console
             Console.Title = "Budget Tetris";
             FConsole.Framerate = 30;
@@ -1444,6 +1443,7 @@ namespace Tetris
                     Targets.Clear();
                     break;
             }
+
             // Send trash
             foreach (Game victim in Targets)
             {
