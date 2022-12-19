@@ -86,6 +86,10 @@ It must be a positive whole number.
 The delay, in milliseconds, after which a piece will lock after touching the ground without moving (provided *AutoLockGrace* has not been exceeded).
 It must be a positive whole number.
 
+#### LineClearDelay
+The delay, in milliseconds, during which the player will not be able to do anything after making any kind of line clear. Bots will not think during this delay.
+It must be a positive whole number.
+
 #### EraseDelay
 The delay, in milliseconds, after which the stats of the previous clear will be erased from the screen.
 If a new clear is done within the delay, the stats of the previous clear are overwritten and the delay is reset.
