@@ -53,7 +53,8 @@ namespace FastConsole
                     Dispatcher.Run();
                 })
                 {
-                    IsBackground = true
+                    IsBackground = true,
+                    Priority = ThreadPriority.Lowest
                 };
                 SwitchFocusThread.Start();
                 IsFocused = WindowIsFocused();
@@ -61,8 +62,10 @@ namespace FastConsole
                 // Input
                 InputThread = new Thread(InputLoop)
                 {
-                    IsBackground = true
+                    IsBackground = true,
                 };
+                if (Environment.ProcessorCount <= 4)
+                    InputThread.Priority = ThreadPriority.AboveNormal;
                 InputThread.SetApartmentState(ApartmentState.STA);
                 InputLoopCallback = inputCallback;
                 InputThread.Start();

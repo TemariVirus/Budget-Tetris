@@ -26,13 +26,13 @@ namespace Tetris
             {
                 // Check for free stream
                 foreach (int stream in Streams)
-                    if (BASS_ChannelIsActive(stream) != 1)
+                    if (BassChannelIsActive(stream) != 1)
                         return stream;
 
                 // Make new stream if none are free
                 if (Streams.Count < MaxStreams)
                 {
-                    int stream = BASS_StreamCreateFileUnicode(false, Path, 0, 0, int.MinValue);
+                    int stream = BassLoadFile(false, Path, 0, 0, int.MinValue);
                     Streams.Add(stream);
                     return stream;
                 }
@@ -52,7 +52,7 @@ namespace Tetris
             {
                 _IsMuted = value;
 
-                BASS_ChannelSetAttribute(BGMHandle,
+                BassChannelSetAttribute(BGMHandle,
                     2,
                     value ? 0 : _BGMVolume);
             }
@@ -75,7 +75,7 @@ namespace Tetris
                 _BGMVolume = value;
 
                 if (BGMHandle == 0) return;
-                BASS_ChannelSetAttribute(BGMHandle,
+                BassChannelSetAttribute(BGMHandle,
                     2,
                     IsMuted ? 0 : BGMVolume);
             }
@@ -107,18 +107,18 @@ namespace Tetris
 
         static Sound()
         {
-            BASS_Init(-1, 44100, 0, IntPtr.Zero, IntPtr.Zero);
+            BassInit(-1, 44100, 0, IntPtr.Zero, IntPtr.Zero);
 
             // Play BGM looping
             string path = new Uri(SoundsFolder + "Korobeiniki Remix.mp3", UriKind.Relative).ToString();
             if (!File.Exists(path)) return;
 
-            BGMHandle = BASS_StreamCreateFileUnicode(false, path, 0, 0, int.MinValue);
+            BGMHandle = BassLoadFile(false, path, 0, 0, int.MinValue);
             if (BGMHandle == 0) return;
 
-            BASS_ChannelSetAttribute(BGMHandle, 2, BGMVolume);
-            BASS_ChannelFlags(BGMHandle, 4, 4);
-            BASS_ChannelPlay(BGMHandle, true);
+            BassChannelSetAttribute(BGMHandle, 2, BGMVolume);
+            BassChannelFlags(BGMHandle, 4, 4);
+            BassChannelPlay(BGMHandle, true);
         }
 
         private Sound(string fileName)
@@ -136,29 +136,29 @@ namespace Tetris
             // Return if can't get handle
             if (handle == 0) return;
 
-            BASS_ChannelSetAttribute(handle, 2, SFXVolume);
-            BASS_ChannelPlay(handle, true);
+            BassChannelSetAttribute(handle, 2, SFXVolume);
+            BassChannelPlay(handle, true);
         }
 
-        [DllImport("bass")]
+        [DllImport("bass", EntryPoint = "BASS_Init")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool BASS_Init(int device, int freq, int flags, IntPtr win, IntPtr clsid);
+        static extern bool BassInit(int device, int freq, int flags, IntPtr win, IntPtr clsid);
 
         [DllImport("bass", EntryPoint = "BASS_StreamCreateFile")]
-        static extern int BASS_StreamCreateFileUnicode([MarshalAs(UnmanagedType.Bool)] bool mem, [In][MarshalAs(UnmanagedType.LPWStr)] string file, long offset, long length, int flags);
+        static extern int BassLoadFile([MarshalAs(UnmanagedType.Bool)] bool mem, [In][MarshalAs(UnmanagedType.LPWStr)] string file, long offset, long length, int flags);
 
-        [DllImport("bass")]
-        static extern int BASS_ChannelFlags(int handle, int flags, int mask);
+        [DllImport("bass", EntryPoint = "BASS_ChannelFlags")]
+        static extern int BassChannelFlags(int handle, int flags, int mask);
 
-        [DllImport("bass")]
+        [DllImport("bass", EntryPoint = "BASS_ChannelSetAttribute")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool BASS_ChannelSetAttribute(int handle, int attrib, float value);
+        static extern bool BassChannelSetAttribute(int handle, int attrib, float value);
 
-        [DllImport("bass")]
+        [DllImport("bass", EntryPoint = "BASS_ChannelPlay")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool BASS_ChannelPlay(int handle, [MarshalAs(UnmanagedType.Bool)] bool restart);
+        static extern bool BassChannelPlay(int handle, [MarshalAs(UnmanagedType.Bool)] bool restart);
 
-        [DllImport("bass")]
-        static extern int BASS_ChannelIsActive(int handle);
+        [DllImport("bass", EntryPoint = "BASS_ChannelIsActive")]
+        static extern int BassChannelIsActive(int handle);
     }
 }

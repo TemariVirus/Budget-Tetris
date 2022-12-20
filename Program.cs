@@ -92,7 +92,7 @@ namespace Tetris
             AppDomain.CurrentDomain.UnhandledException += (object sender, UnhandledExceptionEventArgs e) =>
             {
                 // Terminate sound
-                BASS_Free();
+                BassFree();
 
                 // Terminate rendering & input
                 FConsole.RenderCallback = () => Thread.Sleep(-1);
@@ -109,7 +109,7 @@ namespace Tetris
                 Environment.Exit(Environment.ExitCode);
             };
 
-            Game.InitWindow(20);
+            Game.InitWindow(18);
 
             GameConfig config = GameConfig.LoadSettings();
             int player_count = (config.HasPlayer ? 1 : 0) + config.Bots.Length;
@@ -139,8 +139,8 @@ namespace Tetris
             FConsole.InputThread.Join();
         }
 
-        [DllImport("bass")]
+        [DllImport("bass", EntryPoint = "BASS_Free")]
         [return: MarshalAs(UnmanagedType.Bool)]
-        static extern bool BASS_Free();
+        static extern bool BassFree();
     }
 }

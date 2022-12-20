@@ -152,6 +152,9 @@ namespace Tetris
             {
                 IsBackground = true
             };
+            // Allow higher bot thread priority if computer can handle it
+            if (Environment.ProcessorCount > 4)
+                BotThread.Priority = ThreadPriority.AboveNormal;
             BotThread.Start();
 
             // Write stats
