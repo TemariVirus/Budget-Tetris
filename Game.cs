@@ -1,6 +1,7 @@
 ﻿using FastConsole;
 using System;
 using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -832,6 +833,8 @@ namespace Tetris
             }
         }
         public static bool IsMuted { get; set; } = false;
+
+        private bool _IsTicking = false;
         public bool IsFrozen { get; set; } = false;
         
         public int B2B { get; internal set; } = -1;
@@ -839,7 +842,7 @@ namespace Tetris
 
         public double SoftG { get; set; } = Settings.SoftG;
         private double Vel = 0;
-        private readonly Queue<Moves> MoveQueue = new Queue<Moves>();
+        private ConcurrentQueue<Moves> MoveQueue = new ConcurrentQueue<Moves>();
 
         private double LastFrameTime;
         public int LockDelay { get; set; } = Settings.LockDelay;
@@ -1084,7 +1087,7 @@ namespace Tetris
             IsLastMoveRotate = false;
             AlreadyHeld = false;
             MoveCount = 0;
-            MoveQueue.Clear();
+            MoveQueue = new ConcurrentQueue<Moves>();
 
             StartSeconds = CurrentSeconds;
             LastFrameTime = StartSeconds;
@@ -1099,17 +1102,26 @@ namespace Tetris
 
         public void Tick()
         {
-            if (IsDead || IsPaused || IsFrozen) return;
+            if (IsDead || IsPaused || IsFrozen || _IsTicking) return;
 
+            _IsTicking = true;
+            TickBody();
+            _IsTicking = false;
+        }
+
+        private void TickBody()
+        {
             // Timekeeping
             double deltaT = CurrentSeconds - LastFrameTime;
             LastFrameTime = CurrentSeconds;
 
             // Play queued moves (it's up to the input adapter to time the moves, the queue is a buffer jic)
             bool softDrop = false;
-            while (MoveQueue.Count != 0 && !IsDead)
+            while (MoveQueue.Count > 0 && !IsDead)
             {
-                switch (MoveQueue.Dequeue())
+                Moves move;
+                while (!MoveQueue.TryDequeue(out move)) ;
+                switch (move)
                 {
                     case Moves.Hold:
                         HoldPiece();
@@ -1171,7 +1183,8 @@ namespace Tetris
             }
             else
             {
-                if (MoveCount < AutoLockGrace) LastMoveMillis = -1;
+                if (MoveCount < AutoLockGrace)
+                    LastMoveMillis = -1;
                 if (Vel >= 1)
                     Vel -= Drop((int)Vel, softDrop ? 1 : 0); // Round Vel down
             }
@@ -1363,55 +1376,58 @@ namespace Tetris
             PiecesPlaced++;
 
             // Garbage
-            // Garbage cancelling
-            while (Garbage.Count != 0 && trash != 0)
+            lock (Garbage)
             {
-                if (Garbage[0].Lines <= trash)
+                // Garbage cancelling
+                while (Garbage.Count > 0 && trash != 0)
                 {
-                    trash -= Garbage[0].Lines;
-                    Garbage.RemoveAt(0);
-                }
-                else
-                {
-                    Garbage[0] = (Garbage[0].Lines - trash, Garbage[0].Time);
-                    trash = 0;
-                }
-            }
-            // Dump the trash
-            if (cleared == 0)
-            {
-                int garbage_dumped = 0;
-                while (Garbage.Count > 0)
-                {
-                    if (CurrentMillis - Garbage[0].Time <= Settings.GarbageDelay) break;
-
-                    int lines_to_add = Garbage[0].Lines;
-                    garbage_dumped += lines_to_add;
-                    Garbage.RemoveAt(0);
-                    int hole = GarbageRand.Next(10);
-                    int bedrock_height = 0;
-                    while (Matrix.GetRow(bedrock_height) == MatrixMask.FULL_LINE) bedrock_height++;
-                    // Move stuff up
-                    MatrixMask top = (Matrix & MatrixMask.InverseHeightMasks[bedrock_height]) << (lines_to_add * 10);
-                    Matrix = top | MatrixMask.HeightMasks[bedrock_height];
-                    for (int y = MatrixColors.Length - lines_to_add - 1; y > bedrock_height - 1; y--)
-                        MatrixColors[y + lines_to_add] = MatrixColors[y];
-                    // Add garbage
-                    for (int y = bedrock_height; y < Math.Min(MatrixColors.Length, bedrock_height + lines_to_add); y++)
+                    if (Garbage[0].Lines <= trash)
                     {
-                        MatrixMask garbage_line = new MatrixMask(LowLow: ~(1UL << (9 - hole))) & MatrixMask.HeightMasks[1];
-                        garbage_line <<= y * 10;
-                        Matrix |= garbage_line;
-
-                        MatrixColors[y] = new ConsoleColor[10];
-                        GarbageLineColor.CopyTo(MatrixColors[y], 0);
-                        // Add hole
-                        MatrixColors[y][hole] = PieceColors[Piece.EMPTY];
+                        trash -= Garbage[0].Lines;
+                        Garbage.RemoveAt(0);
+                    }
+                    else
+                    {
+                        Garbage[0] = (Garbage[0].Lines - trash, Garbage[0].Time);
+                        trash = 0;
                     }
                 }
+                // Dump the trash
+                if (cleared == 0)
+                {
+                    int garbage_dumped = 0;
+                    while (Garbage.Count > 0)
+                    {
+                        if (CurrentMillis - Garbage[0].Time <= Settings.GarbageDelay) break;
 
-                if (garbage_dumped > 0)
-                    (garbage_dumped >= 10 ? Sound.GarbageLarge : Sound.GarbageSmall).Play();
+                        int lines_to_add = Garbage[0].Lines;
+                        garbage_dumped += lines_to_add;
+                        Garbage.RemoveAt(0);
+                        int hole = GarbageRand.Next(10);
+                        int bedrock_height = 0;
+                        while (Matrix.GetRow(bedrock_height) == MatrixMask.FULL_LINE) bedrock_height++;
+                        // Move stuff up
+                        MatrixMask top = (Matrix & MatrixMask.InverseHeightMasks[bedrock_height]) << (lines_to_add * 10);
+                        Matrix = top | MatrixMask.HeightMasks[bedrock_height];
+                        for (int y = MatrixColors.Length - lines_to_add - 1; y > bedrock_height - 1; y--)
+                            MatrixColors[y + lines_to_add] = MatrixColors[y];
+                        // Add garbage
+                        for (int y = bedrock_height; y < Math.Min(MatrixColors.Length, bedrock_height + lines_to_add); y++)
+                        {
+                            MatrixMask garbage_line = new MatrixMask(LowLow: ~(1UL << (9 - hole))) & MatrixMask.HeightMasks[1];
+                            garbage_line <<= y * 10;
+                            Matrix |= garbage_line;
+
+                            MatrixColors[y] = new ConsoleColor[10];
+                            GarbageLineColor.CopyTo(MatrixColors[y], 0);
+                            // Add hole
+                            MatrixColors[y][hole] = PieceColors[Piece.EMPTY];
+                        }
+                    }
+
+                    if (garbage_dumped > 0)
+                        (garbage_dumped >= 10 ? Sound.GarbageLarge : Sound.GarbageSmall).Play();
+                }
             }
             DrawTrashMeter();
             if (trash > 0) SendTrash(trash);
@@ -1555,6 +1571,8 @@ namespace Tetris
 
         void DrawTrashMeter()
         {
+            const int MeterColumn = 33;
+
             if (IsFrozen) return;
 
             int y = 21;
@@ -1564,12 +1582,11 @@ namespace Tetris
                 {
                     ConsoleColor color = CurrentMillis - Garbage[i].Time > Settings.GarbageDelay ? ConsoleColor.Red : ConsoleColor.Gray;
                     for (int j = y; y > j - Garbage[i].Lines && y > 1; y--)
-                    {
-                        WriteAt(33, y, color, "█");
-                    }
+                        WriteAt(MeterColumn, y, color, "█");
                 }
             }
-            for (; y >= 0; y--) WriteAt(33, y, ConsoleColor.Black, " ");
+            for (; y >= 0; y--)
+                WriteAt(MeterColumn, y, ConsoleColor.Black, " ");
         }
 
         void EraseClearStats()
