@@ -16,13 +16,16 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
-        .name = "Budget-Tetris-Client",
+        .name = "Budget-Tetris",
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
+
+    const engine = b.addModule("engine", .{ .source_file = .{ .path = "../engine/src/main.zig" } });
+    exe.addModule("engine", engine);
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
