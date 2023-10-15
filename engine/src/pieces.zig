@@ -1,206 +1,188 @@
-const std = @import("std");
-const bit_mask = @import("bit_mask.zig");
-const BoardMask = bit_mask.BoardMask;
-const PieceMask = bit_mask.PieceMask;
+const tokenizeScalar = @import("std").mem.tokenizeScalar;
+const PieceMask = @import("bit_masks.zig").PieceMask;
 
-pub const Rotation = enum {
-    Right,
-    Left,
-    Down,
-};
+pub const Position = struct {
+    x: i8,
+    y: i8,
 
-pub const PieceKind = enum(u8) {
-    IUp = 0,
-    IRight,
-    IDown,
-    ILeft,
-    OUp,
-    ORight,
-    ODown,
-    OLeft,
-    TUp,
-    TRight,
-    TDown,
-    TLeft,
-    SUp,
-    SRight,
-    SDown,
-    SLeft,
-    ZUp,
-    ZRight,
-    ZDown,
-    ZLeft,
-    JUp,
-    JRight,
-    JDown,
-    JLeft,
-    LUp,
-    LRight,
-    LDown,
-    LLeft,
-};
-
-pub const PiecePos = struct {
-    x: u8,
-    y: u8,
-};
-
-pub const PieceSpawnError = error{BlockOut};
-
-pub const Piece = struct {
-    kind: PieceKind,
-    pos: PiecePos,
-
-    pub fn spawn(playfield: BoardMask, kind: PieceKind) PieceSpawnError!Piece {
-        const pos = switch (kind) {
-            .IUp => PiecePos{ .x = 3, .y = 20 },
-            .OUp => PiecePos{ .x = 4, .y = 20 },
-            .TUp => PiecePos{ .x = 3, .y = 20 },
-            .SUp => PiecePos{ .x = 3, .y = 20 },
-            .ZUp => PiecePos{ .x = 3, .y = 20 },
-            .JUp => PiecePos{ .x = 3, .y = 20 },
-            .LUp => PiecePos{ .x = 3, .y = 20 },
-        };
-
-        var piece = Piece{
-            .kind = kind,
-            .pos = pos,
-        };
-        const bottom = piece.mask().rows[0];
-
-        if (playfield.rows[piece.pos.y] & bottom != 0) {
-            return error.BlockOut;
-        }
-        if (playfield.rows[piece.pos.y - 1] & bottom != 0) {
-            piece.pos.y -= 1;
-        }
-
-        return piece;
+    pub fn add(self: Position, other: Position) Position {
+        return Position{ .x = self.x + other.x, .y = self.y + other.y };
     }
 
+    pub fn sub(self: Position, other: Position) Position {
+        return Position{ .x = self.x - other.x, .y = self.y - other.y };
+    }
+};
+
+// Do not touch; other code depends on the order!
+pub const Facing = enum(u2) {
+    Up = 0,
+    Right = 1,
+    Down = 2,
+    Left = 3,
+};
+
+pub const PieceType = enum(u4) {
+    I,
+    O,
+    T,
+    S,
+    Z,
+    L,
+    J,
+
+    pub fn startPos(piece_type: PieceType) Position {
+        return switch (piece_type) {
+            .I => Position{ .x = 3, .y = 20 },
+            .O => Position{ .x = 4, .y = 20 },
+            .T => Position{ .x = 3, .y = 20 },
+            .S => Position{ .x = 3, .y = 20 },
+            .Z => Position{ .x = 3, .y = 20 },
+            .J => Position{ .x = 3, .y = 20 },
+            .L => Position{ .x = 3, .y = 20 },
+        };
+    }
+};
+
+pub const Piece = packed struct {
+    facing: Facing,
+    type: PieceType,
+
     pub fn mask(self: Piece) PieceMask {
-        return switch (self.kind) {
-            .IUp, .IDown => parsePiece(
-                \\....
-                \\....
-                \\....
-                \\####
-            ),
-            .IRight, .ILeft => parsePiece(
-                \\#...
-                \\#...
-                \\#...
-                \\#...
-            ),
-            .OUp, .ORight, .ODown, .OLeft => parsePiece(
-                \\....
-                \\....
-                \\##..
-                \\##..
-            ),
-            .TUp => parsePiece(
-                \\....
-                \\....
-                \\.#..
-                \\###.
-            ),
-            .TRight => parsePiece(
-                \\....
-                \\#...
-                \\##..
-                \\#...
-            ),
-            .TDown => parsePiece(
-                \\....
-                \\....
-                \\###.
-                \\.#..
-            ),
-            .TLeft => parsePiece(
-                \\....
-                \\.#..
-                \\##..
-                \\.#..
-            ),
-            .SUp, .SDown => parsePiece(
-                \\....
-                \\....
-                \\.##.
-                \\##..
-            ),
-            .SRight, .SLeft => parsePiece(
-                \\....
-                \\#...
-                \\##..
-                \\.#..
-            ),
-            .ZUp, .ZDown => parsePiece(
+        return switch (self.type) {
+            .I => switch (self.facing) {
+                .Up, .Down => parsePiece(
+                    \\....
+                    \\....
+                    \\....
+                    \\####
+                ),
+                .Right, .Left => parsePiece(
+                    \\#...
+                    \\#...
+                    \\#...
+                    \\#...
+                ),
+            },
+            .O => parsePiece(
                 \\....
                 \\....
                 \\##..
-                \\.##.
-            ),
-            .ZRight, .ZLeft => parsePiece(
-                \\....
-                \\.#..
-                \\##..
-                \\#...
-            ),
-            .JUp => parsePiece(
-                \\....
-                \\....
-                \\#...
-                \\###.
-            ),
-            .JRight => parsePiece(
-                \\....
-                \\##..
-                \\#...
-                \\#...
-            ),
-            .JDown => parsePiece(
-                \\....
-                \\....
-                \\###.
-                \\..#.
-            ),
-            .JLeft => parsePiece(
-                \\....
-                \\.#..
-                \\.#..
                 \\##..
             ),
-            .LUp => parsePiece(
-                \\....
-                \\....
-                \\..#.
-                \\###.
-            ),
-            .LRight => parsePiece(
-                \\....
-                \\#...
-                \\#...
-                \\##..
-            ),
-            .LDown => parsePiece(
-                \\....
-                \\....
-                \\###.
-                \\#...
-            ),
-            .LLeft => parsePiece(
-                \\....
-                \\##..
-                \\.#..
-                \\.#..
-            ),
+            .T => switch (self.facing) {
+                .Up => parsePiece(
+                    \\....
+                    \\....
+                    \\.#..
+                    \\###.
+                ),
+                .Right => parsePiece(
+                    \\....
+                    \\#...
+                    \\##..
+                    \\#...
+                ),
+                .Down => parsePiece(
+                    \\....
+                    \\....
+                    \\###.
+                    \\.#..
+                ),
+                .Left => parsePiece(
+                    \\....
+                    \\.#..
+                    \\##..
+                    \\.#..
+                ),
+            },
+            .S => switch (self.facing) {
+                .Up, .Down => parsePiece(
+                    \\....
+                    \\....
+                    \\.##.
+                    \\##..
+                ),
+                .Right, .Left => parsePiece(
+                    \\....
+                    \\#...
+                    \\##..
+                    \\.#..
+                ),
+            },
+            .Z => switch (self.facing) {
+                .Up, .Down => parsePiece(
+                    \\....
+                    \\....
+                    \\##..
+                    \\.##.
+                ),
+                .Right, .Left => parsePiece(
+                    \\....
+                    \\.#..
+                    \\##..
+                    \\#...
+                ),
+            },
+            .J => switch (self.facing) {
+                .Up => parsePiece(
+                    \\....
+                    \\....
+                    \\#...
+                    \\###.
+                ),
+                .Right => parsePiece(
+                    \\....
+                    \\##..
+                    \\#...
+                    \\#...
+                ),
+                .Down => parsePiece(
+                    \\....
+                    \\....
+                    \\###.
+                    \\..#.
+                ),
+                .Left => parsePiece(
+                    \\....
+                    \\.#..
+                    \\.#..
+                    \\##..
+                ),
+            },
+            .L => switch (self.facing) {
+                .Up => parsePiece(
+                    \\....
+                    \\....
+                    \\..#.
+                    \\###.
+                ),
+                .Right => parsePiece(
+                    \\....
+                    \\#...
+                    \\#...
+                    \\##..
+                ),
+                .Down => parsePiece(
+                    \\....
+                    \\....
+                    \\###.
+                    \\#...
+                ),
+                .Left => parsePiece(
+                    \\....
+                    \\##..
+                    \\.#..
+                    \\.#..
+                ),
+            },
         };
     }
 };
 
 fn parsePiece(comptime str: []const u8) PieceMask {
     var result = [_]u16{0} ** 4;
-    var lines = std.mem.tokenizeScalar(u8, str, '\n');
+    var lines = tokenizeScalar(u8, str, '\n');
 
     var i: usize = 4;
     while (lines.next()) |line| {
