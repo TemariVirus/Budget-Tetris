@@ -22,7 +22,7 @@ pub const Facing = enum(u2) {
     Left = 3,
 };
 
-pub const PieceType = enum(u4) {
+pub const PieceType = enum(u3) {
     I,
     O,
     T,
@@ -33,13 +33,13 @@ pub const PieceType = enum(u4) {
 
     pub fn startPos(piece_type: PieceType) Position {
         return switch (piece_type) {
-            .I => Position{ .x = 3, .y = 20 },
-            .O => Position{ .x = 4, .y = 20 },
-            .T => Position{ .x = 3, .y = 20 },
-            .S => Position{ .x = 3, .y = 20 },
-            .Z => Position{ .x = 3, .y = 20 },
-            .J => Position{ .x = 3, .y = 20 },
-            .L => Position{ .x = 3, .y = 20 },
+            .I => Position{ .x = 3, .y = 18 },
+            .O => Position{ .x = 3, .y = 19 },
+            .T => Position{ .x = 3, .y = 19 },
+            .S => Position{ .x = 3, .y = 19 },
+            .Z => Position{ .x = 3, .y = 19 },
+            .J => Position{ .x = 3, .y = 19 },
+            .L => Position{ .x = 3, .y = 19 },
         };
     }
 };
@@ -51,37 +51,49 @@ pub const Piece = packed struct {
     pub fn mask(self: Piece) PieceMask {
         return switch (self.type) {
             .I => switch (self.facing) {
-                .Up, .Down => parsePiece(
+                .Up => parsePiece(
                     \\....
+                    \\####
+                    \\....
+                    \\....
+                ),
+                .Right => parsePiece(
+                    \\..#.
+                    \\..#.
+                    \\..#.
+                    \\..#.
+                ),
+                .Down => parsePiece(
                     \\....
                     \\....
                     \\####
+                    \\....
                 ),
-                .Right, .Left => parsePiece(
-                    \\#...
-                    \\#...
-                    \\#...
-                    \\#...
+                .Left => parsePiece(
+                    \\.#..
+                    \\.#..
+                    \\.#..
+                    \\.#..
                 ),
             },
             .O => parsePiece(
                 \\....
+                \\.##.
+                \\.##.
                 \\....
-                \\##..
-                \\##..
             ),
             .T => switch (self.facing) {
                 .Up => parsePiece(
                     \\....
-                    \\....
                     \\.#..
                     \\###.
+                    \\....
                 ),
                 .Right => parsePiece(
                     \\....
-                    \\#...
-                    \\##..
-                    \\#...
+                    \\.#..
+                    \\.##.
+                    \\.#..
                 ),
                 .Down => parsePiece(
                     \\....
@@ -97,13 +109,25 @@ pub const Piece = packed struct {
                 ),
             },
             .S => switch (self.facing) {
-                .Up, .Down => parsePiece(
+                .Up => parsePiece(
+                    \\....
+                    \\.##.
+                    \\##..
+                    \\....
+                ),
+                .Right => parsePiece(
+                    \\....
+                    \\.#..
+                    \\.##.
+                    \\..#.
+                ),
+                .Down => parsePiece(
                     \\....
                     \\....
                     \\.##.
                     \\##..
                 ),
-                .Right, .Left => parsePiece(
+                .Left => parsePiece(
                     \\....
                     \\#...
                     \\##..
@@ -111,13 +135,25 @@ pub const Piece = packed struct {
                 ),
             },
             .Z => switch (self.facing) {
-                .Up, .Down => parsePiece(
+                .Up => parsePiece(
+                    \\....
+                    \\##..
+                    \\.##.
+                    \\....
+                ),
+                .Right => parsePiece(
+                    \\....
+                    \\..#.
+                    \\.##.
+                    \\.#..
+                ),
+                .Down => parsePiece(
                     \\....
                     \\....
                     \\##..
                     \\.##.
                 ),
-                .Right, .Left => parsePiece(
+                .Left => parsePiece(
                     \\....
                     \\.#..
                     \\##..
@@ -127,15 +163,15 @@ pub const Piece = packed struct {
             .J => switch (self.facing) {
                 .Up => parsePiece(
                     \\....
-                    \\....
                     \\#...
                     \\###.
+                    \\....
                 ),
                 .Right => parsePiece(
                     \\....
-                    \\##..
-                    \\#...
-                    \\#...
+                    \\.##.
+                    \\.#..
+                    \\.#..
                 ),
                 .Down => parsePiece(
                     \\....
@@ -153,15 +189,15 @@ pub const Piece = packed struct {
             .L => switch (self.facing) {
                 .Up => parsePiece(
                     \\....
-                    \\....
                     \\..#.
                     \\###.
+                    \\....
                 ),
                 .Right => parsePiece(
                     \\....
-                    \\#...
-                    \\#...
-                    \\##..
+                    \\.#..
+                    \\.#..
+                    \\.##.
                 ),
                 .Down => parsePiece(
                     \\....
@@ -188,10 +224,10 @@ fn parsePiece(comptime str: []const u8) PieceMask {
     while (lines.next()) |line| {
         i -= 1;
         for (0..10) |j| {
-            result[i] <<= 1;
             if (j < line.len and line[j] == '#') {
                 result[i] |= 1;
             }
+            result[i] <<= 1;
         }
     }
 
