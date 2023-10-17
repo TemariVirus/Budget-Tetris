@@ -17,6 +17,7 @@ pub fn main() !void {
     defer player.deinit(allocator);
 
     try stdout.print("\n" ** 10 ++ "{}", .{player});
+    _ = player.handleMove(.Hold);
     _ = player.handleMove(.Drop);
     try stdout.print("\n" ** 10 ++ "{}", .{player});
 

@@ -170,7 +170,7 @@ fn drawHoldRow(self: Self, writer: anytype, i: usize) !void {
 
     _ = try writer.write("║");
     const mask = (Piece{ .facing = .Up, .type = self.hold.? }).mask();
-    const y = 1 - i;
+    const y = 2 - i;
     for (0..4) |x| {
         _ = try writer.write(if (mask.get(x, y)) "██" else "  ");
     }

@@ -1,4 +1,4 @@
-//! Draws from a bag of 7 pieces without replacement. The bag is refilled with one of each piece.
+//! Draws from a bag of 14 pieces without replacement. The bag is refilled with two of each piece.
 
 const std = @import("std");
 const Xoroshiro128 = std.rand.Xoroshiro128;
@@ -14,8 +14,11 @@ const shuffle = root.bags.shuffle;
 
 const Self = @This();
 
-pieces: [7]PieceType = .{ .I, .O, .T, .S, .Z, .J, .L },
-index: u8 = 7,
+pieces: [14]PieceType = .{
+    .I, .O, .T, .S, .Z, .J, .L,
+    .I, .O, .T, .S, .Z, .J, .L,
+},
+index: u8 = 14,
 random: Xoroshiro128,
 
 pub fn init() Self {
@@ -41,24 +44,24 @@ pub fn bag(self: *Self) Bag {
     };
 }
 
-test "7-bag randomiser" {
-    var sb = init();
-    var b = sb.bag();
+test "14-bag randomiser" {
+    var fb = init();
+    var b = fb.bag();
 
     var actual = std.AutoHashMap(PieceType, i32).init(testing.allocator);
     defer actual.deinit();
 
-    // Get first 21 pieces
-    for (0..21) |_| {
+    // Get first 28 pieces
+    for (0..28) |_| {
         const piece = b.next();
         const count = actual.get(piece) orelse 0;
         try actual.put(piece, count + 1);
     }
 
-    // Should have 3 of each piece
+    // Should have 4 of each piece
     const expected = [_]PieceType{ .I, .O, .T, .S, .Z, .J, .L };
     for (expected) |piece| {
         const count = actual.get(piece) orelse 0;
-        try expect(count == 3);
+        try expect(count == 4);
     }
 }
