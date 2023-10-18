@@ -17,6 +17,8 @@ const Position = root.pieces.Position;
 const Facing = root.pieces.Facing;
 const Rotation = root.kicks.Rotation;
 
+const Settings = root.Settings;
+
 const Self = @This();
 const KickFn = fn (Piece, Rotation) []const Position;
 
@@ -24,28 +26,29 @@ playfield: BoardMask = BoardMask{},
 pos: Position,
 current: Piece,
 hold: ?PieceType = null,
-held: bool = false,
 // We could use a ring buffer for next, but advancing the next pieces shouldn't
 // occur too often so the performance impact would be minimal.
 next: []PieceType,
 
-allow180: bool,
 bag: Bag,
 kicksFn: *const KickFn,
 
 b2b: ?u16 = null,
 combo: ?u16 = 0,
 
-pub fn init(allocator: Allocator, next_len: usize, allow180: bool, bag: Bag, kicksFn: *const KickFn) !Self {
+settings: *const Settings,
+
+pub fn init(allocator: Allocator, next_len: usize, bag: Bag, kicksFn: *const KickFn, settings: ?*const Settings) !Self {
     assert(next_len > 0);
 
     var game = Self{
         .pos = undefined,
         .current = undefined,
         .next = try allocator.alloc(PieceType, next_len),
-        .allow180 = allow180,
         .bag = bag,
         .kicksFn = kicksFn,
+        .settings = settings orelse &Settings.default,
+        // .settings = settings orelse Settings.playerSettings(), // Reading settings not fully implemented
     };
     for (game.next) |*piece| {
         piece.* = game.bag.next();
@@ -80,48 +83,51 @@ fn nextPiece(self: *Self) void {
     self.next[self.next.len - 1] = self.bag.next();
 }
 
-/// Returns a boolean indicating if the move was successful.
-pub fn handleMove(self: *Self, move: Move) bool {
-    return switch (move) {
-        .Left, .DASLeft => self.slide(-1),
-        .Right, .DASRight => self.slide(1),
-        .Cw => unreachable,
-        .ACw => unreachable,
-        .Double => unreachable,
-        .Hold => ret: {
-            if (self.held) {
-                break :ret false;
-            }
-            self.held = true;
-
-            const current_type = self.current.type;
-            if (self.hold) |hold| {
-                self.spawn(hold);
-            } else {
-                self.nextPiece();
-            }
-            self.hold = current_type;
-            break :ret true;
-        },
-        .Drop => ret: {
-            if (!self.onGround()) {
-                self.pos.y -= 1;
-                break :ret true;
-            }
-            break :ret false;
-        },
-    };
-}
-
-fn slide(self: *Self, dx: i8) bool {
-    self.pos.x += dx;
-    if (self.playfield.collides(self.current.mask(), self.pos)) {
-        self.pos.x -= dx;
-        return false;
+/// Holds the current piece. If no piece is held, the next piece is spawned.
+pub fn hold(self: *Self) void {
+    const current_type = self.current.type;
+    if (self.hold) |h| {
+        self.spawn(h);
+    } else {
+        self.nextPiece();
     }
-    return true;
+    self.hold = current_type;
 }
 
+/// Tries to slide as far as possible. Returns the number of cells moved.
+pub fn slide(self: *Self, dx: i8) u8 {
+    const d = if (dx > 0) 1 else -1;
+    const steps: u8 = @abs(dx);
+    for (0..steps) |i| {
+        self.pos.x += d;
+        if (self.playfield.collides(self.current.mask(), self.pos)) {
+            self.pos.x -= d;
+            return @truncate(i);
+        }
+    }
+    return steps;
+}
+
+/// Tries to drop down as far as possible. Returns the number of cells moved.
+pub fn drop(self: *Self, dy: u8) u8 {
+    for (0..dy) |i| {
+        self.pos.y -= 1;
+        if (self.playfield.collides(self.current.mask(), self.pos)) {
+            self.pos.y += 1;
+            return @truncate(i);
+        }
+    }
+    return dy;
+}
+
+/// Tries to rotate the current piece. Returns whether the rotation was successful.
+pub fn rotate(self: *Self, rotation: Rotation) bool {
+    _ = rotation;
+    _ = self;
+    unreachable;
+}
+
+/// Places down the current piece, and clears lines if possible. Returns information about the clear.
 pub fn place(self: *Self) ClearInfo {
     _ = self;
     unreachable;
@@ -135,7 +141,11 @@ pub fn place(self: *Self) ClearInfo {
     // };
 }
 
-/// For debugging
+// pub fn setSeed(self: *Self) void {
+//     self.bag.
+// }
+
+// For debugging
 pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
     _ = fmt;
     _ = options;
