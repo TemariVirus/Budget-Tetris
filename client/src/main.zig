@@ -13,15 +13,21 @@ pub fn main() !void {
 
     var b = engine.bags.SevenBag.init();
     var bag = b.bag();
-    var player = try engine.Game.init(allocator, 6, bag, engine.kicks.srsPlus, null);
+    var player = try engine.Game.init(allocator, 6, bag, engine.kicks.srsPlus);
     defer player.deinit(allocator);
 
     try stdout.print("\n" ** 10 ++ "{}", .{player});
-    _ = player.handleMove(.Hold);
-    _ = player.handleMove(.Drop);
+    _ = player.hold();
+    _ = player.place(false);
+    _ = player.place(false);
+    _ = player.place(false);
+    _ = player.place(false);
+    _ = player.place(false);
+    _ = player.place(false);
+    _ = player.place(false);
+    _ = player.place(false);
+    _ = player.place(false);
     try stdout.print("\n" ** 10 ++ "{}", .{player});
-
-    try stdout.print("{}\n", .{@sizeOf(engine.Game)});
 
     try bw.flush();
 }

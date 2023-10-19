@@ -1,5 +1,7 @@
 const tokenizeScalar = @import("std").mem.tokenizeScalar;
+
 const PieceMask = @import("bit_masks.zig").PieceMask;
+const Rotation = @import("kicks.zig").Rotation;
 
 pub const Position = struct {
     x: i8,
@@ -20,6 +22,31 @@ pub const Facing = enum(u2) {
     Right = 1,
     Down = 2,
     Left = 3,
+
+    pub fn rotate(self: Facing, rotation: Rotation) Facing {
+        return switch (self) {
+            .Up => switch (rotation) {
+                .Cw => .Right,
+                .Double => .Down,
+                .ACw => .Left,
+            },
+            .Right => switch (rotation) {
+                .Cw => .Down,
+                .Double => .Left,
+                .ACw => .Up,
+            },
+            .Down => switch (rotation) {
+                .Cw => .Left,
+                .Double => .Up,
+                .ACw => .Right,
+            },
+            .Left => switch (rotation) {
+                .Cw => .Up,
+                .Double => .Right,
+                .ACw => .Down,
+            },
+        };
+    }
 };
 
 pub const PieceType = enum(u3) {
@@ -216,7 +243,7 @@ pub const Piece = packed struct {
     }
 };
 
-fn parsePiece(comptime str: []const u8) PieceMask {
+pub fn parsePiece(comptime str: []const u8) PieceMask {
     var result = [_]u16{0} ** 4;
     var lines = tokenizeScalar(u8, str, '\n');
 

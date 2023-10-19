@@ -26,6 +26,6 @@ pub fn next(ptr: *anyopaque) PieceType {
 pub fn bag(self: *Self) Bag {
     return Bag{
         .bag = self,
-        .nextFn = Self.next,
+        .next_fn = Self.next,
     };
 }

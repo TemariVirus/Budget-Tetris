@@ -1,5 +1,7 @@
 const std = @import("std");
+const Random = std.rand.Random;
 const Xoroshiro128 = std.rand.Xoroshiro128;
+
 const testing = std.testing;
 const expect = testing.expect;
 
@@ -8,7 +10,6 @@ const PieceType = root.pieces.PieceType;
 
 const Bag = root.bags.Bag;
 const sourceRandom = root.bags.sourceRandom;
-const shuffle = root.bags.shuffle;
 
 /// Draws from a bag of N pieces without replacement.
 /// The bag is refilled with all pieces evenly.
@@ -25,9 +26,9 @@ pub fn NBag(comptime N: u16) type {
             return Self{ .random = Xoroshiro128.init(seed) };
         }
 
-        fn refill(self: *Self) void {
+        fn refill(self: *Self, random: Random) void {
             var pieces: [7]PieceType = .{ .I, .O, .T, .S, .Z, .J, .L };
-            shuffle(&pieces, &self.random);
+            random.shuffle(PieceType, &pieces);
             for (0..self.pieces.len) |i| {
                 self.pieces[i] = pieces[i % 7];
             }
@@ -36,8 +37,9 @@ pub fn NBag(comptime N: u16) type {
         pub fn next(ptr: *anyopaque) PieceType {
             const self: *Self = @ptrCast(@alignCast(ptr));
             if (self.index >= self.pieces.len) {
-                self.refill();
-                shuffle(&self.pieces, &self.random);
+                const random = self.random.random();
+                self.refill(random);
+                random.shuffle(PieceType, &self.pieces);
                 self.index = 0;
             }
 
@@ -48,7 +50,7 @@ pub fn NBag(comptime N: u16) type {
         pub fn bag(self: *Self) Bag {
             return Bag{
                 .bag = self,
-                .nextFn = Self.next,
+                .next_fn = Self.next,
             };
         }
     };

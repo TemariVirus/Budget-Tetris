@@ -1,5 +1,5 @@
 const std = @import("std");
-const Xoroshiro128 = std.rand.Xoroshiro128;
+const Random = std.rand.Random;
 const testing = std.testing;
 const PieceType = @import("pieces.zig").PieceType;
 
@@ -11,10 +11,10 @@ pub const NBag = @import("bags/n_bag.zig").NBag;
 /// An interface for bags that generate a random sequence of pieces.
 pub const Bag = struct {
     bag: *anyopaque,
-    nextFn: *const fn (*anyopaque) PieceType,
+    next_fn: *const fn (*anyopaque) PieceType,
 
     pub fn next(self: *Bag) PieceType {
-        return self.nextFn(self.bag);
+        return self.next_fn(self.bag);
     }
 };
 
@@ -28,13 +28,9 @@ pub fn sourceRandom() u64 {
     return @truncate(seed);
 }
 
-/// Helper function for bag implementaions. Fisher-Yates shuffle.
-pub fn shuffle(pieces: []PieceType, random: *Xoroshiro128) void {
-    var i: usize = pieces.len - 1;
-    while (i >= 1) : (i -= 1) {
-        const swap_index = random.next() % (i + 1);
-        std.mem.swap(PieceType, &pieces[i], &pieces[swap_index]);
-    }
+/// Helper function for bag implementaions.
+pub fn shuffle(pieces: []PieceType, random: Random) void {
+    random.shuffle(PieceType, pieces);
 }
 
 test {

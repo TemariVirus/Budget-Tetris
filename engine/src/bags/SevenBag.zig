@@ -10,7 +10,6 @@ const PieceType = root.pieces.PieceType;
 
 const Bag = root.bags.Bag;
 const sourceRandom = root.bags.sourceRandom;
-const shuffle = root.bags.shuffle;
 
 const Self = @This();
 
@@ -26,7 +25,7 @@ pub fn init() Self {
 pub fn next(ptr: *anyopaque) PieceType {
     const self: *Self = @ptrCast(@alignCast(ptr));
     if (self.index >= self.pieces.len) {
-        shuffle(&self.pieces, &self.random);
+        self.random.random().shuffle(PieceType, &self.pieces);
         self.index = 0;
     }
 
@@ -37,7 +36,7 @@ pub fn next(ptr: *anyopaque) PieceType {
 pub fn bag(self: *Self) Bag {
     return Bag{
         .bag = self,
-        .nextFn = Self.next,
+        .next_fn = Self.next,
     };
 }
 
