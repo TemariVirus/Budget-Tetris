@@ -1,6 +1,8 @@
 //! Functions encoding various kick tables.
 //! The (0, 0) kick is always implied as the first kick, and thus is not returned.
 
+// The srs180 and srsPlus kick tables were taken directly from Tetr.io's source code (https://tetr.io/js/tetrio.js)
+
 const std = @import("std");
 const testing = std.testing;
 const mem = std.mem;

@@ -1,3 +1,7 @@
+//! Represents the state of a game of Tetris. Handles the logic of moving
+//! pieces and clearing lines, but not for handling game overs (i.e., block out
+//! or top out).
+
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
@@ -98,7 +102,9 @@ inline fn onGround(self: Self) bool {
     return self.collides(self.current, pos);
 }
 
-fn spawn(self: *Self, piece: PieceType) void {
+/// Replaces the current piece with one of the specified piece type and places
+/// it at the top of the playfield.
+pub fn spawn(self: *Self, piece: PieceType) void {
     self.current = Piece{ .facing = .Up, .type = piece };
 
     // Try to drop immediately if possible
@@ -108,7 +114,8 @@ fn spawn(self: *Self, piece: PieceType) void {
     }
 }
 
-fn nextPiece(self: *Self) void {
+/// Advances the current piece to the next piece in queue.
+pub fn nextPiece(self: *Self) void {
     self.spawn(self.next_types[0]);
     std.mem.copyForwards(PieceType, self.next_types, self.next_types[1..]);
     self.next_types[self.next_types.len - 1] = self.bag.next();
@@ -180,13 +187,10 @@ pub fn rotate(self: *Self, rotation: Rotation) bool {
     return false;
 }
 
-/// Places down the current piece, and clears lines if possible.
-/// Returns information about the clear.
+/// Places the current piece at the current position,
+/// and clears lines if possible. Returns information about the clear.
 pub fn place(self: *Self, rotated_last: bool) ClearInfo {
-    // Drop to ground before placing piece
-    _ = self.dropToGround();
-
-    const t_spin = self.TSpinType(rotated_last);
+    const t_spin = self.tSpinType(rotated_last);
 
     self.playfield.place(self.current.mask(), self.pos);
     const cleared = self.clearLines();
@@ -200,7 +204,6 @@ pub fn place(self: *Self, rotated_last: bool) ClearInfo {
         self.b2b = 0;
     }
 
-    self.nextPiece();
     return ClearInfo{
         .b2b = is_hard_clear and self.b2b > 1,
         .cleared = cleared,
@@ -228,88 +231,96 @@ fn clearLines(self: *Self) u8 {
     return cleared;
 }
 
-inline fn TSpinType(self: *Self, rotated_last: bool) TSpin {
+/// Uses the 3 corner rule to detect T-spins. At least 3 of the 4 corners
+/// immediately adjacent to the T piece's center must be filled for a placement
+/// to be considered a T-spin. Line clears are not necessary. Walls are counted
+/// as filled blocks.
+/// If both corners in "front" of the T piece are filled, it is a normal
+/// T-spin. If only 1 corner is filled, it is a T-spin mini.
+fn tSpinType(self: *Self, rotated_last: bool) TSpin {
     const all = comptime pieces.parsePiece(
         \\...
         \\#.#
         \\...
         \\#.#
-    );
+    ).rows;
     const no_br = comptime pieces.parsePiece(
         \\...
         \\#.#
         \\...
         \\#..
-    );
+    ).rows;
     const no_bl = comptime pieces.parsePiece(
         \\...
         \\#.#
         \\...
         \\..#
-    );
+    ).rows;
     const no_tl = comptime pieces.parsePiece(
         \\...
         \\..#
         \\...
         \\#.#
-    );
+    ).rows;
     const no_tr = comptime pieces.parsePiece(
         \\...
         \\#..
         \\...
         \\#.#
-    );
+    ).rows;
 
     if (!rotated_last or self.current.type != .T) {
         return .None;
     }
 
     const corners = blk: {
-        var c = PieceMask{ .rows = undefined };
+        var c: [2]u16 = undefined;
         const x = self.pos.x;
         const y = self.pos.y;
         if (y == -1) {
-            c.rows[0] = all.rows[0];
-            c.rows[2] = if (x < 0)
-                self.playfield.rows[1] >> 1
-            else
-                self.playfield.rows[1] << @truncate(@as(u8, @bitCast(x)));
+            c[0] = all[0];
         } else {
-            const uy: u8 = @bitCast(y);
-            c.rows[0] = if (x < 0)
-                self.playfield.rows[uy] >> 1
+            const bottom_y: u8 = @bitCast(y);
+
+            c[0] = if (x == -1)
+                self.playfield.rows[bottom_y] >> 1
             else
-                self.playfield.rows[uy] << @truncate(@as(u8, @bitCast(x)));
-            c.rows[2] = if (x < 0)
-                self.playfield.rows[uy + 2] >> 1
-            else
-                self.playfield.rows[uy + 2] << @truncate(@as(u8, @bitCast(x)));
+                self.playfield.rows[bottom_y] << @truncate(@as(u8, @bitCast(x)));
+            c[0] &= all[0];
         }
-        break :blk c.bitAnd(all);
+
+        const top_y: u8 = @bitCast(y + 2);
+        c[1] = if (x == -1)
+            self.playfield.rows[top_y] >> 1
+        else
+            self.playfield.rows[top_y] << @truncate(@as(u8, @bitCast(x)));
+        c[1] &= all[2];
+
+        break :blk c;
     };
 
-    if (corners.eql(all)) {
+    if (corners[0] == all[0] and corners[1] == all[2]) {
         return .Full;
     }
-    if (corners.eql(no_br)) {
+    if (corners[0] == no_br[0] and corners[1] == no_br[2]) {
         return switch (self.current.facing) {
             .Up, .Left => .Full,
             .Right, .Down => .Mini,
         };
     }
-    if (corners.eql(no_bl)) {
+    if (corners[0] == no_bl[0] and corners[1] == no_bl[2]) {
         return switch (self.current.facing) {
             .Up, .Right => .Full,
             .Down, .Left => .Mini,
         };
     }
-    if (corners.eql(no_tl)) {
+    if (corners[0] == no_tl[0] and corners[1] == no_tl[2]) {
         return switch (self.current.facing) {
             .Right, .Down => .Full,
             .Up, .Left => .Mini,
         };
     }
-    if (corners.eql(no_tr)) {
+    if (corners[0] == no_tr[0] and corners[1] == no_tr[2]) {
         return switch (self.current.facing) {
             .Down, .Left => .Full,
             .Up, .Right => .Mini,

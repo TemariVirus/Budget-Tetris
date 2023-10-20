@@ -83,18 +83,4 @@ pub const PieceMask = struct {
         const shift: u4 = @truncate(width - x);
         return (self.rows[y] >> shift) & 1 == 1;
     }
-
-    pub fn bitAnd(self: PieceMask, other: PieceMask) PieceMask {
-        var result: PieceMask = undefined;
-        for (0..height) |i| {
-            result.rows[i] = self.rows[i] & other.rows[i];
-        }
-        return result;
-    }
-
-    pub fn eql(self: PieceMask, other: PieceMask) bool {
-        const val1: *const u64 = @ptrCast(@alignCast(&self.rows));
-        const val2: *const u64 = @ptrCast(@alignCast(&other.rows));
-        return val1.* == val2.*;
-    }
 };
