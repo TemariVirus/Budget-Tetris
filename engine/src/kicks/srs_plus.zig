@@ -48,7 +48,7 @@ const double_i_kicks = [4][1]Position{
     },
 };
 
-const acw_i_kicks = [4][4]Position{
+const CCw_i_kicks = [4][4]Position{
     [4]Position{
         Position{ .x = -1, .y = 0 },
         Position{ .x = 2, .y = 0 },
@@ -81,7 +81,7 @@ pub fn srsPlus(piece: Piece, rotation: Rotation) []const Position {
         return &switch (rotation) {
             .Cw => cw_i_kicks[@intFromEnum(piece.facing)],
             .Double => double_i_kicks[@intFromEnum(piece.facing)],
-            .ACw => acw_i_kicks[@intFromEnum(piece.facing)],
+            .CCw => CCw_i_kicks[@intFromEnum(piece.facing)],
         };
     }
 

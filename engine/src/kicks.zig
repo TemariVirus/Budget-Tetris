@@ -22,8 +22,8 @@ pub const Rotation = enum(u8) {
     Cw,
     /// 180° rotation
     Double,
-    /// 90° anti-clockwise rotation
-    ACw,
+    /// 90° counter-clockwise rotation
+    CCw,
 };
 
 pub const KickTableParseError = error{TableNotFound};

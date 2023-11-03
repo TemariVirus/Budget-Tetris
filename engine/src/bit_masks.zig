@@ -35,8 +35,12 @@ pub const BoardMask = struct {
         }
 
         for (piece.rows[start..], start..) |row, i| {
-            const y: usize = @bitCast(pos.y + @as(isize, @bitCast(i)));
-            const intersect = self.rows[y] & (row >> @truncate(@as(u8, @bitCast(pos.x))));
+            const y: usize = @intCast(pos.y + @as(isize, @intCast(i)));
+            const shifted_row = if (pos.x < 0)
+                row << @intCast(-pos.x)
+            else
+                row >> @intCast(pos.x);
+            const intersect = self.rows[y] & shifted_row;
             if (intersect != 0) {
                 return true;
             }

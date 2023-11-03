@@ -28,22 +28,22 @@ pub const Facing = enum(u2) {
             .Up => switch (rotation) {
                 .Cw => .Right,
                 .Double => .Down,
-                .ACw => .Left,
+                .CCw => .Left,
             },
             .Right => switch (rotation) {
                 .Cw => .Down,
                 .Double => .Left,
-                .ACw => .Up,
+                .CCw => .Up,
             },
             .Down => switch (rotation) {
                 .Cw => .Left,
                 .Double => .Up,
-                .ACw => .Right,
+                .CCw => .Right,
             },
             .Left => switch (rotation) {
                 .Cw => .Up,
                 .Double => .Right,
-                .ACw => .Down,
+                .CCw => .Down,
             },
         };
     }

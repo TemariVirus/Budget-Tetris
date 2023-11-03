@@ -12,9 +12,17 @@ pub const NBag = @import("bags/n_bag.zig").NBag;
 pub const Bag = struct {
     bag: *anyopaque,
     next_fn: *const fn (*anyopaque) PieceType,
+    set_seed_fn: *const fn (*anyopaque, u64) void,
 
+    /// Returns the next piece in the bag and advances the bag.
     pub fn next(self: *Bag) PieceType {
         return self.next_fn(self.bag);
+    }
+
+    /// Sets the new seed for the random number generator. The bag will be
+    /// refilled, if applicable.
+    pub fn setSeed(self: *Bag, seed: u64) void {
+        return self.set_seed_fn(self.bag, seed);
     }
 };
 

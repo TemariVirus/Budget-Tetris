@@ -23,9 +23,15 @@ pub fn next(ptr: *anyopaque) PieceType {
     return @enumFromInt(self.random.next() % 7);
 }
 
+pub fn setSeed(ptr: *anyopaque, seed: u64) void {
+    const self: *Self = @ptrCast(@alignCast(ptr));
+    self.random = Xoroshiro128.init(seed);
+}
+
 pub fn bag(self: *Self) Bag {
     return Bag{
         .bag = self,
         .next_fn = Self.next,
+        .set_seed_fn = Self.setSeed,
     };
 }

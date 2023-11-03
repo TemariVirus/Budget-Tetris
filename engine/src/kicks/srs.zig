@@ -32,7 +32,7 @@ const cw_kicks = [4][4]Position{
     },
 };
 
-const acw_kicks = [4][4]Position{
+const CCw_kicks = [4][4]Position{
     [4]Position{
         Position{ .x = 1, .y = 0 },
         Position{ .x = 1, .y = 1 },
@@ -86,7 +86,7 @@ const cw_i_kicks = [4][4]Position{
     },
 };
 
-const acw_i_kicks = [4][4]Position{
+const CCw_i_kicks = [4][4]Position{
     [4]Position{
         Position{ .x = -1, .y = 0 },
         Position{ .x = 2, .y = 0 },
@@ -122,10 +122,10 @@ pub fn srs(piece: Piece, rotation: Rotation) []const Position {
             .T, .S, .Z, .J, .L => cw_kicks[@intFromEnum(piece.facing)],
         },
         .Double => no_kicks,
-        .ACw => switch (piece.type) {
-            .I => acw_i_kicks[@intFromEnum(piece.facing)],
+        .CCw => switch (piece.type) {
+            .I => CCw_i_kicks[@intFromEnum(piece.facing)],
             .O => no_kicks,
-            .T, .S, .Z, .J, .L => acw_kicks[@intFromEnum(piece.facing)],
+            .T, .S, .Z, .J, .L => CCw_kicks[@intFromEnum(piece.facing)],
         },
     };
 }
