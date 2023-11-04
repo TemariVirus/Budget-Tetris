@@ -141,7 +141,7 @@ pub fn slide(self: *Self, dx: i8) u8 {
         self.pos.x += d;
         if (self.playfield.collides(self.current.mask(), self.pos)) {
             self.pos.x -= d;
-            return @truncate(i);
+            return @intCast(i);
         }
     }
     return steps;
@@ -154,7 +154,7 @@ pub fn drop(self: *Self, dy: u8) u8 {
         self.pos.y -= 1;
         if (self.playfield.collides(self.current.mask(), self.pos)) {
             self.pos.y += 1;
-            return @truncate(i);
+            return @intCast(i);
         }
     }
     return dy;
@@ -281,20 +281,17 @@ fn tSpinType(self: *Self, rotated_last: bool) TSpin {
         if (y == -1) {
             c[0] = all[0];
         } else {
-            const bottom_y: u8 = @bitCast(y);
-
             c[0] = if (x == -1)
-                self.playfield.rows[bottom_y] >> 1
+                self.playfield.rows[@intCast(y)] >> 1
             else
-                self.playfield.rows[bottom_y] << @truncate(@as(u8, @bitCast(x)));
+                self.playfield.rows[@intCast(y)] << @intCast(x);
             c[0] &= all[0];
         }
 
-        const top_y: u8 = @bitCast(y + 2);
         c[1] = if (x == -1)
-            self.playfield.rows[top_y] >> 1
+            self.playfield.rows[@intCast(y + 2)] >> 1
         else
-            self.playfield.rows[top_y] << @truncate(@as(u8, @bitCast(x)));
+            self.playfield.rows[@intCast(y + 2)] << @intCast(x);
         c[1] &= all[2];
 
         break :blk c;
@@ -374,13 +371,16 @@ fn drawHoldRow(self: Self, writer: anytype, i: usize) !void {
 
 fn drawPlayfieldRow(self: Self, writer: anytype, i: usize) !void {
     _ = try writer.write("║");
-    const y = 19 - i;
-    const mask_y: usize = @as(u8, @bitCast(@as(i8, @truncate(@as(isize, @bitCast(y)))) - self.pos.y));
+    const y: u8 = @intCast(19 - i);
+    const mask_y: u8 = y -% @as(u8, @bitCast(self.pos.y));
     for (0..10) |x| {
+        const current_shift: i8 = 10 - @as(i8, @intCast(x)) + self.pos.x;
+        const current_mask = self.current.mask();
+
         if (self.playfield.get(x, y)) {
             // Playfield
             _ = try writer.write("██");
-        } else if (mask_y >= 0 and mask_y < 4 and (self.current.mask().rows[mask_y] >> @truncate(@as(usize, @bitCast(10 - @as(isize, @bitCast(x)) + self.pos.x)))) & 1 == 1) {
+        } else if (mask_y < 4 and current_shift >= 0 and current_shift < 16 and (current_mask.rows[mask_y] >> @intCast(current_shift)) & 1 == 1) {
             // Current piece
             _ = try writer.write("██");
         } else {

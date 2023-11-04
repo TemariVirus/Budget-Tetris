@@ -20,9 +20,7 @@ pub const BoardMask = struct {
     /// Returns true if the bit at (x, y) is set; otherwise, false.
     /// Panics if (x, y) is out of bounds.
     pub fn get(self: BoardMask, x: usize, y: usize) bool {
-        assert(x < width);
-
-        const shift: u4 = @truncate(width - x);
+        const shift: u4 = @intCast(width - x);
         return (self.rows[y] >> shift) & 1 == 1;
     }
 
@@ -51,13 +49,11 @@ pub const BoardMask = struct {
     pub fn place(self: *BoardMask, piece: PieceMask, pos: Position) void {
         const start = @max(0, -pos.y);
         for (piece.rows[start..], start..) |row, i| {
-            const y_size = @as(isize, pos.y);
-            const i_size = @as(isize, @bitCast(i));
             const shifted = if (pos.x < 0)
-                row << @truncate(@as(u8, @bitCast(-pos.x)))
+                row << @intCast(-pos.x)
             else
-                row >> @truncate(@as(u8, @bitCast(pos.x)));
-            self.rows[@as(usize, @bitCast(y_size + i_size))] |= shifted;
+                row >> @intCast(pos.x);
+            self.rows[@intCast(pos.y + @as(i8, @intCast(i)))] |= shifted;
         }
     }
 
@@ -82,9 +78,7 @@ pub const PieceMask = struct {
     /// Returns true if the bit at (x, y) is set; otherwise, false.
     /// Panics if (x, y) is out of bounds.
     pub fn get(self: PieceMask, x: usize, y: usize) bool {
-        assert(x < width);
-
-        const shift: u4 = @truncate(width - x);
+        const shift: u4 = @intCast(width - x);
         return (self.rows[y] >> shift) & 1 == 1;
     }
 };
