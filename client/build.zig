@@ -23,6 +23,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe.linkLibC();
 
     const engine = b.addModule("engine", .{ .source_file = .{ .path = "../engine/src/main.zig" } });
     exe.addModule("engine", engine);
