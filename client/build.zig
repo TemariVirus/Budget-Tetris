@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -16,16 +17,19 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
-        .name = "Budget-Tetris",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
+        .name = "Budget Tetris",
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
-    exe.linkLibC();
 
-    const engine = b.addModule("engine", .{ .source_file = .{ .path = "../engine/src/main.zig" } });
+    if (builtin.os.tag == .windows) {
+        exe.linkLibC();
+    }
+
+    const engine = b.createModule(.{
+        .source_file = .{ .path = "../engine/src/main.zig" },
+    });
     exe.addModule("engine", engine);
 
     // This declares intent for the executable to be installed into the

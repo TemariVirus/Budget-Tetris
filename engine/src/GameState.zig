@@ -32,7 +32,7 @@ current: Piece,
 hold_type: ?PieceType = null,
 // We could use a ring buffer for next, but advancing the next pieces shouldn't
 // occur too often so the performance impact would be minimal.
-next_types: []PieceType,
+next_pieces: []PieceType,
 
 bag: Bag,
 kicksFn: *const KickFn,
@@ -46,11 +46,11 @@ pub fn init(allocator: Allocator, next_len: usize, bag: Bag, kicksFn: *const Kic
     var game = Self{
         .pos = undefined,
         .current = undefined,
-        .next_types = try allocator.alloc(PieceType, next_len),
+        .next_pieces = try allocator.alloc(PieceType, next_len),
         .bag = bag,
         .kicksFn = kicksFn,
     };
-    for (game.next_types) |*piece| {
+    for (game.next_pieces) |*piece| {
         piece.* = game.bag.next();
     }
     game.nextPiece();
@@ -59,7 +59,7 @@ pub fn init(allocator: Allocator, next_len: usize, bag: Bag, kicksFn: *const Kic
 
 /// The allocator passed in must be the same one used to allocate the game.
 pub fn deinit(self: Self, allocator: Allocator) void {
-    allocator.free(self.next_types);
+    allocator.free(self.next_pieces);
 }
 
 /// The cannonical B2B is one less than the stored value.
@@ -94,11 +94,11 @@ pub fn setCanonicalcombo(self: Self, value: ?u16) void {
     }
 }
 
-inline fn collides(self: Self, piece: Piece, pos: Position) bool {
+fn collides(self: Self, piece: Piece, pos: Position) bool {
     return self.playfield.collides(piece.mask(), pos);
 }
 
-inline fn onGround(self: Self) bool {
+fn onGround(self: Self) bool {
     const pos = Position{ .x = self.pos.x, .y = self.pos.y - 1 };
     return self.collides(self.current, pos);
 }
@@ -117,9 +117,9 @@ pub fn spawn(self: *Self, piece: PieceType) void {
 
 /// Advances the current piece to the next piece in queue.
 pub fn nextPiece(self: *Self) void {
-    self.spawn(self.next_types[0]);
-    std.mem.copyForwards(PieceType, self.next_types, self.next_types[1..]);
-    self.next_types[self.next_types.len - 1] = self.bag.next();
+    self.spawn(self.next_pieces[0]);
+    std.mem.copyForwards(PieceType, self.next_pieces, self.next_pieces[1..]);
+    self.next_pieces[self.next_pieces.len - 1] = self.bag.next();
 }
 
 /// Holds the current piece. If no piece is held, the next piece is spawned.
@@ -162,7 +162,7 @@ pub fn drop(self: *Self, dy: u8) u8 {
 
 /// Drops down until the current piece is touching the ground.
 /// Returns the number of cells moved.
-pub inline fn dropToGround(self: *Self) u8 {
+pub fn dropToGround(self: *Self) u8 {
     return self.drop(self.playfield.rows.len);
 }
 
@@ -213,6 +213,7 @@ pub fn lock(self: *Self, rotated_last: bool) ClearInfo {
     };
 }
 
+// TODO: Only clear lines where the current piece was placed.
 /// Clears all filled lines in the playfield.
 /// Returns the number of lines cleared.
 fn clearLines(self: *Self) u8 {
@@ -340,7 +341,7 @@ pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptio
         _ = try writer.write("\n");
     }
     _ = try writer.write("           ╚════════════════════╝");
-    if (self.next_types.len >= 7) {
+    if (self.next_pieces.len >= 7) {
         _ = try writer.write(" ╚════════╝");
     }
     _ = try writer.write("\n");
@@ -392,13 +393,13 @@ fn drawPlayfieldRow(self: Self, writer: anytype, i: usize) !void {
 
 fn drawNextRow(self: Self, writer: anytype, i: usize) !void {
     const next_idx = @divTrunc(i, 3);
-    if (next_idx >= self.next_types.len) {
+    if (next_idx >= self.next_pieces.len) {
         return;
     }
 
     const next_row = i % 3;
     if (next_row == 2) {
-        if (next_idx == self.next_types.len - 1) {
+        if (next_idx == self.next_pieces.len - 1) {
             _ = try writer.write("╚════════╝");
         } else {
             _ = try writer.write("║        ║");
@@ -407,9 +408,9 @@ fn drawNextRow(self: Self, writer: anytype, i: usize) !void {
     }
 
     _ = try writer.write("║");
-    var mask = (Piece{ .facing = .Up, .type = self.next_types[next_idx] }).mask();
+    var mask = (Piece{ .facing = .Up, .type = self.next_pieces[next_idx] }).mask();
 
-    const y = @as(usize, if (self.next_types[next_idx] == .I) 3 else 2) - next_row;
+    const y = @as(usize, if (self.next_pieces[next_idx] == .I) 3 else 2) - next_row;
     for (0..4) |x| {
         _ = try writer.write(if (mask.get(x, y)) "██" else "  ");
     }

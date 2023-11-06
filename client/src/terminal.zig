@@ -1,10 +1,10 @@
 //! Provides a canvas-like interface for drawing to the terminal.
 
+// TODO: Add option to display FPS
 const std = @import("std");
+const frame = @import("terminal/frame.zig");
 const kernel32 = windows.kernel32;
 const system = std.os.system;
-const terminal = @This();
-const time = std.time;
 const unicode = std.unicode;
 const windows = std.os.windows;
 
@@ -12,7 +12,11 @@ const Allocator = std.mem.Allocator;
 const ByteList = std.ArrayListUnmanaged(u8);
 const File = std.fs.File;
 const SIG = std.os.SIG;
-const Sigaction = std.os.Sigaction;
+
+const Pixel = frame.Pixel;
+const Frame = frame.Frame;
+const FramePool = frame.FramePool;
+pub const View = @import("terminal/View.zig");
 
 const assert = std.debug.assert;
 const sigaction = std.os.sigaction;
@@ -25,7 +29,7 @@ const OSC = ESC ++ "]";
 
 var initialised = false;
 
-var _allocator: std.mem.Allocator = undefined;
+var _allocator: Allocator = undefined;
 var stdout: File = undefined;
 var draw_buffer: ByteList = undefined;
 
@@ -35,9 +39,6 @@ var current: Frame = undefined;
 
 var canvas_size: Size = undefined;
 var terminal_size: Size = undefined;
-
-var init_time: i128 = undefined;
-var frames_drawn: usize = undefined;
 
 pub const Color = enum(u8) {
     Black = 30,
@@ -58,19 +59,7 @@ pub const Color = enum(u8) {
     BrightWhite,
 };
 
-const Pixel = struct {
-    fg: Color,
-    bg: Color,
-    char: u21,
-
-    pub fn eql(self: Pixel, other: Pixel) bool {
-        return self.fg == other.fg and
-            self.bg == other.bg and
-            self.char == other.char;
-    }
-};
-
-const Size = struct {
+pub const Size = struct {
     width: u16,
     height: u16,
 
@@ -87,128 +76,6 @@ const Size = struct {
             .width = @min(self.width, other.width),
             .height = @min(self.height, other.height),
         };
-    }
-};
-
-const Frame = struct {
-    size: Size,
-    pixels: []Pixel,
-
-    fn init(allocator: std.mem.Allocator, size: Size) !Frame {
-        const pixels = try allocator.alloc(Pixel, size.area());
-        return Frame{ .size = size, .pixels = pixels };
-    }
-
-    fn deinit(self: Frame, allocator: std.mem.Allocator) void {
-        allocator.free(self.pixels);
-    }
-
-    fn inBounds(self: Frame, x: u16, y: u16) bool {
-        return x < self.size.width and y < self.size.height;
-    }
-
-    fn get(self: Frame, x: u16, y: u16) Pixel {
-        assert(self.inBounds(x, y));
-        const index = @as(usize, y) * self.size.width + x;
-        return self.pixels[index];
-    }
-
-    fn set(self: Frame, x: u16, y: u16, p: Pixel) void {
-        assert(self.inBounds(x, y));
-        const index = @as(usize, y) * self.size.width + x;
-        self.pixels[index] = p;
-    }
-};
-
-const FramePool = struct {
-    frames: []Frame,
-    used: []bool,
-
-    fn init(
-        allocator: std.mem.Allocator,
-        size: Size,
-        capacity: u32,
-    ) !FramePool {
-        const frames = try allocator.alloc(Frame, capacity);
-        for (0..capacity) |i| {
-            frames[i] = try Frame.init(allocator, size);
-        }
-
-        const is_used = try allocator.alloc(bool, capacity);
-        for (0..capacity) |i| {
-            is_used[i] = false;
-        }
-
-        return FramePool{ .frames = frames, .used = is_used };
-    }
-
-    fn deinit(self: FramePool, allocator: std.mem.Allocator) void {
-        for (0..self.frames.len) |i| {
-            self.frames[i].deinit(allocator);
-        }
-
-        allocator.free(self.frames);
-        allocator.free(self.used);
-    }
-
-    /// Allocates a frame of the given size. Returns null if no frames are
-    /// free, or if the requested size is larger than the size specified at
-    /// initialisation. The returned frame is filled with spaces, with black
-    /// foreground and background color.
-    fn alloc(self: FramePool, size: Size) ?Frame {
-        const len = size.area();
-        if (len > self.frames[0].size.area()) {
-            return null;
-        }
-
-        const frame = blk: for (0..self.used.len) |i| {
-            if (!self.used[i]) {
-                self.used[i] = true;
-                break :blk self.frames[i];
-            }
-        } else return null;
-
-        for (0..len) |i| {
-            frame.pixels[i] = .{
-                .fg = Color.Black,
-                .bg = Color.Black,
-                .char = ' ',
-            };
-        }
-        return Frame{ .size = size, .pixels = frame.pixels[0..len] };
-    }
-
-    fn free(self: FramePool, frame: Frame) void {
-        for (0..self.frames.len) |i| {
-            // Use their pixel arrays to identify frames
-            if (self.frames[i].pixels.ptr == frame.pixels.ptr) {
-                self.used[i] = false;
-                return;
-            }
-        }
-    }
-};
-
-pub const View = struct {
-    left: u16,
-    top: u16,
-    width: u16,
-    height: u16,
-
-    pub fn init(left: u16, top: u16, width: u16, height: u16) View {
-        assert(left + width <= canvas_size.width and
-            top + height <= canvas_size.height);
-        return View{
-            .left = left,
-            .top = top,
-            .width = width,
-            .height = height,
-        };
-    }
-
-    pub fn drawPixel(self: View, x: u16, y: u16, fg: Color, bg: Color, char: u21) void {
-        assert(x < self.width and y < self.height);
-        terminal.drawPixel(x + self.left, y + self.top, fg, bg, char);
     }
 };
 
@@ -266,14 +133,12 @@ pub fn init(allocator: Allocator, width: u16, height: u16) !void {
         const ENABLE_PROCESSED_OUTPUT = 0x1;
         const ENABLE_WRAP_AT_EOL_OUTPUT = 0x2;
         const ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x4;
-        const DISABLE_NEWLINE_AUTO_RETURN = 0x8;
         const ENABLE_LVB_GRID_WORLDWIDE = 0x10;
         const result2 = setConsoleMode(
             stdout.handle,
             ENABLE_PROCESSED_OUTPUT |
                 ENABLE_WRAP_AT_EOL_OUTPUT |
                 ENABLE_VIRTUAL_TERMINAL_PROCESSING |
-                DISABLE_NEWLINE_AUTO_RETURN |
                 ENABLE_LVB_GRID_WORLDWIDE,
         );
         if (system.getErrno(result2) != .SUCCESS) {
@@ -295,8 +160,6 @@ pub fn init(allocator: Allocator, width: u16, height: u16) !void {
     useAlternateBuffer();
     hideCursor(stdout.writer()) catch {};
 
-    init_time = time.nanoTimestamp();
-    frames_drawn = 0;
     initialised = true;
 }
 
@@ -311,15 +174,6 @@ pub fn deinit() void {
 
     frame_pool.deinit(_allocator);
     draw_buffer.deinit(_allocator);
-
-    const duration: u64 = @intCast(time.nanoTimestamp() - init_time);
-    const fps = @as(f64, @floatFromInt(frames_drawn)) /
-        @as(f64, @floatFromInt(duration)) *
-        @as(f64, @floatFromInt(time.ns_per_s));
-    std.debug.print(
-        "Rendered at {d:.3}fps for {}\n",
-        .{ fps, std.fmt.fmtDuration(duration) },
-    );
 }
 
 fn handleExit(sig: c_int) callconv(.C) void {
@@ -378,6 +232,10 @@ fn getTerminalSizeWindows() ?Size {
     };
 }
 
+pub fn getCanvasSize() Size {
+    return canvas_size;
+}
+
 pub fn setCanvasSize(width: u16, height: u16) !void {
     canvas_size = Size{ .width = width, .height = height };
     frame_pool.deinit(_allocator);
@@ -418,8 +276,6 @@ pub fn drawPixel(x: u16, y: u16, fg: Color, bg: Color, char: u21) void {
 }
 
 pub fn render() !void {
-    defer frames_drawn += 1;
-
     const old_terminal_size = terminal_size;
     terminal_size = getTerminalSize() orelse terminal_size;
     const draw_size = current.size.bound(terminal_size);
@@ -492,11 +348,11 @@ pub fn render() !void {
     advanceBuffers();
 }
 
-inline fn toCurrentIndex(x: u16, y: u16) usize {
+fn toCurrentIndex(x: u16, y: u16) usize {
     return @as(usize, y) * @as(usize, current.size.width) + @as(usize, x);
 }
 
-inline fn cursorDiff(
+fn cursorDiff(
     writer: anytype,
     last_x: u16,
     last_y: u16,
@@ -521,7 +377,7 @@ inline fn cursorDiff(
     try setCursorPos(writer, x, y);
 }
 
-inline fn renderPixel(
+fn renderPixel(
     writer: anytype,
     last_x: *u16,
     last_y: *u16,
