@@ -1,11 +1,18 @@
 const std = @import("std");
 const terminal = @import("../terminal.zig");
-
+const Color = terminal.Color;
 const assert = std.debug.assert;
 
-const Color = terminal.Color;
-
 const Self = @This();
+
+const WriterContext = struct {
+    self: Self,
+    x: u16,
+    y: u16,
+    fg: Color,
+    bg: Color,
+};
+const Writer = std.io.Writer(WriterContext, WriterError, writeFn);
 
 left: u16,
 top: u16,
@@ -38,19 +45,61 @@ pub fn sub(self: Self, left: u16, top: u16, width: u16, height: u16) Self {
     };
 }
 
-pub fn drawPixel(self: Self, x: u16, y: u16, fg: Color, bg: Color, char: u21) void {
+pub fn drawPixel(
+    self: Self,
+    x: u16,
+    y: u16,
+    fg: Color,
+    bg: Color,
+    char: u21,
+) void {
     assert(x < self.width and y < self.height);
     terminal.drawPixel(x + self.left, y + self.top, fg, bg, char);
 }
 
 /// Overflows are truncated.
-pub fn drawText(self: Self, x: u16, y: u16, fg: Color, bg: Color, text: []const u8) void {
+pub fn drawText(
+    self: Self,
+    x: u16,
+    y: u16,
+    fg: Color,
+    bg: Color,
+    text: []const u8,
+) void {
     for (text, 0..) |c, i| {
         if (x + i >= self.width) {
             break;
         }
         self.drawPixel(@intCast(x + i), y, fg, bg, c);
     }
+}
+
+/// Overflows are truncated.
+pub fn printAt(
+    self: Self,
+    x: u16,
+    y: u16,
+    fg: Color,
+    bg: Color,
+    comptime fmt: []const u8,
+    args: anytype,
+) void {
+    const writer = Writer{ .context = .{
+        .self = self,
+        .x = x,
+        .y = y,
+        .fg = fg,
+        .bg = bg,
+    } };
+    std.fmt.format(writer, fmt, args) catch unreachable;
+}
+
+// TODO: try ti remove error union
+const WriterError = error{};
+fn writeFn(context: WriterContext, bytes: []const u8) WriterError!usize {
+    context.self.drawText(context.x, context.y, context.fg, context.bg, bytes);
+    // Bytes that were truncated are also considered written
+    return bytes.len;
 }
 
 pub fn drawBox(self: Self, left: u16, top: u16, width: u16, height: u16) void {
