@@ -1,52 +1,65 @@
 const std = @import("std");
 const time = std.time;
-const winmm = std.os.windows.winmm;
+const windows = std.os.windows;
 
 const engine = @import("engine");
+const bags = engine.bags;
+const kicks = engine.kicks;
 const input = @import("input.zig");
 const terminal = @import("terminal.zig");
 
+const Game = @import("Game.zig");
+const GameState = engine.GameState;
+const View = terminal.View;
+
+// 2 * 8 is close to 15.625, so other programs should be affacted minimally.
+// 8 is also a factor of 16, which is good for timing 60hz.
 const win_timer_period = 8;
 
+const MMRESULT = enum(windows.UINT) {
+    TIMERR_NOERROR = 0,
+    TIMERR_NOCANDO = 97,
+};
+extern "winmm" fn timeBeginPeriod(uPeriod: windows.UINT) callconv(windows.WINAPI) MMRESULT;
+extern "winmm" fn timeEndPeriod(uPeriod: windows.UINT) callconv(windows.WINAPI) MMRESULT;
+
 const MoveFuncs = struct {
-    var game: *engine.GameState = undefined;
+    var game: *Game = undefined;
 
     fn left() void {
-        _ = game.slide(-1);
+        game.moveLeft();
     }
 
     fn leftAll() void {
-        _ = game.slide(-10);
+        game.moveLeftAll();
     }
 
     fn right() void {
-        _ = game.slide(1);
+        game.moveRight();
     }
 
     fn rightAll() void {
-        _ = game.slide(10);
+        game.moveRightAll();
     }
 
     fn drop() void {
-        _ = game.drop(1);
+        game.softDrop();
     }
 
     fn rotateCw() void {
-        _ = game.rotate(.Cw);
+        game.rotateCw();
     }
 
     fn rotateDouble() void {
-        _ = game.rotate(.Double);
+        game.rotateDouble();
     }
 
     fn rotateCCw() void {
-        _ = game.rotate(.CCw);
+        game.rotateCcw();
     }
 
     fn place() void {
-        _ = game.dropToGround();
-        _ = game.lock(false);
-        game.nextPiece();
+        game.hardDrop();
     }
 
     fn hold() void {
@@ -72,7 +85,7 @@ const PeriodicTrigger = struct {
         const elapsed = now - self.last;
         // Sleeping tends to cause delayed triggers, compensate by triggering a
         // millisecond early.
-        if (elapsed + 1 * time.ns_per_ms < self.period) {
+        if (elapsed + time.ns_per_ms < self.period) {
             return false;
         }
 
@@ -87,25 +100,27 @@ pub fn main() !void {
     defer _ = gpa.deinit();
 
     // https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
-    if (winmm.timeBeginPeriod(win_timer_period) != winmm.TIMERR_NOERROR) {
+    if (timeBeginPeriod(win_timer_period) != .TIMERR_NOERROR) {
         return error.PeriodOutOfRange;
     }
-    defer _ = winmm.timeEndPeriod(win_timer_period);
+    defer _ = timeEndPeriod(win_timer_period);
+
+    try terminal.init(allocator, 44 + 2, 24);
+    defer terminal.deinit();
 
     try input.init(allocator);
     defer input.deinit();
 
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
-    var b = engine.bags.SevenBag.init();
+    var b = bags.SevenBag.init();
     var bag = b.bag();
-    var player = try engine.GameState.init(allocator, 6, bag, engine.kicks.srsPlus);
+    var player = try GameState.init(allocator, 6, bag, kicks.srsPlus);
     defer player.deinit(allocator);
 
-    try setupPlayerInput(&player);
-    var timer = PeriodicTrigger.init(time.ns_per_s / 25);
+    const view = View.init(0, 0, 44 + 2, 24);
+    var player_game = Game.init("You", player, view);
+    try setupPlayerInput(&player_game);
+
+    var timer = PeriodicTrigger.init(time.ns_per_s / 60);
     while (true) {
         if (!timer.trigger()) {
             time.sleep(1 * time.ns_per_ms);
@@ -113,13 +128,14 @@ pub fn main() !void {
         }
 
         input.tick();
-        try stdout.print("\n{}", .{player});
-        try bw.flush();
+        player_game.drawToScreen();
+        try terminal.render();
     }
 }
 
-fn setupPlayerInput(player: *engine.GameState) !void {
+fn setupPlayerInput(player: *Game) !void {
     MoveFuncs.game = player;
+
     _ = try input.addKeyTrigger(.C, 0, null, MoveFuncs.hold);
 
     _ = try input.addKeyTrigger(.Left, 0, null, MoveFuncs.left);
@@ -154,3 +170,6 @@ fn setupPlayerInput(player: *engine.GameState) !void {
 //     However, the fastest humans can only produce ~24.9 keystrokes a second, (https://www.tomshardware.com/news/world-typing-record-mythicalrocket-293wpm)
 //     which translates to ~40ms per keystroke.
 //     So, polling input at a standard 60hz (16.6ms) should be more than fast enough.
+// - Implement writer interface for view
+//     fn writeAll(self: Self, bytes: []const u8) Error!void
+//

@@ -94,7 +94,6 @@ pub fn printAt(
     std.fmt.format(writer, fmt, args) catch unreachable;
 }
 
-// TODO: try ti remove error union
 const WriterError = error{};
 fn writeFn(context: WriterContext, bytes: []const u8) WriterError!usize {
     context.self.drawText(context.x, context.y, context.fg, context.bg, bytes);
