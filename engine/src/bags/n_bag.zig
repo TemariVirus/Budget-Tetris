@@ -63,7 +63,7 @@ pub fn NBag(comptime N: u16) type {
     };
 }
 
-test "N-bag (100) randomiser" {
+test "N-bag (100) randomizer" {
     var nb = NBag(100).init();
     var b = nb.bag();
 

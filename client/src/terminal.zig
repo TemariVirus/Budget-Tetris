@@ -27,7 +27,7 @@ const ST = ESC ++ "\\";
 const CSI = ESC ++ "[";
 const OSC = ESC ++ "]";
 
-var initialised = false;
+var initialized = false;
 
 var _allocator: Allocator = undefined;
 var stdout: File = undefined;
@@ -100,13 +100,13 @@ else
     void;
 
 pub const InitError = error{
-    AlreadyInitialised,
+    AlreadyInitialized,
     FailedToSetConsoleOutputCP,
     FailedToSetConsoleMode,
 };
 pub fn init(allocator: Allocator, width: u16, height: u16) !void {
-    if (initialised) {
-        return InitError.AlreadyInitialised;
+    if (initialized) {
+        return InitError.AlreadyInitialized;
     }
 
     _allocator = allocator;
@@ -160,14 +160,14 @@ pub fn init(allocator: Allocator, width: u16, height: u16) !void {
     useAlternateBuffer();
     hideCursor(stdout.writer()) catch {};
 
-    initialised = true;
+    initialized = true;
 }
 
 pub fn deinit() void {
-    if (!initialised) {
+    if (!initialized) {
         return;
     }
-    initialised = false;
+    initialized = false;
 
     useMainBuffer();
     showCursor(stdout.writer()) catch {};

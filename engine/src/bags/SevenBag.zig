@@ -47,7 +47,7 @@ pub fn bag(self: *Self) Bag {
     };
 }
 
-test "7-bag randomiser" {
+test "7-bag randomizer" {
     var sb = init();
     var b = sb.bag();
 
