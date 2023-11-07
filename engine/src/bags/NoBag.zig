@@ -4,7 +4,7 @@ const std = @import("std");
 const Xoroshiro128 = std.rand.Xoroshiro128;
 
 const root = @import("../main.zig");
-const PieceType = root.pieces.PieceType;
+const PieceKind = root.pieces.PieceKind;
 
 const Bag = root.bags.Bag;
 const sourceRandom = root.bags.sourceRandom;
@@ -18,7 +18,7 @@ pub fn init() Self {
     return Self{ .random = Xoroshiro128.init(seed) };
 }
 
-pub fn next(ptr: *anyopaque) PieceType {
+pub fn next(ptr: *anyopaque) PieceKind {
     const self: *Self = @ptrCast(@alignCast(ptr));
     return @enumFromInt(self.random.next() % 7);
 }

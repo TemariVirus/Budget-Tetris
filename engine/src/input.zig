@@ -1,6 +1,6 @@
 // TODO: Use window title to determine if game has focus instead
-const builtin = @import("builtin");
 const std = @import("std");
+const builtin = @import("builtin");
 const time = std.time;
 const Allocator = std.mem.Allocator;
 

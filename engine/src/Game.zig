@@ -1,16 +1,19 @@
 // TODO: Add sound
 const std = @import("std");
-const engine = @import("engine");
+const root = @import("main.zig");
 const terminal = @import("terminal.zig");
 
-const GameState = engine.GameState;
-const PieceType = engine.pieces.PieceType;
-const Piece = engine.pieces.Piece;
+const GameState = root.GameState;
+const PieceKind = root.pieces.PieceKind;
+const Piece = root.pieces.Piece;
 
 const Color = terminal.Color;
 const View = terminal.View;
 
 const Self = @This();
+
+pub const DISPLAY_W = 44;
+pub const DISPLAY_H = 24;
 
 const empty_color = Color.Black;
 const garbage_color = Color.BrightBlack;
@@ -88,7 +91,7 @@ fn lockCurrent(self: *Self) void {
 
         for (0..10) |x| {
             if ((row >> @intCast(10 - x)) & 1 == 1) {
-                self.playfield[y][x] = pieceToColor(self.state.current.type);
+                self.playfield[y][x] = self.state.current.kind.color();
             }
         }
     }
@@ -128,78 +131,20 @@ pub fn hold(self: *Self) void {
     self.already_held = true;
 }
 
-fn pieceToColor(piece: PieceType) Color {
-    switch (piece) {
-        PieceType.I => return Color.BrightCyan,
-        PieceType.O => return Color.BrightYellow,
-        PieceType.T => return Color.BrightMagenta,
-        PieceType.S => return Color.BrightGreen,
-        PieceType.Z => return Color.Red,
-        PieceType.L => return Color.Yellow,
-        PieceType.J => return Color.Blue,
-    }
-}
-
 pub fn drawToScreen(self: *Self) void {
-    var state = self.state;
-    const view = self.view;
-
     // Subtract 2 so that the centering is biased to the left
-    const name_center_x = (view.width - self.name.len - 2) / 2;
-    view.drawText(@intCast(name_center_x), 0, .White, .Black, self.name);
+    const name_center_x = (self.view.width - self.name.len - 2) / 2;
+    self.view.drawText(@intCast(name_center_x), 0, .White, .Black, self.name);
 
-    const hold_box = view.sub(0, 2, 10, 5);
-    hold_box.drawBox(0, 0, 10, 5);
-    hold_box.drawText(3, 0, .White, .Black, "HOLD");
-    if (state.hold_type) |hold_type| {
-        const hold_piece = Piece{
-            .facing = .Up,
-            .type = hold_type,
-        };
-        const y: i8 = if (hold_type == .I) 4 else 3;
-        drawPiece(hold_box, 1, y, hold_piece, '█');
-    }
-
-    const score_level_box = view.sub(0, 8, 10, 6);
-    score_level_box.drawBox(0, 0, 10, 6);
-    score_level_box.drawText(1, 1, .White, .Black, "SCORE");
-    score_level_box.drawText(1, 3, .White, .Black, "LEVEL");
-
-    const matrix_box = view.sub(11, 2, 22, 22);
-    const matrix_box_inner = matrix_box.sub(1, 1, 20, 20);
-    view.drawBox(11, 2, 22, 22);
-    for (0..20) |y| {
-        for (0..10) |x| {
-            const color = self.playfield[y][x];
-            matrix_box_inner.drawText(@intCast(x * 2), @intCast(19 - y), color, color, "  ");
-        }
-    }
-
-    // Ghost piece
-    const dropped = state.dropToGround();
-    drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, '▒');
-
-    // Current piece
-    state.pos.y += @intCast(dropped);
-    drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, '█');
-
-    const n_display_next: u16 = @min(7, state.next_pieces.len);
-    const next_box = view.sub(34, 2, 10, n_display_next * 3 + 1);
-    next_box.drawBox(0, 0, 10, next_box.height);
-    next_box.drawText(3, 0, .White, .Black, "NEXT");
-    for (0..n_display_next) |i| {
-        const piece = Piece{
-            .facing = .Up,
-            .type = state.next_pieces[i],
-        };
-        const y: i8 = if (piece.type == .I) 4 else 3;
-        drawPiece(next_box, 1, y + @as(i8, @intCast(i * 3)), piece, '█');
-    }
+    self.drawHold();
+    self.drawScoreLevel();
+    self.drawMatrix();
+    self.drawNext();
 }
 
 fn drawPiece(view: View, x: i8, y: i8, piece: Piece, char: u21) void {
     const mask = piece.mask();
-    const color = pieceToColor(piece.type);
+    const color = piece.kind.color();
     for (0..4) |dy| {
         for (0..4) |dx| {
             if (!mask.get(dx, dy)) {
@@ -213,5 +158,83 @@ fn drawPiece(view: View, x: i8, y: i8, piece: Piece, char: u21) void {
             view.drawPixel(@intCast(x2), @intCast(y2), color, .Black, char);
             view.drawPixel(@intCast(x2 + 1), @intCast(y2), color, .Black, char);
         }
+    }
+}
+
+fn drawHold(self: *Self) void {
+    const LEFT = 0;
+    const TOP = 2;
+    const WIDTH = 10;
+    const HEIGHT = 5;
+
+    const hold_box = self.view.sub(LEFT, TOP, WIDTH, HEIGHT);
+    hold_box.drawBox(0, 0, WIDTH, HEIGHT);
+    hold_box.drawText(3, 0, .White, .Black, "HOLD");
+    if (self.state.hold_kind) |hold_kind| {
+        const hold_piece = Piece{
+            .facing = .Up,
+            .kind = hold_kind,
+        };
+        const y: i8 = if (hold_kind == .I) 4 else 3;
+        drawPiece(hold_box, 1, y, hold_piece, '█');
+    }
+}
+
+fn drawScoreLevel(self: *Self) void {
+    const LEFT = 0;
+    const TOP = 8;
+    const WIDTH = 10;
+    const HEIGHT = 6;
+
+    const score_level_box = self.view.sub(LEFT, TOP, WIDTH, HEIGHT);
+    score_level_box.drawBox(0, 0, WIDTH, HEIGHT);
+    score_level_box.drawText(1, 1, .White, .Black, "SCORE");
+    score_level_box.drawText(1, 3, .White, .Black, "LEVEL");
+}
+
+fn drawMatrix(self: *Self) void {
+    const LEFT = 11;
+    const TOP = 2;
+    const WIDTH = 22;
+    const HEIGHT = 22;
+
+    const matrix_box = self.view.sub(LEFT, TOP, WIDTH, HEIGHT);
+    const matrix_box_inner = matrix_box.sub(1, 1, WIDTH - 2, HEIGHT - 2);
+    matrix_box.drawBox(0, 0, WIDTH, HEIGHT);
+    for (0..20) |y| {
+        for (0..10) |x| {
+            const color = self.playfield[y][x];
+            matrix_box_inner.drawText(@intCast(x * 2), @intCast(19 - y), color, color, "  ");
+        }
+    }
+
+    // Ghost piece
+    var state = self.state;
+    const dropped = state.dropToGround();
+    drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, '▒');
+
+    // Current piece
+    state.pos.y += @intCast(dropped);
+    drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, '█');
+}
+
+fn drawNext(self: *Self) void {
+    const MAX_NEXT_DISPLAYABLE = 7;
+    const LEFT = 34;
+    const TOP = 2;
+    const WIDTH = 10;
+
+    const n_display_next: u16 = @min(MAX_NEXT_DISPLAYABLE, self.state.next_pieces.len);
+    const next_box = self.view.sub(LEFT, TOP, WIDTH, n_display_next * 3 + 1);
+    next_box.drawBox(0, 0, WIDTH, next_box.height);
+    next_box.drawText(3, 0, .White, .Black, "NEXT");
+
+    for (0..n_display_next) |i| {
+        const piece = Piece{
+            .facing = .Up,
+            .kind = self.state.next_pieces[i],
+        };
+        const y: i8 = if (piece.kind == .I) 4 else 3;
+        drawPiece(next_box, 1, y + @as(i8, @intCast(i * 3)), piece, '█');
     }
 }

@@ -77,7 +77,7 @@ const CCw_i_kicks = [4][4]Position{
 
 /// Tetr.io's SRS+ kicks.
 pub fn srsPlus(piece: Piece, rotation: Rotation) []const Position {
-    if (piece.type == .I) {
+    if (piece.kind == .I) {
         return &switch (rotation) {
             .Cw => cw_i_kicks[@intFromEnum(piece.facing)],
             .Double => double_i_kicks[@intFromEnum(piece.facing)],

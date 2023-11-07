@@ -1,7 +1,7 @@
 const std = @import("std");
 const Random = std.rand.Random;
 const testing = std.testing;
-const PieceType = @import("pieces.zig").PieceType;
+const PieceKind = @import("pieces.zig").PieceKind;
 
 pub const SevenBag = @import("bags/SevenBag.zig");
 pub const FourteenBag = @import("bags/FourteenBag.zig");
@@ -11,11 +11,11 @@ pub const NBag = @import("bags/n_bag.zig").NBag;
 /// An interface for bags that generate a random sequence of pieces.
 pub const Bag = struct {
     bag: *anyopaque,
-    next_fn: *const fn (*anyopaque) PieceType,
+    next_fn: *const fn (*anyopaque) PieceKind,
     set_seed_fn: *const fn (*anyopaque, u64) void,
 
     /// Returns the next piece in the bag and advances the bag.
-    pub fn next(self: *Bag) PieceType {
+    pub fn next(self: *Bag) PieceKind {
         return self.next_fn(self.bag);
     }
 
@@ -37,8 +37,8 @@ pub fn sourceRandom() u64 {
 }
 
 /// Helper function for bag implementaions.
-pub fn shuffle(pieces: []PieceType, random: Random) void {
-    random.shuffle(PieceType, pieces);
+pub fn shuffle(pieces: []PieceKind, random: Random) void {
+    random.shuffle(PieceKind, pieces);
 }
 
 test {

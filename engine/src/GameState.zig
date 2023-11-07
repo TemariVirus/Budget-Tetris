@@ -18,7 +18,7 @@ const Bag = root.bags.Bag;
 
 const pieces = root.pieces;
 const Piece = pieces.Piece;
-const PieceType = pieces.PieceType;
+const PieceKind = pieces.PieceKind;
 const Position = pieces.Position;
 const Facing = pieces.Facing;
 const Rotation = root.kicks.Rotation;
@@ -29,10 +29,10 @@ const KickFn = fn (Piece, Rotation) []const Position;
 playfield: BoardMask = BoardMask{},
 pos: Position,
 current: Piece,
-hold_type: ?PieceType = null,
+hold_kind: ?PieceKind = null,
 // We could use a ring buffer for next, but advancing the next pieces shouldn't
 // occur too often so the performance impact would be minimal.
-next_pieces: []PieceType,
+next_pieces: []PieceKind,
 
 bag: Bag,
 kicksFn: *const KickFn,
@@ -46,7 +46,7 @@ pub fn init(allocator: Allocator, next_len: usize, bag: Bag, kicksFn: *const Kic
     var game = Self{
         .pos = undefined,
         .current = undefined,
-        .next_pieces = try allocator.alloc(PieceType, next_len),
+        .next_pieces = try allocator.alloc(PieceKind, next_len),
         .bag = bag,
         .kicksFn = kicksFn,
     };
@@ -103,10 +103,10 @@ fn onGround(self: Self) bool {
     return self.collides(self.current, pos);
 }
 
-/// Replaces the current piece with one of the specified piece type and places
+/// Replaces the current piece with one of the specified piece kind and places
 /// it at the top of the playfield.
-pub fn spawn(self: *Self, piece: PieceType) void {
-    self.current = Piece{ .facing = .Up, .type = piece };
+pub fn spawn(self: *Self, piece: PieceKind) void {
+    self.current = Piece{ .facing = .Up, .kind = piece };
 
     // Try to drop immediately if possible
     self.pos = piece.startPos();
@@ -118,19 +118,19 @@ pub fn spawn(self: *Self, piece: PieceType) void {
 /// Advances the current piece to the next piece in queue.
 pub fn nextPiece(self: *Self) void {
     self.spawn(self.next_pieces[0]);
-    std.mem.copyForwards(PieceType, self.next_pieces, self.next_pieces[1..]);
+    std.mem.copyForwards(PieceKind, self.next_pieces, self.next_pieces[1..]);
     self.next_pieces[self.next_pieces.len - 1] = self.bag.next();
 }
 
 /// Holds the current piece. If no piece is held, the next piece is spawned.
 pub fn hold(self: *Self) void {
-    const current_type = self.current.type;
-    if (self.hold_type) |h| {
+    const current_kind = self.current.kind;
+    if (self.hold_kind) |h| {
         self.spawn(h);
     } else {
         self.nextPiece();
     }
-    self.hold_type = current_type;
+    self.hold_kind = current_kind;
 }
 
 /// Tries to slide as far as possible. Returns the number of cells moved.
@@ -208,7 +208,7 @@ pub fn lock(self: *Self, rotated_last: bool) ClearInfo {
     return ClearInfo{
         .b2b = is_hard_clear and self.b2b > 1,
         .cleared = cleared,
-        .pc = self.playfield.rows[0] == BoardMask.empty_row,
+        .pc = self.playfield.rows[0] == BoardMask.EMPTY_ROW,
         .t_spin = t_spin,
     };
 }
@@ -221,14 +221,14 @@ fn clearLines(self: *Self) u8 {
     var i: u8 = 0;
     while (i + cleared < self.playfield.rows.len) {
         self.playfield.rows[i] = self.playfield.rows[i + cleared];
-        if (self.playfield.rows[i + cleared] == BoardMask.full_row) {
+        if (self.playfield.rows[i + cleared] == BoardMask.FULL_ROW) {
             cleared += 1;
         } else {
             i += 1;
         }
     }
     while (i < self.playfield.rows.len) : (i += 1) {
-        self.playfield.rows[i] = BoardMask.empty_row;
+        self.playfield.rows[i] = BoardMask.EMPTY_ROW;
     }
     return cleared;
 }
@@ -271,7 +271,7 @@ fn tSpinType(self: *Self, rotated_last: bool) TSpin {
         \\#.#
     ).rows;
 
-    if (!rotated_last or self.current.type != .T) {
+    if (!rotated_last or self.current.kind != .T) {
         return .None;
     }
 
@@ -356,13 +356,13 @@ fn drawHoldRow(self: Self, writer: anytype, i: usize) !void {
         _ = try writer.write("           ");
         return;
     }
-    if (self.hold_type == null or i == 2) {
+    if (self.hold_kind == null or i == 2) {
         _ = try writer.write("║        ║ ");
         return;
     }
 
     _ = try writer.write("║");
-    const mask = (Piece{ .facing = .Up, .type = self.hold_type.? }).mask();
+    const mask = (Piece{ .facing = .Up, .kind = self.hold_kind.? }).mask();
     const y = 2 - i;
     for (0..4) |x| {
         _ = try writer.write(if (mask.get(x, y)) "██" else "  ");
@@ -408,7 +408,7 @@ fn drawNextRow(self: Self, writer: anytype, i: usize) !void {
     }
 
     _ = try writer.write("║");
-    var mask = (Piece{ .facing = .Up, .type = self.next_pieces[next_idx] }).mask();
+    var mask = (Piece{ .facing = .Up, .kind = self.next_pieces[next_idx] }).mask();
 
     const y = @as(usize, if (self.next_pieces[next_idx] == .I) 3 else 2) - next_row;
     for (0..4) |x| {
@@ -550,7 +550,7 @@ test "DT cannon" {
         .rows = [_]u16{
             0b11111_0001111101_1,
             0b11111_0011100100_1,
-        } ++ [_]u16{BoardMask.empty_row} ** 38,
+        } ++ [_]u16{BoardMask.EMPTY_ROW} ** 38,
     };
     for (0..end_playfield.rows.len) |i| {
         try expect(game.playfield.rows[i] == end_playfield.rows[i]);

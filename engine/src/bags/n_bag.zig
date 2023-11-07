@@ -6,7 +6,7 @@ const testing = std.testing;
 const expect = testing.expect;
 
 const root = @import("../main.zig");
-const PieceType = root.pieces.PieceType;
+const PieceKind = root.pieces.PieceKind;
 
 const Bag = root.bags.Bag;
 const sourceRandom = root.bags.sourceRandom;
@@ -17,7 +17,7 @@ pub fn NBag(comptime N: u16) type {
     return struct {
         const Self = @This();
 
-        pieces: [N]PieceType = undefined,
+        pieces: [N]PieceKind = undefined,
         index: u16 = N,
         random: Xoroshiro128,
 
@@ -27,19 +27,19 @@ pub fn NBag(comptime N: u16) type {
         }
 
         fn refill(self: *Self, random: Random) void {
-            var pieces: [7]PieceType = .{ .I, .O, .T, .S, .Z, .J, .L };
-            random.shuffle(PieceType, &pieces);
+            var pieces: [7]PieceKind = .{ .I, .O, .T, .S, .Z, .J, .L };
+            random.shuffle(PieceKind, &pieces);
             for (0..self.pieces.len) |i| {
                 self.pieces[i] = pieces[i % 7];
             }
         }
 
-        pub fn next(ptr: *anyopaque) PieceType {
+        pub fn next(ptr: *anyopaque) PieceKind {
             const self: *Self = @ptrCast(@alignCast(ptr));
             if (self.index >= self.pieces.len) {
                 const random = self.random.random();
                 self.refill(random);
-                random.shuffle(PieceType, &self.pieces);
+                random.shuffle(PieceKind, &self.pieces);
                 self.index = 0;
             }
 
@@ -67,7 +67,7 @@ test "N-bag (100) randomizer" {
     var nb = NBag(100).init();
     var b = nb.bag();
 
-    var actual = std.AutoHashMap(PieceType, i32).init(testing.allocator);
+    var actual = std.AutoHashMap(PieceKind, i32).init(testing.allocator);
     defer actual.deinit();
 
     // Exhaust the bag
@@ -78,7 +78,7 @@ test "N-bag (100) randomizer" {
     }
 
     // Should have 14 or 15 of each piece
-    const expected = [_]PieceType{ .I, .O, .T, .S, .Z, .J, .L };
+    const expected = [_]PieceKind{ .I, .O, .T, .S, .Z, .J, .L };
     for (expected) |piece| {
         const count = actual.get(piece) orelse 0;
         try expect(count == 14 or count == 15);

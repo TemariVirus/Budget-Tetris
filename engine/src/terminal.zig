@@ -2,6 +2,7 @@
 
 // TODO: Add option to display FPS
 // TODO: Resize terminal buffer and window to match canvas size
+// TODO: Center rendered frame when terminal is larger than canvas
 // TODO: Create animation struct with transperancy
 const std = @import("std");
 const frame = @import("terminal/frame.zig");
@@ -50,7 +51,7 @@ pub const Color = enum(u8) {
     Red = 124,
     Green = 34,
     Yellow = 178,
-    Blue = 27,
+    Blue = 20, // Originally 27, but IMO 20 looks better
     Magenta = 90,
     Cyan = 32,
     White = 252,
@@ -86,7 +87,7 @@ pub const Size = struct {
 
 const signal = if (is_windows)
     struct {
-        extern "C" fn signal(
+        extern "c" fn signal(
             sig: c_int,
             func: *const fn (c_int, c_int) callconv(windows.WINAPI) void,
         ) callconv(.C) *anyopaque;

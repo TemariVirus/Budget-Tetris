@@ -6,14 +6,14 @@ const testing = std.testing;
 const expect = testing.expect;
 
 const root = @import("../main.zig");
-const PieceType = root.pieces.PieceType;
+const PieceKind = root.pieces.PieceKind;
 
 const Bag = root.bags.Bag;
 const sourceRandom = root.bags.sourceRandom;
 
 const Self = @This();
 
-pieces: [14]PieceType = .{
+pieces: [14]PieceKind = .{
     .I, .O, .T, .S, .Z, .J, .L,
     .I, .O, .T, .S, .Z, .J, .L,
 },
@@ -25,10 +25,10 @@ pub fn init() Self {
     return Self{ .random = Xoroshiro128.init(seed) };
 }
 
-pub fn next(ptr: *anyopaque) PieceType {
+pub fn next(ptr: *anyopaque) PieceKind {
     const self: *Self = @ptrCast(@alignCast(ptr));
     if (self.index >= self.pieces.len) {
-        self.random.random().shuffle(PieceType, &self.pieces);
+        self.random.random().shuffle(PieceKind, &self.pieces);
         self.index = 0;
     }
 
@@ -53,7 +53,7 @@ test "14-bag randomizer" {
     var fb = init();
     var b = fb.bag();
 
-    var actual = std.AutoHashMap(PieceType, i32).init(testing.allocator);
+    var actual = std.AutoHashMap(PieceKind, i32).init(testing.allocator);
     defer actual.deinit();
 
     // Get first 28 pieces
@@ -64,7 +64,7 @@ test "14-bag randomizer" {
     }
 
     // Should have 4 of each piece
-    const expected = [_]PieceType{ .I, .O, .T, .S, .Z, .J, .L };
+    const expected = [_]PieceKind{ .I, .O, .T, .S, .Z, .J, .L };
     for (expected) |piece| {
         const count = actual.get(piece) orelse 0;
         try expect(count == 4);

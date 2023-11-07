@@ -5,10 +5,10 @@ const windows = std.os.windows;
 const engine = @import("engine");
 const bags = engine.bags;
 const kicks = engine.kicks;
-const input = @import("input.zig");
-const terminal = @import("terminal.zig");
+const input = engine.input;
+const terminal = engine.terminal;
 
-const Game = @import("Game.zig");
+const Game = engine.Game;
 const GameState = engine.GameState;
 const View = terminal.View;
 
@@ -105,19 +105,16 @@ pub fn main() !void {
     }
     defer _ = timeEndPeriod(win_timer_period);
 
-    try terminal.init(allocator, 44 + 2, 24);
-    defer terminal.deinit();
-
-    try input.init(allocator);
-    defer input.deinit();
+    try engine.init(allocator, Game.DISPLAY_W + 2, Game.DISPLAY_H);
+    defer engine.deinit();
 
     var b = bags.SevenBag.init();
     var bag = b.bag();
     var player = try GameState.init(allocator, 6, bag, kicks.srsPlus);
     defer player.deinit(allocator);
 
-    const view = View.init(0, 0, 44 + 2, 24);
-    var player_game = Game.init("You", player, view);
+    const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
+    var player_game = Game.init("You", player, player_view);
     try setupPlayerInput(&player_game);
 
     var timer = PeriodicTrigger.init(time.ns_per_s / 60);

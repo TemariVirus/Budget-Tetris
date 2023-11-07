@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
@@ -23,6 +24,15 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    if (builtin.os.tag == .windows) {
+        exe.linkLibC();
+    }
+
+    const engine = b.createModule(.{
+        .source_file = .{ .path = "../engine/src/main.zig" },
+    });
+    exe.addModule("engine", engine);
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default

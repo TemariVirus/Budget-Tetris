@@ -12,10 +12,10 @@ const Position = @import("pieces.zig").Position;
 pub const BoardMask = struct {
     const width = 10;
     const height = 40;
-    pub const empty_row: u16 = 0b11111_0000000000_1;
-    pub const full_row: u16 = 0b11111_1111111111_1;
+    pub const EMPTY_ROW: u16 = 0b11111_0000000000_1;
+    pub const FULL_ROW: u16 = 0b11111_1111111111_1;
 
-    rows: [height]u16 = [_]u16{empty_row} ** height,
+    rows: [height]u16 = [_]u16{EMPTY_ROW} ** height,
 
     /// Returns true if the bit at (x, y) is set; otherwise, false.
     /// Panics if (x, y) is out of bounds.

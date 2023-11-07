@@ -1,5 +1,6 @@
 const tokenizeScalar = @import("std").mem.tokenizeScalar;
 
+const Color = @import("terminal.zig").Color;
 const PieceMask = @import("bit_masks.zig").PieceMask;
 const Rotation = @import("kicks.zig").Rotation;
 
@@ -49,7 +50,7 @@ pub const Facing = enum(u2) {
     }
 };
 
-pub const PieceType = enum(u3) {
+pub const PieceKind = enum(u3) {
     I,
     O,
     T,
@@ -58,8 +59,8 @@ pub const PieceType = enum(u3) {
     L,
     J,
 
-    pub fn startPos(piece_type: PieceType) Position {
-        return switch (piece_type) {
+    pub fn startPos(self: PieceKind) Position {
+        return switch (self) {
             .I => Position{ .x = 3, .y = 18 },
             .O => Position{ .x = 3, .y = 19 },
             .T => Position{ .x = 3, .y = 19 },
@@ -69,14 +70,26 @@ pub const PieceType = enum(u3) {
             .L => Position{ .x = 3, .y = 19 },
         };
     }
+
+    pub fn color(self: PieceKind) Color {
+        return switch (self) {
+            .I => .BrightCyan,
+            .O => .BrightYellow,
+            .T => .BrightMagenta,
+            .S => .BrightGreen,
+            .Z => .Red,
+            .L => .Yellow,
+            .J => .Blue,
+        };
+    }
 };
 
 pub const Piece = packed struct {
     facing: Facing,
-    type: PieceType,
+    kind: PieceKind,
 
     pub fn mask(self: Piece) PieceMask {
-        return switch (self.type) {
+        return switch (self.kind) {
             .I => switch (self.facing) {
                 .Up => parsePiece(
                     \\....
