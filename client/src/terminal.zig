@@ -1,6 +1,8 @@
 //! Provides a canvas-like interface for drawing to the terminal.
 
 // TODO: Add option to display FPS
+// TODO: Resize terminal buffer and window to match canvas size
+// TODO: Create animation struct with transperancy
 const std = @import("std");
 const frame = @import("terminal/frame.zig");
 const kernel32 = windows.kernel32;
@@ -23,9 +25,9 @@ const sigaction = std.os.sigaction;
 
 const is_windows = @import("builtin").os.tag == .windows;
 const ESC = "\x1B";
-const ST = ESC ++ "\\";
 const CSI = ESC ++ "[";
 const OSC = ESC ++ "]";
+const ST = ESC ++ "\\";
 
 var initialized = false;
 
@@ -40,23 +42,26 @@ var current: Frame = undefined;
 var canvas_size: Size = undefined;
 var terminal_size: Size = undefined;
 
+// https://en.wikipedia.org/wiki/ANSI_escape_code#Colors
+// Closest 8-bit colors to Windows 10 Console's default 16, calculated using
+// CIELAB color space
 pub const Color = enum(u8) {
-    Black = 30,
-    Red,
-    Green,
-    Yellow,
-    Blue,
-    Magenta,
-    Cyan,
-    White,
-    BrightBlack = 90,
-    BrightRed,
-    BrightGreen,
-    BrightYellow,
-    BrightBlue,
-    BrightMagenta,
-    BrightCyan,
-    BrightWhite,
+    Black = 232,
+    Red = 124,
+    Green = 34,
+    Yellow = 178,
+    Blue = 27,
+    Magenta = 90,
+    Cyan = 32,
+    White = 252,
+    BrightBlack = 243,
+    BrightRed = 203,
+    BrightGreen = 40,
+    BrightYellow = 229,
+    BrightBlue = 69,
+    BrightMagenta = 127,
+    BrightCyan = 80,
+    BrightWhite = 255,
 };
 
 pub const Size = struct {
@@ -439,7 +444,7 @@ fn resetColors(writer: anytype) !void {
 }
 
 fn setColor(writer: anytype, fg: Color, bg: Color) !void {
-    try writer.print(CSI ++ "{};{}m", .{ @intFromEnum(fg), @intFromEnum(bg) + 10 });
+    try writer.print(CSI ++ "38;5;{};48;5;{}m", .{ @intFromEnum(fg), @intFromEnum(bg) });
 }
 
 fn resetCursor(writer: anytype) !void {
