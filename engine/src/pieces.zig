@@ -89,59 +89,60 @@ pub const Piece = packed struct {
     kind: PieceKind,
 
     pub fn mask(self: Piece) PieceMask {
+        @setEvalBranchQuota(10_000);
         return switch (self.kind) {
             .I => switch (self.facing) {
-                .Up => parsePiece(
+                .Up => comptime parsePiece(
                     \\....
                     \\####
                     \\....
                     \\....
                 ),
-                .Right => parsePiece(
+                .Right => comptime parsePiece(
                     \\..#.
                     \\..#.
                     \\..#.
                     \\..#.
                 ),
-                .Down => parsePiece(
+                .Down => comptime parsePiece(
                     \\....
                     \\....
                     \\####
                     \\....
                 ),
-                .Left => parsePiece(
+                .Left => comptime parsePiece(
                     \\.#..
                     \\.#..
                     \\.#..
                     \\.#..
                 ),
             },
-            .O => parsePiece(
+            .O => comptime parsePiece(
                 \\....
                 \\.##.
                 \\.##.
                 \\....
             ),
             .T => switch (self.facing) {
-                .Up => parsePiece(
+                .Up => comptime parsePiece(
                     \\....
                     \\.#..
                     \\###.
                     \\....
                 ),
-                .Right => parsePiece(
+                .Right => comptime parsePiece(
                     \\....
                     \\.#..
                     \\.##.
                     \\.#..
                 ),
-                .Down => parsePiece(
+                .Down => comptime parsePiece(
                     \\....
                     \\....
                     \\###.
                     \\.#..
                 ),
-                .Left => parsePiece(
+                .Left => comptime parsePiece(
                     \\....
                     \\.#..
                     \\##..
@@ -149,25 +150,25 @@ pub const Piece = packed struct {
                 ),
             },
             .S => switch (self.facing) {
-                .Up => parsePiece(
+                .Up => comptime parsePiece(
                     \\....
                     \\.##.
                     \\##..
                     \\....
                 ),
-                .Right => parsePiece(
+                .Right => comptime parsePiece(
                     \\....
                     \\.#..
                     \\.##.
                     \\..#.
                 ),
-                .Down => parsePiece(
+                .Down => comptime parsePiece(
                     \\....
                     \\....
                     \\.##.
                     \\##..
                 ),
-                .Left => parsePiece(
+                .Left => comptime parsePiece(
                     \\....
                     \\#...
                     \\##..
@@ -175,25 +176,25 @@ pub const Piece = packed struct {
                 ),
             },
             .Z => switch (self.facing) {
-                .Up => parsePiece(
+                .Up => comptime parsePiece(
                     \\....
                     \\##..
                     \\.##.
                     \\....
                 ),
-                .Right => parsePiece(
+                .Right => comptime parsePiece(
                     \\....
                     \\..#.
                     \\.##.
                     \\.#..
                 ),
-                .Down => parsePiece(
+                .Down => comptime parsePiece(
                     \\....
                     \\....
                     \\##..
                     \\.##.
                 ),
-                .Left => parsePiece(
+                .Left => comptime parsePiece(
                     \\....
                     \\.#..
                     \\##..
@@ -201,25 +202,25 @@ pub const Piece = packed struct {
                 ),
             },
             .J => switch (self.facing) {
-                .Up => parsePiece(
+                .Up => comptime parsePiece(
                     \\....
                     \\#...
                     \\###.
                     \\....
                 ),
-                .Right => parsePiece(
+                .Right => comptime parsePiece(
                     \\....
                     \\.##.
                     \\.#..
                     \\.#..
                 ),
-                .Down => parsePiece(
+                .Down => comptime parsePiece(
                     \\....
                     \\....
                     \\###.
                     \\..#.
                 ),
-                .Left => parsePiece(
+                .Left => comptime parsePiece(
                     \\....
                     \\.#..
                     \\.#..
@@ -227,25 +228,25 @@ pub const Piece = packed struct {
                 ),
             },
             .L => switch (self.facing) {
-                .Up => parsePiece(
+                .Up => comptime parsePiece(
                     \\....
                     \\..#.
                     \\###.
                     \\....
                 ),
-                .Right => parsePiece(
+                .Right => comptime parsePiece(
                     \\....
                     \\.#..
                     \\.#..
                     \\.##.
                 ),
-                .Down => parsePiece(
+                .Down => comptime parsePiece(
                     \\....
                     \\....
                     \\###.
                     \\#...
                 ),
-                .Left => parsePiece(
+                .Left => comptime parsePiece(
                     \\....
                     \\##..
                     \\.#..

@@ -12,6 +12,9 @@ const Game = engine.Game;
 const GameState = engine.GameState;
 const View = terminal.View;
 
+// TODO: check that b2b stuff is accurate, not activated by B2B no clear?
+// TODO: check that view is updated when current frame updates
+
 // 2 * 8 is close to 15.625, so other programs should be affacted minimally.
 // 8 is also a factor of 16, which is good for timing 60hz.
 const win_timer_period = 8;
@@ -159,14 +162,3 @@ fn setupPlayerInput(player: *Game) !void {
     _ = try input.addKeyTrigger(.Down, 0, 1 * time.ns_per_ms, MoveFuncs.drop);
     _ = try input.addKeyTrigger(.Space, 0, null, MoveFuncs.place);
 }
-
-// TODO:
-// - Input polling frequency
-//     Keyboard debounce time is typically ~30ms. (https://stackoverflow.com/a/8348948)
-//     The fastest switches have a response time of ~0.7ms (https://steelseries.com/blog/worlds-fastest-mechanical-switch-105)
-//     However, the fastest humans can only produce ~24.9 keystrokes a second, (https://www.tomshardware.com/news/world-typing-record-mythicalrocket-293wpm)
-//     which translates to ~40ms per keystroke.
-//     So, polling input at a standard 60hz (16.6ms) should be more than fast enough.
-// - Implement writer interface for view
-//     fn writeAll(self: Self, bytes: []const u8) Error!void
-//

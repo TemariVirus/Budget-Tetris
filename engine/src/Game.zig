@@ -131,6 +131,12 @@ pub fn hold(self: *Self) void {
     self.already_held = true;
 }
 
+// TODO
+pub fn update(self: *Self, dt: u64) void {
+    _ = dt;
+    _ = self;
+}
+
 pub fn drawToScreen(self: *Self) void {
     // Subtract 2 so that the centering is biased to the left
     const name_center_x = (self.view.width - self.name.len - 2) / 2;

@@ -20,7 +20,7 @@ pub const TSpin = enum {
 
 pub const ClearInfo = struct {
     b2b: bool,
-    cleared: u8,
+    cleared: u3,
     pc: bool,
     t_spin: TSpin,
 };

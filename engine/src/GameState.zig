@@ -37,8 +37,8 @@ next_pieces: []PieceKind,
 bag: Bag,
 kicksFn: *const KickFn,
 
-b2b: u16 = 0,
-combo: u16 = 0,
+b2b: u32 = 0,
+combo: u32 = 0,
 
 pub fn init(allocator: Allocator, next_len: usize, bag: Bag, kicksFn: *const KickFn) !Self {
     assert(next_len > 0);
@@ -197,7 +197,7 @@ pub fn lock(self: *Self, rotated_last: bool) ClearInfo {
     const cleared = self.clearLines();
 
     const is_clear = cleared > 0;
-    const is_hard_clear = (cleared == 4) or (t_spin == .Full and is_clear);
+    const is_hard_clear = (cleared == 4) or (t_spin != .None and is_clear);
 
     if (is_hard_clear) {
         self.b2b += 1;
@@ -216,8 +216,8 @@ pub fn lock(self: *Self, rotated_last: bool) ClearInfo {
 // TODO: Only clear lines where the current piece was placed.
 /// Clears all filled lines in the playfield.
 /// Returns the number of lines cleared.
-fn clearLines(self: *Self) u8 {
-    var cleared: u8 = 0;
+fn clearLines(self: *Self) u3 {
+    var cleared: u3 = 0;
     var i: u8 = 0;
     while (i + cleared < self.playfield.rows.len) {
         self.playfield.rows[i] = self.playfield.rows[i + cleared];
