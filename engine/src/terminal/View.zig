@@ -1,5 +1,6 @@
 const std = @import("std");
 const terminal = @import("../terminal.zig");
+const Utf8View = std.unicode.Utf8View;
 const Color = terminal.Color;
 const assert = std.debug.assert;
 
@@ -66,11 +67,14 @@ pub fn drawText(
     bg: Color,
     text: []const u8,
 ) void {
-    for (text, 0..) |c, i| {
-        if (x + i >= self.width) {
+    var code_points = (Utf8View.init(text) catch unreachable).iterator();
+    var i = x;
+    while (code_points.nextCodepoint()) |c| {
+        if (i >= self.width) {
             break;
         }
-        self.drawPixel(@intCast(x + i), y, fg, bg, c);
+        self.drawPixel(i, y, fg, bg, c);
+        i += 1;
     }
 }
 

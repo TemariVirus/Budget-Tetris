@@ -142,7 +142,7 @@ pub fn drawToScreen(self: *Self) void {
     self.drawNext();
 }
 
-fn drawPiece(view: View, x: i8, y: i8, piece: Piece, char: u21) void {
+fn drawPiece(view: View, x: i8, y: i8, piece: Piece, solid: bool) void {
     const mask = piece.mask();
     const color = piece.kind.color();
     for (0..4) |dy| {
@@ -155,8 +155,12 @@ fn drawPiece(view: View, x: i8, y: i8, piece: Piece, char: u21) void {
             if (x2 < 0 or y2 < 0 or x2 >= view.width or y2 >= view.height) {
                 continue;
             }
-            view.drawPixel(@intCast(x2), @intCast(y2), color, .Black, char);
-            view.drawPixel(@intCast(x2 + 1), @intCast(y2), color, .Black, char);
+
+            if (solid) {
+                view.drawText(@intCast(x2), @intCast(y2), color, color, "  ");
+            } else {
+                view.drawText(@intCast(x2), @intCast(y2), color, empty_color, "▒▒");
+            }
         }
     }
 }
@@ -176,7 +180,7 @@ fn drawHold(self: *Self) void {
             .kind = hold_kind,
         };
         const y: i8 = if (hold_kind == .I) 4 else 3;
-        drawPiece(hold_box, 1, y, hold_piece, '█');
+        drawPiece(hold_box, 1, y, hold_piece, true);
     }
 }
 
@@ -211,11 +215,11 @@ fn drawMatrix(self: *Self) void {
     // Ghost piece
     var state = self.state;
     const dropped = state.dropToGround();
-    drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, '▒');
+    drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, false);
 
     // Current piece
     state.pos.y += @intCast(dropped);
-    drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, '█');
+    drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, true);
 }
 
 fn drawNext(self: *Self) void {
@@ -235,6 +239,6 @@ fn drawNext(self: *Self) void {
             .kind = self.state.next_pieces[i],
         };
         const y: i8 = if (piece.kind == .I) 4 else 3;
-        drawPiece(next_box, 1, y + @as(i8, @intCast(i * 3)), piece, '█');
+        drawPiece(next_box, 1, y + @as(i8, @intCast(i * 3)), piece, true);
     }
 }
