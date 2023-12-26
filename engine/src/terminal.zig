@@ -351,6 +351,10 @@ pub fn render() !void {
     const x_offset = @max(0, terminal_size.width - draw_size.width) / 2;
     const y_offset = @max(0, terminal_size.height - draw_size.height) / 2;
 
+    if (should_redraw) {
+        try clearScreen(writer);
+    }
+
     var last_x: u16 = 0;
     var last_y: u16 = 0;
     try setCursorPos(writer, last_x, last_y);

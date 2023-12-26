@@ -13,7 +13,7 @@ const WriterContext = struct {
     fg: Color,
     bg: Color,
 };
-const Writer = std.io.Writer(WriterContext, WriterError, writeFn);
+const Writer = std.io.Writer(*WriterContext, WriterError, writeFn);
 
 left: u16,
 top: u16,
@@ -85,22 +85,27 @@ pub fn printAt(
     y: u16,
     fg: Color,
     bg: Color,
-    comptime fmt: []const u8,
+    comptime format: []const u8,
     args: anytype,
 ) void {
-    const writer = Writer{ .context = .{
+    var context = WriterContext{
         .self = self,
         .x = x,
         .y = y,
         .fg = fg,
         .bg = bg,
-    } };
-    std.fmt.format(writer, fmt, args) catch unreachable;
+    };
+    const writer = Writer{ .context = &context };
+    writer.print(format, args) catch unreachable;
 }
 
 const WriterError = error{};
-fn writeFn(context: WriterContext, bytes: []const u8) WriterError!usize {
-    context.self.drawText(context.x, context.y, context.fg, context.bg, bytes);
+fn writeFn(context: *WriterContext, bytes: []const u8) WriterError!usize {
+    if (context.x < context.self.width) {
+        context.self.drawText(context.x, context.y, context.fg, context.bg, bytes);
+        context.x += @as(u16, @intCast(bytes.len));
+    }
+
     // Bytes that were truncated are also considered written
     return bytes.len;
 }

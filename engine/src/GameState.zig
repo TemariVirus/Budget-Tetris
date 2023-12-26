@@ -190,7 +190,7 @@ pub fn rotate(self: *Self, rotation: Rotation) bool {
 
 /// Locks the current piece at the current position,
 /// and clears lines if possible. Returns information about the clear.
-pub fn lock(self: *Self, rotated_last: bool) ClearInfo {
+pub fn lockCurrent(self: *Self, rotated_last: bool) ClearInfo {
     const t_spin = self.tSpinType(rotated_last);
 
     self.playfield.place(self.current.mask(), self.pos);
@@ -419,7 +419,7 @@ fn drawNextRow(self: Self, writer: anytype, i: usize) !void {
 
 // TODO: check clear info
 test "DT cannon" {
-    var allocator = std.testing.allocator;
+    const allocator = std.testing.allocator;
 
     var b = root.bags.SevenBag.init();
     var bag = b.bag();
@@ -432,58 +432,58 @@ test "DT cannon" {
     try expect(game.rotate(.CCw));
     try expect(game.slide(1) == 1);
     try expect(game.dropToGround() == 18);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // L piece
     try expect(game.rotate(.Cw));
     try expect(game.slide(3) == 3);
     try expect(game.dropToGround() == 18);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // T piece
     try expect(game.dropToGround() == 16);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // S piece
     try expect(game.rotate(.Cw));
     try expect(game.slide(10) == 4);
     try expect(game.dropToGround() == 18);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // O piece
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 19);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // I piece
     try expect(game.rotate(.Cw));
     try expect(game.slide(1) == 1);
     try expect(game.dropToGround() == 17);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // S piece
     try expect(game.rotate(.Cw));
     try expect(game.dropToGround() == 14);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // O piece
     try expect(game.slide(3) == 3);
     try expect(game.dropToGround() == 16);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // J piece
     try expect(game.rotate(.Cw));
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 16);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // Z piece
@@ -497,7 +497,7 @@ test "DT cannon" {
     try expect(game.dropToGround() == 1);
     try expect(game.rotate(.CCw));
     try expect(game.slide(10) == 1);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // Z piece
@@ -505,21 +505,21 @@ test "DT cannon" {
     try expect(game.rotate(.Cw));
     try expect(game.slide(2) == 2);
     try expect(game.dropToGround() == 14);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // L piece
     try expect(game.rotate(.CCw));
     try expect(game.slide(-1) == 1);
     try expect(game.dropToGround() == 14);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // I piece
     try expect(game.rotate(.Cw));
     try expect(game.slide(10) == 4);
     try expect(game.dropToGround() == 15);
-    _ = game.lock(false);
+    _ = game.lockCurrent(false);
     game.nextPiece();
 
     // T piece
@@ -532,7 +532,7 @@ test "DT cannon" {
     try expect(!game.rotate(.CCw));
     try expect(game.dropToGround() == 1);
     try expect(game.rotate(.CCw));
-    _ = game.lock(true);
+    _ = game.lockCurrent(true);
     game.nextPiece();
 
     // T piece
@@ -543,7 +543,7 @@ test "DT cannon" {
     try expect(game.rotate(.CCw));
     try expect(game.rotate(.CCw));
     try expect(!game.rotate(.CCw));
-    _ = game.lock(true);
+    _ = game.lockCurrent(true);
     game.nextPiece();
 
     const end_playfield = BoardMask{

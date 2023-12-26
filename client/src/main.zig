@@ -112,7 +112,7 @@ pub fn main() !void {
     defer engine.deinit();
 
     var b = bags.SevenBag.init();
-    var bag = b.bag();
+    const bag = b.bag();
     var player = try GameState.init(allocator, 6, bag, kicks.srsPlus);
     defer player.deinit(allocator);
 
