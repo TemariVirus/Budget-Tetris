@@ -8,7 +8,7 @@ const testing = std.testing;
 const mem = std.mem;
 const toUpper = std.ascii.toUpper;
 
-const root = @import("main.zig");
+const root = @import("root.zig");
 const Position = root.pieces.Position;
 const Piece = root.pieces.Piece;
 

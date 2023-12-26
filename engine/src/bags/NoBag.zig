@@ -3,7 +3,7 @@
 const std = @import("std");
 const Xoroshiro128 = std.rand.Xoroshiro128;
 
-const root = @import("../main.zig");
+const root = @import("../root.zig");
 const PieceKind = root.pieces.PieceKind;
 
 const Bag = root.bags.Bag;

@@ -1,4 +1,4 @@
-const root = @import("../main.zig");
+const root = @import("../root.zig");
 const Position = root.pieces.Position;
 const Piece = root.pieces.Piece;
 const Rotation = root.kicks.Rotation;

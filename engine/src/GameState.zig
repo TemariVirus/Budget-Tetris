@@ -7,7 +7,7 @@ const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
 const expect = std.testing.expect;
 
-const root = @import("main.zig");
+const root = @import("root.zig");
 const TSpin = root.TSpin;
 const ClearInfo = root.ClearInfo;
 
@@ -63,14 +63,14 @@ pub fn deinit(self: Self, allocator: Allocator) void {
 }
 
 /// The cannonical B2B is one less than the stored value.
-pub fn canonicalB2B(self: Self) ?u16 {
+pub fn canonicalB2B(self: Self) ?u32 {
     if (self.b2b == 0) {
         return null;
     }
     return self.b2b - 1;
 }
 
-pub fn setCanonicalB2B(self: Self, value: ?u16) void {
+pub fn setCanonicalB2B(self: Self, value: ?u32) void {
     if (value) |v| {
         self.b2b = v + 1;
     } else {
@@ -79,14 +79,14 @@ pub fn setCanonicalB2B(self: Self, value: ?u16) void {
 }
 
 /// The cannonical combo is one less than the stored value.
-pub fn canonicalcombo(self: Self) ?u16 {
+pub fn canonicalcombo(self: Self) ?u32 {
     if (self.combo == 0) {
         return null;
     }
     return self.combo - 1;
 }
 
-pub fn setCanonicalcombo(self: Self, value: ?u16) void {
+pub fn setCanonicalcombo(self: Self, value: ?u32) void {
     if (value) |v| {
         self.combo = v + 1;
     } else {
@@ -197,7 +197,7 @@ pub fn lockCurrent(self: *Self, rotated_last: bool) ClearInfo {
     const cleared = self.clearLines();
 
     const is_clear = cleared > 0;
-    const is_hard_clear = (cleared == 4) or (t_spin != .None and is_clear);
+    const is_hard_clear = (cleared == 4 or t_spin != .None) and is_clear;
 
     if (is_hard_clear) {
         self.b2b += 1;
@@ -205,10 +205,17 @@ pub fn lockCurrent(self: *Self, rotated_last: bool) ClearInfo {
         self.b2b = 0;
     }
 
+    if (is_clear) {
+        self.combo += 1;
+    } else {
+        self.combo = 0;
+    }
+
     return ClearInfo{
         .b2b = is_hard_clear and self.b2b > 1,
         .cleared = cleared,
-        .pc = self.playfield.rows[0] == BoardMask.EMPTY_ROW,
+        // If bottom row is empty, every row above must also be empty.
+        .pc = is_clear and self.playfield.rows[0] == BoardMask.EMPTY_ROW,
         .t_spin = t_spin,
     };
 }
@@ -417,7 +424,6 @@ fn drawNextRow(self: Self, writer: anytype, i: usize) !void {
     _ = try writer.write("║");
 }
 
-// TODO: check clear info
 test "DT cannon" {
     const allocator = std.testing.allocator;
 
@@ -432,58 +438,103 @@ test "DT cannon" {
     try expect(game.rotate(.CCw));
     try expect(game.slide(1) == 1);
     try expect(game.dropToGround() == 18);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // L piece
     try expect(game.rotate(.Cw));
     try expect(game.slide(3) == 3);
     try expect(game.dropToGround() == 18);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // T piece
     try expect(game.dropToGround() == 16);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // S piece
     try expect(game.rotate(.Cw));
     try expect(game.slide(10) == 4);
     try expect(game.dropToGround() == 18);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // O piece
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 19);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // I piece
     try expect(game.rotate(.Cw));
     try expect(game.slide(1) == 1);
     try expect(game.dropToGround() == 17);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // S piece
     try expect(game.rotate(.Cw));
     try expect(game.dropToGround() == 14);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(true), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // O piece
     try expect(game.slide(3) == 3);
     try expect(game.dropToGround() == 16);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // J piece
     try expect(game.rotate(.Cw));
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 16);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // Z piece
@@ -497,7 +548,12 @@ test "DT cannon" {
     try expect(game.dropToGround() == 1);
     try expect(game.rotate(.CCw));
     try expect(game.slide(10) == 1);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // Z piece
@@ -505,21 +561,36 @@ test "DT cannon" {
     try expect(game.rotate(.Cw));
     try expect(game.slide(2) == 2);
     try expect(game.dropToGround() == 14);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // L piece
     try expect(game.rotate(.CCw));
     try expect(game.slide(-1) == 1);
     try expect(game.dropToGround() == 14);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // I piece
     try expect(game.rotate(.Cw));
     try expect(game.slide(10) == 4);
     try expect(game.dropToGround() == 15);
-    _ = game.lockCurrent(false);
+    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+        .b2b = false,
+        .cleared = 0,
+        .pc = false,
+        .t_spin = .None,
+    }));
     game.nextPiece();
 
     // T piece
@@ -532,7 +603,13 @@ test "DT cannon" {
     try expect(!game.rotate(.CCw));
     try expect(game.dropToGround() == 1);
     try expect(game.rotate(.CCw));
-    _ = game.lockCurrent(true);
+    try expect(game.dropToGround() == 0);
+    try expect(std.meta.eql(game.lockCurrent(true), ClearInfo{
+        .b2b = false,
+        .cleared = 2,
+        .pc = false,
+        .t_spin = .Full,
+    }));
     game.nextPiece();
 
     // T piece
@@ -543,7 +620,12 @@ test "DT cannon" {
     try expect(game.rotate(.CCw));
     try expect(game.rotate(.CCw));
     try expect(!game.rotate(.CCw));
-    _ = game.lockCurrent(true);
+    try expect(std.meta.eql(game.lockCurrent(true), ClearInfo{
+        .b2b = true,
+        .cleared = 3,
+        .pc = false,
+        .t_spin = .Full,
+    }));
     game.nextPiece();
 
     const end_playfield = BoardMask{

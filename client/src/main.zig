@@ -45,10 +45,6 @@ const MoveFuncs = struct {
         game.moveRightAll();
     }
 
-    fn drop() void {
-        game.softDrop();
-    }
-
     fn rotateCw() void {
         game.rotateCw();
     }
@@ -59,6 +55,10 @@ const MoveFuncs = struct {
 
     fn rotateCCw() void {
         game.rotateCcw();
+    }
+
+    fn drop() void {
+        game.softDrop();
     }
 
     fn place() void {
@@ -83,17 +83,17 @@ const PeriodicTrigger = struct {
 
     /// Provides no guarantees about whether it will trigger before or after the
     /// period has elapsed.
-    pub fn trigger(self: *PeriodicTrigger) bool {
+    pub fn trigger(self: *PeriodicTrigger) ?u64 {
         const now = time.nanoTimestamp();
         const elapsed = now - self.last;
         // Sleeping tends to cause delayed triggers, compensate by triggering a
         // millisecond early.
         if (elapsed + time.ns_per_ms < self.period) {
-            return false;
+            return null;
         }
 
         self.last = now;
-        return true;
+        return @as(u64, @intCast(elapsed));
     }
 };
 
@@ -108,6 +108,7 @@ pub fn main() !void {
     }
     defer _ = timeEndPeriod(win_timer_period);
 
+    // Add 2 to create a 1-wide empty boarder on the left and right.
     try engine.init(allocator, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer engine.deinit();
 
@@ -122,14 +123,14 @@ pub fn main() !void {
 
     var timer = PeriodicTrigger.init(time.ns_per_s / 60);
     while (true) {
-        if (!timer.trigger()) {
+        if (timer.trigger()) |elasped| {
+            input.tick();
+            player_game.tick(elasped);
+            player_game.drawToScreen();
+            try terminal.render();
+        } else {
             time.sleep(1 * time.ns_per_ms);
-            continue;
         }
-
-        input.tick();
-        player_game.drawToScreen();
-        try terminal.render();
     }
 }
 

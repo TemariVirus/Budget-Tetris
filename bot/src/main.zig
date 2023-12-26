@@ -1,4 +1,1 @@
-const std = @import("std");
-const engine = @import("engine");
-
-pub fn main() !void {}
+pub fn main() void {}

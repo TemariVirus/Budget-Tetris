@@ -5,7 +5,7 @@ const Xoroshiro128 = std.rand.Xoroshiro128;
 const testing = std.testing;
 const expect = testing.expect;
 
-const root = @import("../main.zig");
+const root = @import("../root.zig");
 const PieceKind = root.pieces.PieceKind;
 
 const Bag = root.bags.Bag;

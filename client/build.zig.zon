@@ -1,0 +1,10 @@
+.{
+    .name = "budget-tetris",
+    .version = "0.0.0",
+    .dependencies = .{
+        .engine = .{
+            .path = "../engine",
+        },
+    },
+    .paths = .{""},
+}
