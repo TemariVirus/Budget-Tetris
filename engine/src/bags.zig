@@ -11,6 +11,7 @@ pub const NBag = @import("bags/n_bag.zig").NBag;
 /// An interface for bags that generate a random sequence of pieces.
 pub const Bag = struct {
     bag: *anyopaque,
+    // TODO: try comptime functions
     next_fn: *const fn (*anyopaque) PieceKind,
     set_seed_fn: *const fn (*anyopaque, u64) void,
 

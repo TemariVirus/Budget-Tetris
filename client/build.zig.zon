@@ -5,6 +5,10 @@
         .engine = .{
             .path = "../engine",
         },
+        .nterm = .{
+            .url = "https://github.com/Zemogus/nterm/archive/2c2e4a42d86575e66eda6c2d24e1f8c6575fc9da.tar.gz",
+            .hash = "1220115444dc28fbd4f0e8d987a508d1751d9aaadcdffd446cd3b032d023b6cd2535",
+        },
     },
     .paths = .{""},
 }

@@ -5,12 +5,12 @@ const windows = std.os.windows;
 const engine = @import("engine");
 const bags = engine.bags;
 const kicks = engine.kicks;
-const input = engine.input;
-const terminal = engine.terminal;
+const input = nterm.input;
+const nterm = @import("nterm");
 
 const Game = engine.Game;
 const GameState = engine.GameState;
-const View = terminal.View;
+const View = nterm.View;
 
 // TODO: check that b2b stuff is accurate, not activated by B2B no clear?
 // TODO: check that view is updated when current frame updates
@@ -109,8 +109,8 @@ pub fn main() !void {
     defer _ = timeEndPeriod(win_timer_period);
 
     // Add 2 to create a 1-wide empty boarder on the left and right.
-    try engine.init(allocator, Game.DISPLAY_W + 2, Game.DISPLAY_H);
-    defer engine.deinit();
+    try nterm.init(allocator, Game.DISPLAY_W + 2, Game.DISPLAY_H);
+    defer nterm.deinit();
 
     var b = bags.SevenBag.init();
     const bag = b.bag();
@@ -127,7 +127,7 @@ pub fn main() !void {
             input.tick();
             player_game.tick(elasped);
             player_game.drawToScreen();
-            try terminal.render();
+            try nterm.render();
         } else {
             time.sleep(1 * time.ns_per_ms);
         }

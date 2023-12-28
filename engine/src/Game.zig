@@ -1,14 +1,14 @@
 // TODO: Add sound
 const std = @import("std");
 const root = @import("root.zig");
-const terminal = @import("terminal.zig");
+const nterm = @import("nterm");
 
 const GameState = root.GameState;
 const PieceKind = root.pieces.PieceKind;
 const Piece = root.pieces.Piece;
 
-const Color = terminal.Color;
-const View = terminal.View;
+const Color = nterm.Color;
+const View = nterm.View;
 
 const Self = @This();
 

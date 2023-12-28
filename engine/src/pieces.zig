@@ -1,6 +1,6 @@
 const tokenizeScalar = @import("std").mem.tokenizeScalar;
 
-const Color = @import("terminal.zig").Color;
+const Color = @import("nterm").Color;
 const PieceMask = @import("bit_masks.zig").PieceMask;
 const Rotation = @import("kicks.zig").Rotation;
 

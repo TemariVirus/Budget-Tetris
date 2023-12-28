@@ -25,6 +25,13 @@ pub fn build(b: *std.Build) void {
     }).module("engine");
     exe.addModule("engine", engine_module);
 
+    // Add nterm dependency
+    const nterm_module = b.dependency("nterm", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("nterm");
+    exe.addModule("nterm", nterm_module);
+
     b.installArtifact(exe);
 
     // Add run step
