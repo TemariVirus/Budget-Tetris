@@ -60,7 +60,11 @@ pub const BoardMask = struct {
     pub fn unplace(self: *BoardMask, piece: PieceMask, pos: Position) void {
         const start = @max(0, -pos.y);
         for (piece.rows[start..], start..) |row, i| {
-            self.rows[pos.y + i] ^= row >> pos.x;
+            const shifted = if (pos.x < 0)
+                row << @intCast(-pos.x)
+            else
+                row >> @intCast(pos.x);
+            self.rows[@intCast(pos.y + @as(i8, @intCast(i)))] &= ~shifted;
         }
     }
 };
