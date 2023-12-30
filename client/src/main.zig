@@ -12,12 +12,12 @@ const Game = engine.Game;
 const GameState = engine.GameState;
 const View = nterm.View;
 
-// TODO: check that b2b stuff is accurate, not activated by B2B no clear?
 // TODO: check that view is updated when current frame updates
 
 // 2 * 8 is close to 15.625, so other programs should be affacted minimally.
 // 8 is also a factor of 16, which is good for timing 60hz.
-const win_timer_period = 8;
+const WIN_TIMER_PERIOD = 8;
+const FRAMERATE = 60;
 
 const MMRESULT = enum(windows.UINT) {
     TIMERR_NOERROR = 0,
@@ -57,16 +57,23 @@ const MoveFuncs = struct {
         game.rotateCcw();
     }
 
-    fn drop() void {
+    fn softDrop() void {
         game.softDrop();
     }
 
-    fn place() void {
+    fn hardDrop() void {
         game.hardDrop();
     }
 
     fn hold() void {
         game.hold();
+    }
+
+    fn softDropStart() void {
+        game.keys_pressed += 1;
+        if (!game.state.onGround()) {
+            game.move_count += 1;
+        }
     }
 };
 
@@ -103,10 +110,10 @@ pub fn main() !void {
     defer _ = gpa.deinit();
 
     // https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
-    if (timeBeginPeriod(win_timer_period) != .TIMERR_NOERROR) {
+    if (timeBeginPeriod(WIN_TIMER_PERIOD) != .TIMERR_NOERROR) {
         return error.PeriodOutOfRange;
     }
-    defer _ = timeEndPeriod(win_timer_period);
+    defer _ = timeEndPeriod(WIN_TIMER_PERIOD);
 
     // Add 2 to create a 1-wide empty boarder on the left and right.
     try nterm.init(allocator, Game.DISPLAY_W + 2, Game.DISPLAY_H);
@@ -121,12 +128,12 @@ pub fn main() !void {
     var player_game = Game.init("You", player, player_view);
     try setupPlayerInput(&player_game);
 
-    var timer = PeriodicTrigger.init(time.ns_per_s / 60);
+    var timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
     while (true) {
-        if (timer.trigger()) |elasped| {
+        if (timer.trigger()) |_| {
             input.tick();
-            player_game.tick(elasped);
-            player_game.drawToScreen();
+            player_game.tick();
+            try player_game.drawToScreen();
             try nterm.render();
         } else {
             time.sleep(1 * time.ns_per_ms);
@@ -160,6 +167,7 @@ fn setupPlayerInput(player: *Game) !void {
         MoveFuncs.rightAll,
     );
 
-    _ = try input.addKeyTrigger(.Down, 0, 1 * time.ns_per_ms, MoveFuncs.drop);
-    _ = try input.addKeyTrigger(.Space, 0, null, MoveFuncs.place);
+    _ = try input.addKeyTrigger(.Down, 0, null, MoveFuncs.softDropStart);
+    _ = try input.addKeyTrigger(.Down, 0, time.ns_per_s / FRAMERATE / 2, MoveFuncs.softDrop);
+    _ = try input.addKeyTrigger(.Space, 0, null, MoveFuncs.hardDrop);
 }

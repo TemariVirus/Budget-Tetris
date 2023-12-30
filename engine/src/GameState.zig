@@ -8,8 +8,8 @@ const assert = std.debug.assert;
 const expect = std.testing.expect;
 
 const root = @import("root.zig");
-const TSpin = root.TSpin;
-const ClearInfo = root.ClearInfo;
+const TSpin = root.attack.TSpin;
+const ClearInfo = root.attack.ClearInfo;
 
 const BoardMask = root.bit_masks.BoardMask;
 const PieceMask = root.bit_masks.PieceMask;
@@ -26,29 +26,31 @@ const Rotation = root.kicks.Rotation;
 const Self = @This();
 const KickFn = fn (Piece, Rotation) []const Position;
 
+const U32_NULL = std.math.maxInt(u32);
+
 playfield: BoardMask = BoardMask{},
 pos: Position,
 current: Piece,
 hold_kind: ?PieceKind = null,
 // We could use a ring buffer for next, but advancing the next pieces shouldn't
-// occur too often so the performance impact would be minimal.
+// occur very often, so faster access is probably better.
 next_pieces: []PieceKind,
 
 bag: Bag,
 kicksFn: *const KickFn,
 
-b2b: u32 = 0,
-combo: u32 = 0,
+b2b: u32,
+combo: u32,
 
 pub fn init(allocator: Allocator, next_len: usize, bag: Bag, kicksFn: *const KickFn) !Self {
-    assert(next_len > 0);
-
     var game = Self{
         .pos = undefined,
         .current = undefined,
         .next_pieces = try allocator.alloc(PieceKind, next_len),
         .bag = bag,
         .kicksFn = kicksFn,
+        .b2b = U32_NULL,
+        .combo = U32_NULL,
     };
     for (game.next_pieces) |*piece| {
         piece.* = game.bag.next();
@@ -64,33 +66,27 @@ pub fn deinit(self: Self, allocator: Allocator) void {
 
 /// The cannonical B2B is one less than the stored value.
 pub fn canonicalB2B(self: Self) ?u32 {
-    if (self.b2b == 0) {
-        return null;
-    }
-    return self.b2b - 1;
+    return if (self.b2b == U32_NULL) null else self.b2b;
 }
 
 pub fn setCanonicalB2B(self: Self, value: ?u32) void {
     if (value) |v| {
-        self.b2b = v + 1;
+        self.b2b = v;
     } else {
-        self.b2b = 0;
+        self.b2b = U32_NULL;
     }
 }
 
 /// The cannonical combo is one less than the stored value.
 pub fn canonicalcombo(self: Self) ?u32 {
-    if (self.combo == 0) {
-        return null;
-    }
-    return self.combo - 1;
+    return if (self.combo == U32_NULL) null else self.combo;
 }
 
 pub fn setCanonicalcombo(self: Self, value: ?u32) void {
     if (value) |v| {
-        self.combo = v + 1;
+        self.combo = v;
     } else {
-        self.combo = 0;
+        self.combo = U32_NULL;
     }
 }
 
@@ -98,7 +94,7 @@ fn collides(self: Self, piece: Piece, pos: Position) bool {
     return self.playfield.collides(piece.mask(), pos);
 }
 
-fn onGround(self: Self) bool {
+pub fn onGround(self: Self) bool {
     const pos = Position{ .x = self.pos.x, .y = self.pos.y - 1 };
     return self.collides(self.current, pos);
 }
@@ -117,8 +113,15 @@ pub fn spawn(self: *Self, piece: PieceKind) void {
 
 /// Advances the current piece to the next piece in queue.
 pub fn nextPiece(self: *Self) void {
+    if (self.next_pieces.len == 0) {
+        self.spawn(self.bag.next());
+        return;
+    }
+
     self.spawn(self.next_pieces[0]);
-    std.mem.copyForwards(PieceKind, self.next_pieces, self.next_pieces[1..]);
+    for (0..self.next_pieces.len - 1) |i| {
+        self.next_pieces[i] = self.next_pieces[i + 1];
+    }
     self.next_pieces[self.next_pieces.len - 1] = self.bag.next();
 }
 
@@ -197,22 +200,22 @@ pub fn lockCurrent(self: *Self, rotated_last: bool) ClearInfo {
     const cleared = self.clearLines();
 
     const is_clear = cleared > 0;
-    const is_hard_clear = (cleared == 4 or t_spin != .None) and is_clear;
+    const is_hard_clear = (cleared == 4 or t_spin == .Full) and is_clear;
 
     if (is_hard_clear) {
-        self.b2b += 1;
+        self.b2b +%= 1;
     } else if (is_clear and t_spin == .None) {
-        self.b2b = 0;
+        self.b2b = U32_NULL;
     }
 
     if (is_clear) {
-        self.combo += 1;
+        self.combo +%= 1;
     } else {
-        self.combo = 0;
+        self.combo = U32_NULL;
     }
 
     return ClearInfo{
-        .b2b = is_hard_clear and self.b2b > 1,
+        .b2b = is_hard_clear and self.b2b > 0,
         .cleared = cleared,
         // If bottom row is empty, every row above must also be empty.
         .pc = is_clear and self.playfield.rows[0] == BoardMask.EMPTY_ROW,
@@ -220,15 +223,14 @@ pub fn lockCurrent(self: *Self, rotated_last: bool) ClearInfo {
     };
 }
 
-// TODO: Only clear lines where the current piece was placed.
 /// Clears all filled lines in the playfield.
 /// Returns the number of lines cleared.
 fn clearLines(self: *Self) u3 {
     var cleared: u3 = 0;
-    var i: u8 = 0;
+    var i: usize = @max(0, self.pos.y);
     while (i + cleared < self.playfield.rows.len) {
         self.playfield.rows[i] = self.playfield.rows[i + cleared];
-        if (self.playfield.rows[i + cleared] == BoardMask.FULL_ROW) {
+        if (self.playfield.rows[i] == BoardMask.FULL_ROW) {
             cleared += 1;
         } else {
             i += 1;
@@ -340,7 +342,11 @@ pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptio
     _ = fmt;
     _ = options;
 
-    _ = try writer.write("╔══HOLD══╗ ╔════════════════════╗ ╔══NEXT══╗\n");
+    if (self.next_pieces.len == 0) {
+        _ = try writer.write("╔══HOLD══╗ ╔════════════════════╗\n");
+    } else {
+        _ = try writer.write("╔══HOLD══╗ ╔════════════════════╗ ╔══NEXT══╗\n");
+    }
     for (0..20) |i| {
         try self.drawHoldRow(writer, i);
         try self.drawPlayfieldRow(writer, i);
