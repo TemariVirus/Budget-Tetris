@@ -19,7 +19,7 @@ const View = nterm.View;
 // 8 is also a factor of 16, which is good for timing 60hz.
 const WIN_TIMER_PERIOD = 8;
 const FRAMERATE = 60;
-const FPS_TIMING_WINDOW = 31;
+const FPS_TIMING_WINDOW = 60;
 
 const MMRESULT = enum(windows.UINT) {
     TIMERR_NOERROR = 0,
@@ -90,23 +90,20 @@ const PeriodicTrigger = struct {
         };
     }
 
-    /// Provides no guarantees about whether it will trigger before or after the
-    /// period has elapsed.
-    pub fn trigger(self: *PeriodicTrigger) ?u64 {
+    pub fn trigger(self: *PeriodicTrigger) bool {
         const now = time.nanoTimestamp();
         const elapsed = now - self.last;
-        // Sleeping tends to cause delayed triggers, compensate by triggering a
-        // millisecond early.
-        if (elapsed + time.ns_per_ms < self.period) {
-            return null;
+        if (elapsed < self.period) {
+            return false;
         }
 
-        self.last = now;
-        return @as(u64, @intCast(elapsed));
+        self.last += self.period;
+        return true;
     }
 };
 
 pub fn main() !void {
+    // TODO: Explore performance of other allocators
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
@@ -142,27 +139,33 @@ pub fn main() !void {
     );
     try setupPlayerInput(&player_game);
 
-    const fps_view = View.init(1, 0, 10, 1);
+    const start = time.nanoTimestamp();
+    const fps_view = View.init(1, 0, 15, 1);
     var frame_times = try RingQueue(u64).init(allocator, FPS_TIMING_WINDOW);
     try frame_times.enqueue(0);
     defer frame_times.deinit(allocator);
 
     var timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
     while (true) {
-        if (timer.trigger()) |elasped| {
-            const prev_time = frame_times.peekIndex(frame_times.len() - 1) orelse unreachable;
-            const new_time = prev_time +% elasped;
+        if (timer.trigger()) {
+            const old_time = frame_times.peekIndex(0).?;
+            const new_time: u64 = @intCast(time.nanoTimestamp() - start);
+            const fps = @as(f32, @floatFromInt(frame_times.len())) / @as(f32, @floatFromInt(new_time - old_time)) * time.ns_per_s;
+            if (frame_times.isFull()) {
+                _ = frame_times.dequeue() orelse unreachable;
+            }
             try frame_times.enqueue(new_time);
-            const fps: f32 = if (frame_times.isFull()) blk: {
-                const old_time = frame_times.dequeue() orelse unreachable;
-                break :blk @as(f32, @floatFromInt(frame_times.len())) / @as(f32, @floatFromInt(new_time -% old_time)) * time.ns_per_s;
-            } else @as(f32, @floatFromInt((frame_times.len() - 1))) / @as(f32, @floatFromInt(new_time)) * time.ns_per_s;
-            try fps_view.printAligned(.Center, 0, .White, .Black, "{d:.2}FPS", .{fps});
+            try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{fps});
 
             input.tick();
             player_game.tick();
             try player_game.draw();
-            try nterm.render();
+            nterm.render() catch |err| {
+                if (err == error.NotInitialized) {
+                    return;
+                }
+                return err;
+            };
         } else {
             time.sleep(1 * time.ns_per_ms);
         }

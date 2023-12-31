@@ -474,7 +474,7 @@ fn drawPiece(view: View, x: i8, y: i8, piece: Piece, solid: bool) void {
             }
 
             if (solid) {
-                view.writeText(@intCast(x2), @intCast(y2), color, color, "  ");
+                view.writeText(@intCast(x2), @intCast(y2), .Black, color, "  ");
             } else {
                 view.writeText(@intCast(x2), @intCast(y2), color, empty_color, "▒▒");
             }
@@ -585,7 +585,7 @@ fn drawMatrix(self: Self) void {
     for (0..20) |y| {
         for (0..10) |x| {
             const color = self.playfield_colors[y][x];
-            matrix_box_inner.writeText(@intCast(x * 2), @intCast(19 - y), color, color, "  ");
+            matrix_box_inner.writeText(@intCast(x * 2), @intCast(19 - y), .Black, color, "  ");
         }
     }
 
