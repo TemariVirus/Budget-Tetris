@@ -1,10 +1,12 @@
 // TODO: Add sound
-// TODO: Store last clear type and time and print it
-// TODO: Store stats and make configurable display
+// TODO: Handle lose condition and animation
+// TODO: Store incoming garbage
 const std = @import("std");
 const root = @import("root.zig");
 const nterm = @import("nterm");
+const milliTimestamp = std.time.milliTimestamp;
 
+const AttackTable = root.attack.AttackTable;
 const ClearInfo = root.attack.ClearInfo;
 const GameState = root.GameState;
 const PieceKind = root.pieces.PieceKind;
@@ -12,8 +14,6 @@ const Piece = root.pieces.Piece;
 
 const Color = nterm.Color;
 const View = nterm.View;
-
-const milliTimestamp = std.time.milliTimestamp;
 
 const Self = @This();
 
@@ -32,9 +32,10 @@ const CLEAR_ERASE_DELAY = 1000;
 
 name: []const u8,
 state: GameState,
-playfield_colors: [40][10]Color,
+attack_table: AttackTable,
 last_clear_info: ClearInfo,
 last_clear_time: i64,
+playfield_colors: [40][10]Color,
 view: View,
 
 already_held: bool,
@@ -45,22 +46,55 @@ last_tick_time: i64,
 softdropping: bool,
 vel: f32,
 
+display_stats: []const Stat,
 start_time: i64,
 cleared: u64,
 garbage_cleared: u64,
 placed: u64,
 lines_sent: u64,
+lines_received: u64,
 score: u64,
 keys_pressed: u64,
 last_keys_pressed: u64,
 finesse: u64,
 
-pub fn init(name: []const u8, state: GameState, view: View) Self {
+pub const Stat = enum {
+    /// Attack Per Line.
+    APL,
+    /// Attack Per Minute.
+    APM,
+    /// Attack Per Piece.
+    APP,
+    /// Finesse.
+    Finesse,
+    /// Keys Pressed.
+    Keys,
+    /// Keys Per Piece.
+    KPP,
+    /// Level. Calculated as `(Lines / 10) + 1`.
+    Level,
+    /// Lines cleared.
+    Lines,
+    /// Pieces Per Second.
+    PPS,
+    /// Lines of garbage received.
+    Received,
+    /// Score.
+    Score,
+    /// Lines of garbage sent; Attack.
+    Sent,
+    /// Time elaspsed since start.
+    Time,
+    /// VS Score. Calculated as `100 * (Attack + Garbage cleared) / Seconds`.
+    VsScore,
+};
+
+pub fn init(name: []const u8, state: GameState, attack_table: AttackTable, view: View, display_stats: []const Stat) Self {
     const now = milliTimestamp();
     return Self{
         .name = name,
         .state = state,
-        .playfield_colors = [_][10]Color{[_]Color{empty_color} ** 10} ** 40,
+        .attack_table = attack_table,
         .last_clear_info = .{
             .b2b = false,
             .cleared = 0,
@@ -68,6 +102,7 @@ pub fn init(name: []const u8, state: GameState, view: View) Self {
             .t_spin = .None,
         },
         .last_clear_time = now,
+        .playfield_colors = [_][10]Color{[_]Color{empty_color} ** 10} ** 40,
         .view = view,
 
         .already_held = false,
@@ -78,11 +113,13 @@ pub fn init(name: []const u8, state: GameState, view: View) Self {
         .softdropping = false,
         .vel = 0.0,
 
+        .display_stats = display_stats,
         .start_time = now,
         .cleared = 0,
         .garbage_cleared = 0,
         .placed = 0,
         .lines_sent = 0,
+        .lines_received = 0,
         .score = 0,
         .keys_pressed = 0,
         .last_keys_pressed = 0,
@@ -177,7 +214,6 @@ pub fn rotateCcw(self: *Self) void {
     }
 }
 
-// TODO: Make drop speed configurable
 pub fn softDrop(self: *Self) void {
     if (self.softdropping) {
         return;
@@ -202,7 +238,8 @@ fn place(self: *Self) void {
     self.updateStats(clear_info[0], clear_info[1], clear_info[2]);
     self.clearLines();
 
-    if (clear_info[0].cleared > 0) {
+    // Only overwrite the last clear info if there's something interesting to display
+    if (clear_info[0].cleared > 0 or clear_info[0].pc or clear_info[0].t_spin != .None) {
         self.last_clear_info = clear_info[0];
         self.last_clear_time = milliTimestamp();
     }
@@ -255,8 +292,7 @@ fn lockCurrent(self: *Self) struct { ClearInfo, u64, u64 } {
     if (self.state.canonicalcombo()) |combo| {
         clear_score += 50 * combo;
     }
-    // TODO: Calculate attack
-    const attack = 0;
+    const attack = self.attack_table.getAttack(info, self.state.canonicalB2B(), self.state.canonicalcombo());
 
     return .{
         info,
@@ -366,24 +402,18 @@ pub fn apl(self: Self) f32 {
     return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.cleared));
 }
 
-/// Returns the current Attack Per Piece (APP)
-pub fn app(self: Self) f32 {
-    if (self.lines_sent == 0) {
-        return 0.0;
-    }
-    return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.placed));
-}
-
 /// Returns the current Attack Per Minute (APM)
 pub fn apm(self: Self) f32 {
     const elasped = milliTimestamp() - self.start_time;
     return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(elasped)) * std.time.ms_per_min;
 }
 
-/// Returns the current Pieces Per Second (PPS)
-pub fn pps(self: Self) f32 {
-    const elasped = milliTimestamp() - self.start_time;
-    return @as(f32, @floatFromInt(self.placed)) / @as(f32, @floatFromInt(elasped)) * std.time.ms_per_s;
+/// Returns the current Attack Per Piece (APP)
+pub fn app(self: Self) f32 {
+    if (self.lines_sent == 0) {
+        return 0.0;
+    }
+    return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.placed));
 }
 
 /// Returns the current Keys Per Piece (KPP)
@@ -394,20 +424,34 @@ pub fn kpp(self: Self) f32 {
     return @as(f32, @floatFromInt(self.last_keys_pressed)) / @as(f32, @floatFromInt(self.placed));
 }
 
+/// Returns the current Pieces Per Second (PPS)
+pub fn pps(self: Self) f32 {
+    const elasped = milliTimestamp() - self.start_time;
+    return @as(f32, @floatFromInt(self.placed)) / @as(f32, @floatFromInt(elasped)) * std.time.ms_per_s;
+}
+
+/// Returns the number of nanoseconds elasped since start
+pub fn time(self: Self) u64 {
+    return @as(u64, @intCast(milliTimestamp() - self.start_time)) * std.time.ns_per_ms;
+}
+
 /// Returns the current VS Score
 pub fn vsScore(self: Self) f32 {
     const elasped = milliTimestamp() - self.start_time;
     return 100.0 * @as(f32, @floatFromInt(self.lines_sent + self.garbage_cleared)) / @as(f32, @floatFromInt(elasped)) * std.time.ms_per_s;
 }
 
-pub fn drawToScreen(self: Self) !void {
+/// Draws the game elements to the game's allocated view.
+pub fn draw(self: Self) !void {
     try self.drawNameLines();
     self.drawHold();
     try self.drawScoreLevel();
     try self.drawClearInfo();
     self.drawMatrix();
     self.drawNext();
-    // TODO: Draw stats
+    for (self.display_stats, 0..) |stat, i| {
+        try self.drawStat(stat, @intCast(i));
+    }
 }
 
 fn drawNameLines(self: Self) !void {
@@ -497,7 +541,7 @@ fn drawClearInfo(self: Self) !void {
         else => {},
     }
     if (self.state.canonicalcombo()) |combo| {
-        if (self.last_clear_info.cleared > 0 and combo > 0) {
+        if (combo > 0) {
             try clear_info_box.printAligned(.Center, 3, .White, .Black, "{d} COMBO!", .{combo});
         }
     }
@@ -573,5 +617,31 @@ fn drawNext(self: Self) void {
         };
         const y: i8 = if (piece.kind == .I) 4 else 3;
         drawPiece(next_box, 1, y + @as(i8, @intCast(i * 3)), piece, true);
+    }
+}
+
+fn drawStat(self: Self, stat: Stat, slot: u16) !void {
+    const top = 21 + slot;
+    // Don't draw if stat slot is outside of view
+    if (top >= self.view.height) {
+        return;
+    }
+
+    const view = self.view.sub(0, top, 10, 1);
+    switch (stat) {
+        .APL => try view.printAt(0, 0, .White, .Black, "APL: {d:.3}", .{self.apl()}),
+        .APM => try view.printAt(0, 0, .White, .Black, "APM: {d:.3}", .{self.apm()}),
+        .APP => try view.printAt(0, 0, .White, .Black, "APP: {d:.3}", .{self.app()}),
+        .Finesse => try view.printAt(0, 0, .White, .Black, "FIN: {d}", .{self.finesse}),
+        .Keys => try view.printAt(0, 0, .White, .Black, "KEYS: {d}", .{self.keys_pressed}),
+        .KPP => try view.printAt(0, 0, .White, .Black, "KPP: {d:.3}", .{self.kpp()}),
+        .Level => try view.printAt(0, 0, .White, .Black, "LEVEL: {d}", .{self.level()}),
+        .Lines => try view.printAt(0, 0, .White, .Black, "LINES: {d}", .{self.cleared}),
+        .PPS => try view.printAt(0, 0, .White, .Black, "PPS: {d:.3}", .{self.pps()}),
+        .Received => try view.printAt(0, 0, .White, .Black, "REC: {d}", .{self.lines_received}),
+        .Score => try view.printAt(0, 0, .White, .Black, "SCORE: {d}", .{self.score}),
+        .Sent => try view.printAt(0, 0, .White, .Black, "SENT: {d}", .{self.lines_sent}),
+        .Time => try view.printAt(0, 0, .White, .Black, "TIME: {}", .{std.fmt.fmtDuration(self.time())}),
+        .VsScore => try view.printAt(0, 0, .White, .Black, "VS: {d:.4}", .{self.vsScore()}),
     }
 }

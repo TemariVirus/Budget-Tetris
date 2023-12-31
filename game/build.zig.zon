@@ -2,13 +2,16 @@
     .name = "budget-tetris",
     .version = "0.0.0",
     .dependencies = .{
-        .engine = .{
-            .path = "../engine",
-        },
         .nterm = .{
             .url = "https://github.com/Zemogus/nterm/archive/01cbaeb7605e7673df21dcdbe73ee63730fd35bd.tar.gz",
             .hash = "1220170e8318182433c51e3b5dcd5a6184af6c87820a8a32c13afbdb57097d21f173",
         },
     },
-    .paths = .{""},
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        //"LICENSE",
+        //"README.md",
+    },
 }

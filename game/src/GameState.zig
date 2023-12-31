@@ -2,6 +2,7 @@
 //! pieces and clearing lines, but not for handling game overs (i.e., block out
 //! or top out).
 
+// TODO: Receive incoming garbage
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
@@ -28,10 +29,10 @@ const KickFn = fn (Piece, Rotation) []const Position;
 
 const U32_NULL = std.math.maxInt(u32);
 
-playfield: BoardMask = BoardMask{},
+playfield: BoardMask,
 pos: Position,
 current: Piece,
-hold_kind: ?PieceKind = null,
+hold_kind: ?PieceKind,
 // We could use a ring buffer for next, but advancing the next pieces shouldn't
 // occur very often, so faster access is probably better.
 next_pieces: []PieceKind,
@@ -44,8 +45,10 @@ combo: u32,
 
 pub fn init(allocator: Allocator, next_len: usize, bag: Bag, kicksFn: *const KickFn) !Self {
     var game = Self{
+        .playfield = BoardMask{},
         .pos = undefined,
         .current = undefined,
+        .hold_kind = null,
         .next_pieces = try allocator.alloc(PieceKind, next_len),
         .bag = bag,
         .kicksFn = kicksFn,

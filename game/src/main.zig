@@ -2,14 +2,15 @@ const std = @import("std");
 const time = std.time;
 const windows = std.os.windows;
 
-const engine = @import("engine");
-const bags = engine.bags;
-const kicks = engine.kicks;
+const root = @import("root.zig");
+const bags = root.bags;
+const kicks = root.kicks;
 const input = nterm.input;
 const nterm = @import("nterm");
 
-const Game = engine.Game;
-const GameState = engine.GameState;
+const Game = root.Game;
+const GameState = root.GameState;
+const RingQueue = @import("ring_queue.zig").RingQueue;
 const View = nterm.View;
 
 // TODO: check that view is updated when current frame updates
@@ -18,6 +19,7 @@ const View = nterm.View;
 // 8 is also a factor of 16, which is good for timing 60hz.
 const WIN_TIMER_PERIOD = 8;
 const FRAMERATE = 60;
+const FPS_TIMING_WINDOW = 31;
 
 const MMRESULT = enum(windows.UINT) {
     TIMERR_NOERROR = 0,
@@ -125,15 +127,41 @@ pub fn main() !void {
     defer player.deinit(allocator);
 
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
-    var player_game = Game.init("You", player, player_view);
+    var player_game = Game.init(
+        "You",
+        player,
+        .{
+            .b2b = &.{ 0, 1 },
+            .clears = .{ 0, 0, 1, 2, 4 },
+            .combo = &.{ 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 },
+            .perfect_clear = .{ 10, 10, 10, 10 },
+            .t_spin = .{ 0, 2, 4, 6 },
+        },
+        player_view,
+        &.{ .PPS, .APP, .VsScore },
+    );
     try setupPlayerInput(&player_game);
+
+    const fps_view = View.init(1, 0, 10, 1);
+    var frame_times = try RingQueue(u64).init(allocator, FPS_TIMING_WINDOW);
+    try frame_times.enqueue(0);
+    defer frame_times.deinit(allocator);
 
     var timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
     while (true) {
-        if (timer.trigger()) |_| {
+        if (timer.trigger()) |elasped| {
+            const prev_time = frame_times.peekIndex(frame_times.len() - 1) orelse unreachable;
+            const new_time = prev_time +% elasped;
+            try frame_times.enqueue(new_time);
+            const fps: f32 = if (frame_times.isFull()) blk: {
+                const old_time = frame_times.dequeue() orelse unreachable;
+                break :blk @as(f32, @floatFromInt(frame_times.len())) / @as(f32, @floatFromInt(new_time -% old_time)) * time.ns_per_s;
+            } else @as(f32, @floatFromInt((frame_times.len() - 1))) / @as(f32, @floatFromInt(new_time)) * time.ns_per_s;
+            try fps_view.printAligned(.Center, 0, .White, .Black, "{d:.2}FPS", .{fps});
+
             input.tick();
             player_game.tick();
-            try player_game.drawToScreen();
+            try player_game.draw();
             try nterm.render();
         } else {
             time.sleep(1 * time.ns_per_ms);
