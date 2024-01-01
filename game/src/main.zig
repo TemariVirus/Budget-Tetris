@@ -73,7 +73,7 @@ const MoveFuncs = struct {
     }
 
     fn softDropStart() void {
-        game.keys_pressed += 1;
+        game.current_piece_keys += 1;
         if (!game.state.onGround()) {
             game.move_count += 1;
         }
@@ -121,20 +121,12 @@ pub fn main() !void {
 
     var b = bags.SevenBag.init();
     const bag = b.bag();
-    var player = try GameState.init(allocator, 6, bag, kicks.srsPlus);
-    defer player.deinit(allocator);
-
+    const player = try GameState.init(bag, kicks.srsPlus);
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
-    var player_game = Game.init(
+    var player_game = try Game.init(
         "You",
         player,
-        .{
-            .b2b = &.{ 0, 1 },
-            .clears = .{ 0, 0, 1, 2, 4 },
-            .combo = &.{ 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 },
-            .perfect_clear = .{ 10, 10, 10, 10 },
-            .t_spin = .{ 0, 2, 4, 6 },
-        },
+        6,
         player_view,
         &.{ .PPS, .APP, .VsScore },
     );

@@ -4,10 +4,11 @@
 const std = @import("std");
 const root = @import("root.zig");
 const nterm = @import("nterm");
-const milliTimestamp = std.time.milliTimestamp;
+const assert = std.debug.assert;
 
 const AttackTable = root.attack.AttackTable;
 const ClearInfo = root.attack.ClearInfo;
+const ColorArray = @import("ColorArray.zig");
 const GameState = root.GameState;
 const PieceKind = root.pieces.PieceKind;
 const Piece = root.pieces.Piece;
@@ -20,43 +21,47 @@ const Self = @This();
 pub const DISPLAY_W = 44;
 pub const DISPLAY_H = 24;
 
-const empty_color = Color.Black;
-const garbage_color = Color.BrightBlack;
-
 // TODO: Extract settings to config
 const AUTOLOCK_GRACE = 15;
 const G = 0.025 * 60; // Multiply by framerate before passing to Game
 const SOFT_G = 40.0;
 const LOCK_DELAY = 500;
 const CLEAR_ERASE_DELAY = 1000;
+const DEFAULT_ATTACK_TABLE = AttackTable{
+    .b2b = &.{ 0, 1 },
+    .clears = .{ 0, 0, 1, 2, 4 },
+    .combo = &.{ 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 },
+    .perfect_clear = .{ 10, 10, 10, 10 },
+    .t_spin = .{ 0, 2, 4, 6 },
+};
 
 name: []const u8,
 state: GameState,
-attack_table: AttackTable,
 last_clear_info: ClearInfo,
-last_clear_time: i64,
-playfield_colors: [40][10]Color,
+last_clear_millis: u32,
+playfield_colors: ColorArray,
+show_next_count: u3,
 view: View,
 
 already_held: bool,
 just_rotated: bool,
 move_count: u8,
-last_move_time: i64,
-last_tick_time: i64,
+last_move_millis: u32,
+last_tick_millis: u32,
 softdropping: bool,
 vel: f32,
 
 display_stats: []const Stat,
 start_time: i64,
-cleared: u64,
-garbage_cleared: u64,
-placed: u64,
-lines_sent: u64,
-lines_received: u64,
+lines_cleared: u32,
+garbage_cleared: u32,
+pieces_placed: u32,
+lines_sent: u32,
+lines_received: u32,
 score: u64,
-keys_pressed: u64,
-last_keys_pressed: u64,
-finesse: u64,
+current_piece_keys: u16,
+keys_pressed: u32,
+finesse: u32,
 
 pub const Stat = enum {
     /// Attack Per Line.
@@ -89,46 +94,51 @@ pub const Stat = enum {
     VsScore,
 };
 
-pub fn init(name: []const u8, state: GameState, attack_table: AttackTable, view: View, display_stats: []const Stat) Self {
-    const now = milliTimestamp();
+pub fn init(name: []const u8, state: GameState, show_next_count: u3, view: View, display_stats: []const Stat) !Self {
+    const now = std.time.milliTimestamp();
     return Self{
         .name = name,
         .state = state,
-        .attack_table = attack_table,
         .last_clear_info = .{
             .b2b = false,
             .cleared = 0,
             .pc = false,
             .t_spin = .None,
         },
-        .last_clear_time = now,
-        .playfield_colors = [_][10]Color{[_]Color{empty_color} ** 10} ** 40,
+        .last_clear_millis = 0,
+        .playfield_colors = ColorArray.init(),
+        .show_next_count = show_next_count,
         .view = view,
 
         .already_held = false,
         .just_rotated = false,
         .move_count = 0,
-        .last_move_time = now,
-        .last_tick_time = now,
+        .last_move_millis = 0,
+        .last_tick_millis = 0,
         .softdropping = false,
         .vel = 0.0,
 
         .display_stats = display_stats,
         .start_time = now,
-        .cleared = 0,
+        .lines_cleared = 0,
         .garbage_cleared = 0,
-        .placed = 0,
+        .pieces_placed = 0,
         .lines_sent = 0,
         .lines_received = 0,
         .score = 0,
+        .current_piece_keys = 0,
         .keys_pressed = 0,
-        .last_keys_pressed = 0,
         .finesse = 0,
     };
 }
 
+/// Returns the number of milliseconds elasped since start
+pub fn time(self: Self) u32 {
+    return @intCast(std.time.milliTimestamp() - self.start_time);
+}
+
 pub fn moveLeft(self: *Self) void {
-    self.keys_pressed += 1;
+    self.current_piece_keys += 1;
     if (self.state.slide(-1) == 0) {
         return;
     }
@@ -136,7 +146,7 @@ pub fn moveLeft(self: *Self) void {
     self.just_rotated = false;
     if (self.move_count < AUTOLOCK_GRACE) {
         self.move_count += 1;
-        self.last_move_time = milliTimestamp();
+        self.last_move_millis = self.time();
     }
 }
 
@@ -147,12 +157,12 @@ pub fn moveLeftAll(self: *Self) void {
 
     self.just_rotated = false;
     if (self.move_count < AUTOLOCK_GRACE) {
-        self.last_move_time = milliTimestamp();
+        self.last_move_millis = self.time();
     }
 }
 
 pub fn moveRight(self: *Self) void {
-    self.keys_pressed += 1;
+    self.current_piece_keys += 1;
     if (self.state.slide(1) == 0) {
         return;
     }
@@ -160,7 +170,7 @@ pub fn moveRight(self: *Self) void {
     self.just_rotated = false;
     if (self.move_count < AUTOLOCK_GRACE) {
         self.move_count += 1;
-        self.last_move_time = milliTimestamp();
+        self.last_move_millis = self.time();
     }
 }
 
@@ -171,12 +181,12 @@ pub fn moveRightAll(self: *Self) void {
 
     self.just_rotated = false;
     if (self.move_count < AUTOLOCK_GRACE) {
-        self.last_move_time = milliTimestamp();
+        self.last_move_millis = self.time();
     }
 }
 
 pub fn rotateCw(self: *Self) void {
-    self.keys_pressed += 1;
+    self.current_piece_keys += 1;
     if (!self.state.rotate(.Cw)) {
         return;
     }
@@ -184,12 +194,12 @@ pub fn rotateCw(self: *Self) void {
     self.just_rotated = true;
     if (self.move_count < AUTOLOCK_GRACE) {
         self.move_count += 1;
-        self.last_move_time = milliTimestamp();
+        self.last_move_millis = self.time();
     }
 }
 
 pub fn rotateDouble(self: *Self) void {
-    self.keys_pressed += 1;
+    self.current_piece_keys += 1;
     if (!self.state.rotate(.Double)) {
         return;
     }
@@ -197,12 +207,12 @@ pub fn rotateDouble(self: *Self) void {
     self.just_rotated = true;
     if (self.move_count < AUTOLOCK_GRACE) {
         self.move_count += 1;
-        self.last_move_time = milliTimestamp();
+        self.last_move_millis = self.time();
     }
 }
 
 pub fn rotateCcw(self: *Self) void {
-    self.keys_pressed += 1;
+    self.current_piece_keys += 1;
     if (!self.state.rotate(.CCw)) {
         return;
     }
@@ -210,7 +220,7 @@ pub fn rotateCcw(self: *Self) void {
     self.just_rotated = true;
     if (self.move_count < AUTOLOCK_GRACE) {
         self.move_count += 1;
-        self.last_move_time = milliTimestamp();
+        self.last_move_millis = self.time();
     }
 }
 
@@ -241,19 +251,19 @@ fn place(self: *Self) void {
     // Only overwrite the last clear info if there's something interesting to display
     if (clear_info[0].cleared > 0 or clear_info[0].pc or clear_info[0].t_spin != .None) {
         self.last_clear_info = clear_info[0];
-        self.last_clear_time = milliTimestamp();
+        self.last_clear_millis = self.time();
     }
 
     self.state.nextPiece();
     self.already_held = false;
     self.just_rotated = false;
     self.move_count = 0;
-    self.last_move_time = milliTimestamp();
+    self.last_move_millis = self.time();
     self.softdropping = false;
     self.vel = 0.0;
 }
 
-fn lockCurrent(self: *Self) struct { ClearInfo, u64, u64 } {
+fn lockCurrent(self: *Self) struct { ClearInfo, u64, u16 } {
     // Place piece in playfield colors
     const start: u8 = @max(0, self.state.pos.y);
     for (start..@intCast(self.state.pos.y + 4)) |y| {
@@ -265,7 +275,7 @@ fn lockCurrent(self: *Self) struct { ClearInfo, u64, u64 } {
 
         for (0..10) |x| {
             if ((row >> @intCast(10 - x)) & 1 == 1) {
-                self.playfield_colors[y][x] = self.state.current.kind.color();
+                self.playfield_colors.set(x, y, self.state.current.kind.color());
             }
         }
     }
@@ -292,7 +302,7 @@ fn lockCurrent(self: *Self) struct { ClearInfo, u64, u64 } {
     if (self.state.canonicalcombo()) |combo| {
         clear_score += 50 * combo;
     }
-    const attack = self.attack_table.getAttack(info, self.state.canonicalB2B(), self.state.canonicalcombo());
+    const attack = DEFAULT_ATTACK_TABLE.getAttack(info, self.state.canonicalB2B(), self.state.canonicalcombo());
 
     return .{
         info,
@@ -301,54 +311,39 @@ fn lockCurrent(self: *Self) struct { ClearInfo, u64, u64 } {
     };
 }
 
-fn updateStats(self: *Self, info: ClearInfo, score: u64, attack: u64) void {
+fn updateStats(self: *Self, info: ClearInfo, score: u64, attack: u16) void {
     self.score += score * self.level();
-    self.cleared += info.cleared;
-    self.placed += 1;
+    self.lines_cleared += info.cleared;
+    self.pieces_placed += 1;
     self.lines_sent += attack;
 
     // TODO: Calculate finesse
-    const keys_pressed = self.keys_pressed - self.last_keys_pressed;
-    _ = keys_pressed; // autofix
-    self.last_keys_pressed = self.keys_pressed;
+    self.keys_pressed += self.current_piece_keys;
+    self.current_piece_keys = 0;
 }
 
 fn clearLines(self: *Self) void {
     var clears: usize = 0;
     var i: usize = @max(0, self.state.pos.y);
-    while (i + clears < self.playfield_colors.len) {
-        self.playfield_colors[i] = self.playfield_colors[i + clears];
-        if (!isRowFull(self.playfield_colors[i])) {
+    while (i + clears < ColorArray.height) {
+        self.playfield_colors.copyRow(i, i + clears);
+        if (!self.playfield_colors.isRowFull(i)) {
             i += 1;
             continue;
         }
 
         clears += 1;
-        const is_garbage = for (self.playfield_colors[i]) |cell| {
-            if (cell == garbage_color) {
-                break true;
-            }
-        } else false;
-        if (is_garbage) {
+        if (self.playfield_colors.isRowGarbage(i)) {
             self.garbage_cleared += 1;
         }
     }
-    while (i < self.playfield_colors.len) : (i += 1) {
-        self.playfield_colors[i] = [_]Color{empty_color} ** 10;
+    while (i < ColorArray.height) : (i += 1) {
+        self.playfield_colors.emptyRow(i);
     }
-}
-
-fn isRowFull(row: [10]Color) bool {
-    for (row) |cell| {
-        if (cell == empty_color) {
-            return false;
-        }
-    }
-    return true;
 }
 
 pub fn hold(self: *Self) void {
-    self.keys_pressed += 1;
+    self.current_piece_keys += 1;
     if (self.already_held) {
         return;
     }
@@ -357,19 +352,19 @@ pub fn hold(self: *Self) void {
     self.already_held = true;
     self.just_rotated = false;
     self.move_count = 0;
-    self.last_move_time = milliTimestamp();
+    self.last_move_millis = self.time();
 }
 
 pub fn tick(self: *Self) void {
-    const now = milliTimestamp();
-    const dt = @as(f32, @floatFromInt(now - self.last_tick_time)) / 1000.0;
+    const now = self.time();
+    const dt = @as(f32, @floatFromInt(now - self.last_tick_millis)) / 1000.0;
     self.vel += G * dt;
 
     // Handle autolocking
     if (self.state.onGround()) {
         self.vel = 0.0;
 
-        if (self.move_count > AUTOLOCK_GRACE or now - self.last_move_time > LOCK_DELAY) {
+        if (self.move_count > AUTOLOCK_GRACE or now - self.last_move_millis > LOCK_DELAY) {
             self.place();
         }
     }
@@ -382,16 +377,16 @@ pub fn tick(self: *Self) void {
     }
     if (dropped > 0) {
         self.just_rotated = false;
-        self.last_move_time = now;
+        self.last_move_millis = now;
     }
 
-    self.last_tick_time = now;
+    self.last_tick_millis = now;
     self.softdropping = false;
 }
 
 /// Returns the current level
 pub fn level(self: Self) u64 {
-    return (self.cleared / 10) + 1;
+    return (self.lines_cleared / 10) + 1;
 }
 
 /// Returns the current Attack Per Line (APL)
@@ -399,13 +394,12 @@ pub fn apl(self: Self) f32 {
     if (self.lines_sent == 0) {
         return 0.0;
     }
-    return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.cleared));
+    return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.lines_cleared));
 }
 
 /// Returns the current Attack Per Minute (APM)
 pub fn apm(self: Self) f32 {
-    const elasped = milliTimestamp() - self.start_time;
-    return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(elasped)) * std.time.ms_per_min;
+    return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.time())) * std.time.ms_per_min;
 }
 
 /// Returns the current Attack Per Piece (APP)
@@ -413,32 +407,25 @@ pub fn app(self: Self) f32 {
     if (self.lines_sent == 0) {
         return 0.0;
     }
-    return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.placed));
+    return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.pieces_placed));
 }
 
 /// Returns the current Keys Per Piece (KPP)
 pub fn kpp(self: Self) f32 {
-    if (self.placed == 0) {
+    if (self.pieces_placed == 0) {
         return 0.0;
     }
-    return @as(f32, @floatFromInt(self.last_keys_pressed)) / @as(f32, @floatFromInt(self.placed));
+    return @as(f32, @floatFromInt(self.keys_pressed)) / @as(f32, @floatFromInt(self.pieces_placed));
 }
 
 /// Returns the current Pieces Per Second (PPS)
 pub fn pps(self: Self) f32 {
-    const elasped = milliTimestamp() - self.start_time;
-    return @as(f32, @floatFromInt(self.placed)) / @as(f32, @floatFromInt(elasped)) * std.time.ms_per_s;
-}
-
-/// Returns the number of nanoseconds elasped since start
-pub fn time(self: Self) u64 {
-    return @as(u64, @intCast(milliTimestamp() - self.start_time)) * std.time.ns_per_ms;
+    return @as(f32, @floatFromInt(self.pieces_placed)) / @as(f32, @floatFromInt(self.time())) * std.time.ms_per_s;
 }
 
 /// Returns the current VS Score
 pub fn vsScore(self: Self) f32 {
-    const elasped = milliTimestamp() - self.start_time;
-    return 100.0 * @as(f32, @floatFromInt(self.lines_sent + self.garbage_cleared)) / @as(f32, @floatFromInt(elasped)) * std.time.ms_per_s;
+    return 100.0 * @as(f32, @floatFromInt(self.lines_sent + self.garbage_cleared)) / @as(f32, @floatFromInt(self.time())) * std.time.ms_per_s;
 }
 
 /// Draws the game elements to the game's allocated view.
@@ -456,7 +443,7 @@ pub fn draw(self: Self) !void {
 
 fn drawNameLines(self: Self) !void {
     try self.view.printAligned(.Center, 0, .White, .Black, "{s}", .{self.name});
-    try self.view.printAligned(.Center, 1, .White, .Black, "LINES - {d}", .{self.cleared});
+    try self.view.printAligned(.Center, 1, .White, .Black, "LINES - {d}", .{self.lines_cleared});
 }
 
 fn drawPiece(view: View, x: i8, y: i8, piece: Piece, solid: bool) void {
@@ -476,7 +463,7 @@ fn drawPiece(view: View, x: i8, y: i8, piece: Piece, solid: bool) void {
             if (solid) {
                 view.writeText(@intCast(x2), @intCast(y2), .Black, color, "  ");
             } else {
-                view.writeText(@intCast(x2), @intCast(y2), color, empty_color, "▒▒");
+                view.writeText(@intCast(x2), @intCast(y2), color, .Black, "▒▒");
             }
         }
     }
@@ -520,7 +507,7 @@ fn drawClearInfo(self: Self) !void {
     const TOP = 15;
     const WIDTH = 10;
     const HEIGHT = 5;
-    if (milliTimestamp() - self.last_clear_time >= CLEAR_ERASE_DELAY) {
+    if (self.time() - self.last_clear_millis >= CLEAR_ERASE_DELAY) {
         return;
     }
 
@@ -584,7 +571,7 @@ fn drawMatrix(self: Self) void {
     matrix_box.drawBox(0, 0, WIDTH, HEIGHT);
     for (0..20) |y| {
         for (0..10) |x| {
-            const color = self.playfield_colors[y][x];
+            const color = self.playfield_colors.get(x, y);
             matrix_box_inner.writeText(@intCast(x * 2), @intCast(19 - y), .Black, color, "  ");
         }
     }
@@ -600,17 +587,20 @@ fn drawMatrix(self: Self) void {
 }
 
 fn drawNext(self: Self) void {
-    const MAX_NEXT_DISPLAYABLE = 7;
     const LEFT = 34;
     const TOP = 2;
     const WIDTH = 10;
 
-    const n_display_next: u16 = @min(MAX_NEXT_DISPLAYABLE, self.state.next_pieces.len);
-    const next_box = self.view.sub(LEFT, TOP, WIDTH, n_display_next * 3 + 1);
-    next_box.drawBox(0, 0, WIDTH, next_box.height);
+    if (self.show_next_count == 0) {
+        return;
+    }
+
+    const height = @as(u16, @intCast(self.show_next_count)) * 3 + 1;
+    const next_box = self.view.sub(LEFT, TOP, WIDTH, height);
+    next_box.drawBox(0, 0, WIDTH, height);
     next_box.writeText(3, 0, .White, .Black, "NEXT");
 
-    for (0..n_display_next) |i| {
+    for (0..self.show_next_count) |i| {
         const piece = Piece{
             .facing = .Up,
             .kind = self.state.next_pieces[i],
@@ -633,15 +623,15 @@ fn drawStat(self: Self, stat: Stat, slot: u16) !void {
         .APM => try view.printAt(0, 0, .White, .Black, "APM: {d:.3}", .{self.apm()}),
         .APP => try view.printAt(0, 0, .White, .Black, "APP: {d:.3}", .{self.app()}),
         .Finesse => try view.printAt(0, 0, .White, .Black, "FIN: {d}", .{self.finesse}),
-        .Keys => try view.printAt(0, 0, .White, .Black, "KEYS: {d}", .{self.keys_pressed}),
+        .Keys => try view.printAt(0, 0, .White, .Black, "KEYS: {d}", .{self.keys_pressed + self.current_piece_keys}),
         .KPP => try view.printAt(0, 0, .White, .Black, "KPP: {d:.3}", .{self.kpp()}),
         .Level => try view.printAt(0, 0, .White, .Black, "LEVEL: {d}", .{self.level()}),
-        .Lines => try view.printAt(0, 0, .White, .Black, "LINES: {d}", .{self.cleared}),
+        .Lines => try view.printAt(0, 0, .White, .Black, "LINES: {d}", .{self.lines_cleared}),
         .PPS => try view.printAt(0, 0, .White, .Black, "PPS: {d:.3}", .{self.pps()}),
         .Received => try view.printAt(0, 0, .White, .Black, "REC: {d}", .{self.lines_received}),
         .Score => try view.printAt(0, 0, .White, .Black, "SCORE: {d}", .{self.score}),
         .Sent => try view.printAt(0, 0, .White, .Black, "SENT: {d}", .{self.lines_sent}),
-        .Time => try view.printAt(0, 0, .White, .Black, "TIME: {}", .{std.fmt.fmtDuration(self.time())}),
+        .Time => try view.printAt(0, 0, .White, .Black, "TIME: {}", .{std.fmt.fmtDuration(self.time() * std.time.ns_per_ms)}),
         .VsScore => try view.printAt(0, 0, .White, .Black, "VS: {d:.4}", .{self.vsScore()}),
     }
 }

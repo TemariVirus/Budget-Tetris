@@ -33,9 +33,9 @@ playfield: BoardMask,
 pos: Position,
 current: Piece,
 hold_kind: ?PieceKind,
-// We could use a ring buffer for next, but advancing the next pieces shouldn't
-// occur very often, so faster access is probably better.
-next_pieces: []PieceKind,
+/// At most 7 next pieces can be displayed, so don't store more. If more
+/// lookaheads are required, make a new bag with the same seed.
+next_pieces: [7]PieceKind,
 
 bag: Bag,
 kicksFn: *const KickFn,
@@ -43,28 +43,23 @@ kicksFn: *const KickFn,
 b2b: u32,
 combo: u32,
 
-pub fn init(allocator: Allocator, next_len: usize, bag: Bag, kicksFn: *const KickFn) !Self {
+pub fn init(bag: Bag, kicksFn: *const KickFn) !Self {
     var game = Self{
         .playfield = BoardMask{},
         .pos = undefined,
         .current = undefined,
         .hold_kind = null,
-        .next_pieces = try allocator.alloc(PieceKind, next_len),
+        .next_pieces = [_]PieceKind{undefined} ** 7,
         .bag = bag,
         .kicksFn = kicksFn,
         .b2b = U32_NULL,
         .combo = U32_NULL,
     };
-    for (game.next_pieces) |*piece| {
+    for (&game.next_pieces) |*piece| {
         piece.* = game.bag.next();
     }
     game.nextPiece();
     return game;
-}
-
-/// The allocator passed in must be the same one used to allocate the game.
-pub fn deinit(self: Self, allocator: Allocator) void {
-    allocator.free(self.next_pieces);
 }
 
 /// The cannonical B2B is one less than the stored value.
@@ -116,11 +111,6 @@ pub fn spawn(self: *Self, piece: PieceKind) void {
 
 /// Advances the current piece to the next piece in queue.
 pub fn nextPiece(self: *Self) void {
-    if (self.next_pieces.len == 0) {
-        self.spawn(self.bag.next());
-        return;
-    }
-
     self.spawn(self.next_pieces[0]);
     for (0..self.next_pieces.len - 1) |i| {
         self.next_pieces[i] = self.next_pieces[i + 1];
@@ -345,11 +335,7 @@ pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptio
     _ = fmt;
     _ = options;
 
-    if (self.next_pieces.len == 0) {
-        _ = try writer.write("╔══HOLD══╗ ╔════════════════════╗\n");
-    } else {
-        _ = try writer.write("╔══HOLD══╗ ╔════════════════════╗ ╔══NEXT══╗\n");
-    }
+    _ = try writer.write("╔══HOLD══╗ ╔════════════════════╗ ╔══NEXT══╗\n");
     for (0..20) |i| {
         try self.drawHoldRow(writer, i);
         try self.drawPlayfieldRow(writer, i);
@@ -357,10 +343,7 @@ pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptio
         _ = try writer.write("\n");
     }
     _ = try writer.write("           ╚════════════════════╝");
-    if (self.next_pieces.len >= 7) {
-        _ = try writer.write(" ╚════════╝");
-    }
-    _ = try writer.write("\n");
+    _ = try writer.write(" ╚════════╝\n");
 }
 
 fn drawHoldRow(self: Self, writer: anytype, i: usize) !void {
@@ -409,17 +392,10 @@ fn drawPlayfieldRow(self: Self, writer: anytype, i: usize) !void {
 
 fn drawNextRow(self: Self, writer: anytype, i: usize) !void {
     const next_idx = @divTrunc(i, 3);
-    if (next_idx >= self.next_pieces.len) {
-        return;
-    }
-
     const next_row = i % 3;
+
     if (next_row == 2) {
-        if (next_idx == self.next_pieces.len - 1) {
-            _ = try writer.write("╚════════╝");
-        } else {
-            _ = try writer.write("║        ║");
-        }
+        _ = try writer.write("║        ║");
         return;
     }
 

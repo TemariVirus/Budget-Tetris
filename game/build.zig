@@ -6,14 +6,6 @@ pub fn build(b: *std.Build) void {
     const target_os = target.os_tag orelse builtin.os.tag;
     const optimize = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "Budget Tetris",
-        .root_source_file = .{ .path = "src/root.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    _ = lib; // autofix
-
     const exe = b.addExecutable(.{
         .name = "Budget Tetris",
         .root_source_file = .{ .path = "src/main.zig" },
@@ -31,7 +23,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     }).module("nterm");
-    // lib.addModule("nterm", nterm_module);
     exe.addModule("nterm", nterm_module);
 
     // Expose the library root
@@ -42,7 +33,6 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    // b.installArtifact(lib);
     b.installArtifact(exe);
 
     // Add run step

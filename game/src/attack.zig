@@ -36,8 +36,8 @@ pub const AttackTable = struct {
     perfect_clear: [4]u8,
 
     /// Returns the attack of the specified clear.
-    pub fn getAttack(self: AttackTable, info: ClearInfo, b2b: ?u32, combo: ?u32) u8 {
-        var attack = if (info.pc)
+    pub fn getAttack(self: AttackTable, info: ClearInfo, b2b: ?u32, combo: ?u32) u16 {
+        var attack: u16 = if (info.pc)
             self.perfect_clear[info.cleared - 1]
         else if (info.t_spin == .Full)
             self.t_spin[info.cleared]
