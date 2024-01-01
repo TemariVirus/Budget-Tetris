@@ -16,8 +16,9 @@ const View = nterm.View;
 // TODO: check that view is updated when current frame updates
 
 // 2 * 8 is close to 15.625, so other programs should be affacted minimally.
-// 8 is also a factor of 16, which is good for timing 60hz.
+// Also, 1000 / 8 = 125 is close to 120Hz
 const WIN_TIMER_PERIOD = 8;
+const INPUT_RATE = 120;
 const FRAMERATE = 60;
 const FPS_TIMING_WINDOW = 60;
 
@@ -145,9 +146,16 @@ pub fn main() !void {
     try frame_times.enqueue(0);
     defer frame_times.deinit(allocator);
 
-    var timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
+    var input_timer = PeriodicTrigger.init(time.ns_per_s / INPUT_RATE);
+    var render_timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
     while (true) {
-        if (timer.trigger()) {
+        var triggered = false;
+
+        if (input_timer.trigger()) {
+            input.tick();
+            triggered = true;
+        }
+        if (render_timer.trigger()) {
             const old_time = frame_times.peekIndex(0).?;
             const new_time: u64 = @intCast(time.nanoTimestamp() - start);
             const fps = @as(f32, @floatFromInt(frame_times.len())) / @as(f32, @floatFromInt(new_time - old_time)) * time.ns_per_s;
@@ -157,7 +165,6 @@ pub fn main() !void {
             try frame_times.enqueue(new_time);
             try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{fps});
 
-            input.tick();
             player_game.tick();
             try player_game.draw();
             nterm.render() catch |err| {
@@ -166,7 +173,10 @@ pub fn main() !void {
                 }
                 return err;
             };
-        } else {
+            triggered = true;
+        }
+
+        if (!triggered) {
             time.sleep(1 * time.ns_per_ms);
         }
     }

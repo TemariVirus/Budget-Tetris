@@ -25,8 +25,8 @@ const garbage_color = Color.BrightBlack;
 
 // TODO: Extract settings to config
 const AUTOLOCK_GRACE = 15;
-const G = 1.5; // Multiply by framerate before passing to Game
-const SOFT_G = 40;
+const G = 0.025 * 60; // Multiply by framerate before passing to Game
+const SOFT_G = 40.0;
 const LOCK_DELAY = 500;
 const CLEAR_ERASE_DELAY = 1000;
 
