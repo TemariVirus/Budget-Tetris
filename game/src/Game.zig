@@ -94,7 +94,7 @@ pub const Stat = enum {
     VsScore,
 };
 
-pub fn init(name: []const u8, state: GameState, show_next_count: u3, view: View, display_stats: []const Stat) !Self {
+pub fn init(name: []const u8, state: GameState, show_next_count: u3, view: View, display_stats: []const Stat) Self {
     const now = std.time.milliTimestamp();
     return Self{
         .name = name,

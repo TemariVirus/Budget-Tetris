@@ -10,17 +10,17 @@ const Position = @import("pieces.zig").Position;
 /// X increases rightwards.
 /// Y increases upwards.
 pub const BoardMask = struct {
-    const width = 10;
-    const height = 40;
+    pub const WIDTH = 10;
+    pub const HEIGHT = 40;
     pub const EMPTY_ROW: u16 = 0b11111_0000000000_1;
     pub const FULL_ROW: u16 = 0b11111_1111111111_1;
 
-    rows: [height]u16 = [_]u16{EMPTY_ROW} ** height,
+    rows: [HEIGHT]u16 = [_]u16{EMPTY_ROW} ** HEIGHT,
 
     /// Returns true if the bit at (x, y) is set; otherwise, false.
     /// Panics if (x, y) is out of bounds.
     pub fn get(self: BoardMask, x: usize, y: usize) bool {
-        const shift: u4 = @intCast(width - x);
+        const shift: u4 = @intCast(WIDTH - x);
         return (self.rows[y] >> shift) & 1 == 1;
     }
 
@@ -74,15 +74,15 @@ pub const BoardMask = struct {
 /// X increases rightwards.
 /// Y increases upwards.
 pub const PieceMask = struct {
-    const width = 10;
-    const height = 4;
+    pub const WIDTH = 10;
+    pub const HEIGHT = 4;
 
-    rows: [height]u16 = [_]u16{0} ** height,
+    rows: [HEIGHT]u16 = [_]u16{0} ** HEIGHT,
 
     /// Returns true if the bit at (x, y) is set; otherwise, false.
     /// Panics if (x, y) is out of bounds.
     pub fn get(self: PieceMask, x: usize, y: usize) bool {
-        const shift: u4 = @intCast(width - x);
+        const shift: u4 = @intCast(WIDTH - x);
         return (self.rows[y] >> shift) & 1 == 1;
     }
 };

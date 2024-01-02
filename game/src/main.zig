@@ -98,9 +98,9 @@ pub fn main() !void {
     defer nterm.deinit();
 
     const bag = SevenBag.init(randomSeed());
-    const player = try GameState.init(bag, kicks.srsPlus);
+    const player = GameState.init(bag, kicks.srsPlus);
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
-    var player_game = try Game.init(
+    var player_game = Game.init(
         "You",
         player,
         6,

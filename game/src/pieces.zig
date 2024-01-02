@@ -257,6 +257,134 @@ pub const Piece = packed struct {
             },
         };
     }
+
+    pub fn top(self: Piece) u8 {
+        return switch (self.kind) {
+            .I => switch (self.facing) {
+                .Up => comptime topComptime(.{
+                    .facing = .Up,
+                    .kind = .I,
+                }),
+                .Right => comptime topComptime(.{
+                    .facing = .Right,
+                    .kind = .I,
+                }),
+                .Down => comptime topComptime(.{
+                    .facing = .Down,
+                    .kind = .I,
+                }),
+                .Left => comptime topComptime(.{
+                    .facing = .Left,
+                    .kind = .I,
+                }),
+            },
+            .O => comptime topComptime(.{
+                .facing = .Up,
+                .kind = .O,
+            }),
+            .T => switch (self.facing) {
+                .Up => comptime topComptime(.{
+                    .facing = .Up,
+                    .kind = .T,
+                }),
+                .Right => comptime topComptime(.{
+                    .facing = .Right,
+                    .kind = .T,
+                }),
+                .Down => comptime topComptime(.{
+                    .facing = .Down,
+                    .kind = .T,
+                }),
+                .Left => comptime topComptime(.{
+                    .facing = .Left,
+                    .kind = .T,
+                }),
+            },
+            .S => switch (self.facing) {
+                .Up => comptime topComptime(.{
+                    .facing = .Up,
+                    .kind = .S,
+                }),
+                .Right => comptime topComptime(.{
+                    .facing = .Right,
+                    .kind = .S,
+                }),
+                .Down => comptime topComptime(.{
+                    .facing = .Down,
+                    .kind = .S,
+                }),
+                .Left => comptime topComptime(.{
+                    .facing = .Left,
+                    .kind = .S,
+                }),
+            },
+            .Z => switch (self.facing) {
+                .Up => comptime topComptime(.{
+                    .facing = .Up,
+                    .kind = .Z,
+                }),
+                .Right => comptime topComptime(.{
+                    .facing = .Right,
+                    .kind = .Z,
+                }),
+                .Down => comptime topComptime(.{
+                    .facing = .Down,
+                    .kind = .Z,
+                }),
+                .Left => comptime topComptime(.{
+                    .facing = .Left,
+                    .kind = .Z,
+                }),
+            },
+            .J => switch (self.facing) {
+                .Up => comptime topComptime(.{
+                    .facing = .Up,
+                    .kind = .J,
+                }),
+                .Right => comptime topComptime(.{
+                    .facing = .Right,
+                    .kind = .J,
+                }),
+                .Down => comptime topComptime(.{
+                    .facing = .Down,
+                    .kind = .J,
+                }),
+                .Left => comptime topComptime(.{
+                    .facing = .Left,
+                    .kind = .J,
+                }),
+            },
+            .L => switch (self.facing) {
+                .Up => comptime topComptime(.{
+                    .facing = .Up,
+                    .kind = .L,
+                }),
+                .Right => comptime topComptime(.{
+                    .facing = .Right,
+                    .kind = .L,
+                }),
+                .Down => comptime topComptime(.{
+                    .facing = .Down,
+                    .kind = .L,
+                }),
+                .Left => comptime topComptime(.{
+                    .facing = .Left,
+                    .kind = .L,
+                }),
+            },
+        };
+    }
+
+    fn topComptime(comptime piece: Piece) u8 {
+        const piece_mask = comptime piece.mask();
+        var height = 4;
+        inline while (height > 0) : (height -= 1) {
+            if (piece_mask.rows[height - 1] != 0) {
+                return height;
+            }
+        }
+        return height;
+    }
 };
 
 pub fn parsePiece(comptime str: []const u8) PieceMask {

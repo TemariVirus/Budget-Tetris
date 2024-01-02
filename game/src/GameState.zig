@@ -45,7 +45,7 @@ b2b: u32,
 combo: u32,
 
 // TODO: Revisit whether allowing for generic bags is worth it
-pub fn init(bag: SevenBag, kicksFn: *const KickFn) !Self {
+pub fn init(bag: SevenBag, kicksFn: *const KickFn) Self {
     var game = Self{
         .playfield = BoardMask{},
         .pos = undefined,
@@ -220,7 +220,7 @@ pub fn lockCurrent(self: *Self, rotated_last: bool) ClearInfo {
 
 /// Clears all filled lines in the playfield.
 /// Returns the number of lines cleared.
-fn clearLines(self: *Self) u3 {
+pub fn clearLines(self: *Self) u3 {
     var cleared: u3 = 0;
     var i: usize = @max(0, self.pos.y);
     while (i + cleared < self.playfield.rows.len) {
