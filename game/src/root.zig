@@ -11,6 +11,7 @@ pub const pieces = @import("pieces.zig");
 
 pub const Game = @import("Game.zig");
 pub const GameState = @import("GameState.zig");
+pub const PeriodicTrigger = @import("PeriodicTrigger.zig");
 
 test {
     testing.refAllDecls(@This());

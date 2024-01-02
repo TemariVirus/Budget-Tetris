@@ -3,14 +3,15 @@ const time = std.time;
 const windows = std.os.windows;
 
 const root = @import("root.zig");
-const bags = root.bags;
 const kicks = root.kicks;
 const input = nterm.input;
 const nterm = @import("nterm");
 
 const Game = root.Game;
 const GameState = root.GameState;
+const PeriodicTrigger = root.PeriodicTrigger;
 const RingQueue = @import("ring_queue.zig").RingQueue;
+const SevenBag = root.bags.SevenBag;
 const View = nterm.View;
 
 // TODO: check that view is updated when current frame updates
@@ -80,29 +81,6 @@ const MoveFuncs = struct {
     }
 };
 
-const PeriodicTrigger = struct {
-    period: u64,
-    last: i128,
-
-    pub fn init(period: u64) PeriodicTrigger {
-        return .{
-            .period = period,
-            .last = time.nanoTimestamp(),
-        };
-    }
-
-    pub fn trigger(self: *PeriodicTrigger) bool {
-        const now = time.nanoTimestamp();
-        const elapsed = now - self.last;
-        if (elapsed < self.period) {
-            return false;
-        }
-
-        self.last += self.period;
-        return true;
-    }
-};
-
 pub fn main() !void {
     // TODO: Explore performance of other allocators
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -119,8 +97,7 @@ pub fn main() !void {
     try nterm.init(allocator, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
-    var b = bags.SevenBag.init();
-    const bag = b.bag();
+    const bag = SevenBag.init(randomSeed());
     const player = try GameState.init(bag, kicks.srsPlus);
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
     var player_game = try Game.init(
@@ -172,6 +149,15 @@ pub fn main() !void {
             time.sleep(1 * time.ns_per_ms);
         }
     }
+}
+
+fn randomSeed() u64 {
+    // Probably random enough?
+    var seed: u128 = @bitCast(std.time.nanoTimestamp());
+    seed *%= 0x6cfc7228c1e15b4883c70617;
+    seed +%= 0x1155e8e3c0b3fe3963e841510f42e8e;
+    seed ^= seed >> 64;
+    return @truncate(seed);
 }
 
 fn setupPlayerInput(player: *Game) !void {

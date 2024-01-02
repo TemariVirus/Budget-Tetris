@@ -4,7 +4,11 @@
     //.minimum_zig_version = "0.11.0",
     .dependencies = .{
         .engine = .{
-            .path = "../engine",
+            .path = "../game",
+        },
+        .nterm = .{
+            .url = "https://github.com/Zemogus/nterm/archive/87c465fa48755b688384cd4aa43738733fee5883.tar.gz",
+            .hash = "1220978df4db64100d6fd8ab287de67ba9acc103373a02c89a4dc56a8351cf99eb6b",
         },
     },
     .paths = .{

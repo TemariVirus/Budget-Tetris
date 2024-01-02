@@ -2,14 +2,13 @@
 
 const std = @import("std");
 const Xoroshiro128 = std.rand.Xoroshiro128;
+
 const testing = std.testing;
 const expect = testing.expect;
 
 const root = @import("../root.zig");
-const PieceKind = root.pieces.PieceKind;
-
 const Bag = root.bags.Bag;
-const sourceRandom = root.bags.sourceRandom;
+const PieceKind = root.pieces.PieceKind;
 
 const Self = @This();
 
@@ -17,13 +16,11 @@ pieces: [7]PieceKind = .{ .I, .O, .T, .S, .Z, .J, .L },
 index: u8 = 7,
 random: Xoroshiro128,
 
-pub fn init() Self {
-    const seed = sourceRandom();
+pub fn init(seed: u64) Self {
     return Self{ .random = Xoroshiro128.init(seed) };
 }
 
-pub fn next(ptr: *anyopaque) PieceKind {
-    const self: *Self = @ptrCast(@alignCast(ptr));
+pub fn next(self: *Self) PieceKind {
     if (self.index >= self.pieces.len) {
         self.random.random().shuffle(PieceKind, &self.pieces);
         self.index = 0;
@@ -33,30 +30,25 @@ pub fn next(ptr: *anyopaque) PieceKind {
     return self.pieces[self.index];
 }
 
-pub fn setSeed(ptr: *anyopaque, seed: u64) void {
-    const self: *Self = @ptrCast(@alignCast(ptr));
+pub fn setSeed(self: *Self, seed: u64) void {
     self.index = 7;
     self.random = Xoroshiro128.init(seed);
 }
 
-pub fn bag(self: *Self) Bag {
-    return Bag{
-        .bag = self,
-        .next_fn = Self.next,
-        .set_seed_fn = Self.setSeed,
-    };
+pub fn bag(self: Self) Bag {
+    _ = self;
+    @compileError("TODO: implement");
 }
 
 test "7-bag randomizer" {
-    var sb = init();
-    var b = sb.bag();
+    var sb = init(1234);
 
     var actual = std.AutoHashMap(PieceKind, i32).init(testing.allocator);
     defer actual.deinit();
 
     // Get first 21 pieces
     for (0..21) |_| {
-        const piece = b.next();
+        const piece = sb.next();
         const count = actual.get(piece) orelse 0;
         try actual.put(piece, count + 1);
     }

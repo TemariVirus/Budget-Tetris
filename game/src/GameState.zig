@@ -1,6 +1,6 @@
 //! Represents the state of a game of Tetris. Handles the logic of moving
 //! pieces and clearing lines, but not for handling game overs (i.e., block out
-//! or top out).
+//! or top out), player input, or rendering.
 
 // TODO: Receive incoming garbage
 const std = @import("std");
@@ -15,17 +15,18 @@ const ClearInfo = root.attack.ClearInfo;
 const BoardMask = root.bit_masks.BoardMask;
 const PieceMask = root.bit_masks.PieceMask;
 
-const Bag = root.bags.Bag;
+const SevenBag = root.bags.SevenBag;
 
 const pieces = root.pieces;
 const Piece = pieces.Piece;
 const PieceKind = pieces.PieceKind;
 const Position = pieces.Position;
 const Facing = pieces.Facing;
+
+const KickFn = root.kicks.KickFn;
 const Rotation = root.kicks.Rotation;
 
 const Self = @This();
-const KickFn = fn (Piece, Rotation) []const Position;
 
 const U32_NULL = std.math.maxInt(u32);
 
@@ -34,16 +35,17 @@ pos: Position,
 current: Piece,
 hold_kind: ?PieceKind,
 /// At most 7 next pieces can be displayed, so don't store more. If more
-/// lookaheads are required, make a new bag with the same seed.
+/// lookaheads are required, use a copy of the current bag.
 next_pieces: [7]PieceKind,
 
-bag: Bag,
+bag: SevenBag,
 kicksFn: *const KickFn,
 
 b2b: u32,
 combo: u32,
 
-pub fn init(bag: Bag, kicksFn: *const KickFn) !Self {
+// TODO: Revisit whether allowing for generic bags is worth it
+pub fn init(bag: SevenBag, kicksFn: *const KickFn) !Self {
     var game = Self{
         .playfield = BoardMask{},
         .pos = undefined,
@@ -88,7 +90,7 @@ pub fn setCanonicalcombo(self: Self, value: ?u32) void {
     }
 }
 
-fn collides(self: Self, piece: Piece, pos: Position) bool {
+pub fn collides(self: Self, piece: Piece, pos: Position) bool {
     return self.playfield.collides(piece.mask(), pos);
 }
 
@@ -241,7 +243,7 @@ fn clearLines(self: *Self) u3 {
 /// as filled blocks.
 /// If both corners in "front" of the T piece are filled, it is a normal
 /// T-spin. If only 1 corner is filled, it is a T-spin mini.
-fn tSpinType(self: *Self, rotated_last: bool) TSpin {
+pub fn tSpinType(self: *Self, rotated_last: bool) TSpin {
     const all = comptime pieces.parsePiece(
         \\...
         \\#.#
@@ -410,13 +412,8 @@ fn drawNextRow(self: Self, writer: anytype, i: usize) !void {
 }
 
 test "DT cannon" {
-    const allocator = std.testing.allocator;
-
-    var b = root.bags.SevenBag.init();
-    var bag = b.bag();
-    bag.setSeed(69);
-    var game = try init(allocator, 6, bag, root.kicks.srsPlus);
-    defer game.deinit(allocator);
+    const bag = root.bags.SevenBag.init(69);
+    var game = try init(bag, root.kicks.srsPlus);
 
     // J piece
     game.hold();

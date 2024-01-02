@@ -4,6 +4,7 @@ const Color = @import("nterm").Color;
 const PieceMask = @import("bit_masks.zig").PieceMask;
 const Rotation = @import("kicks.zig").Rotation;
 
+/// The position of a piece on the playfield.
 pub const Position = struct {
     x: i8,
     y: i8,
@@ -17,8 +18,9 @@ pub const Position = struct {
     }
 };
 
-// Do not touch; other code depends on the order!
+/// The 4 possible orientations of a piece.
 pub const Facing = enum(u2) {
+    // Do not touch; other code depends on the order!
     Up = 0,
     Right = 1,
     Down = 2,

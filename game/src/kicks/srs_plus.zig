@@ -2,7 +2,7 @@ const root = @import("../root.zig");
 const Position = root.pieces.Position;
 const Piece = root.pieces.Piece;
 const Rotation = root.kicks.Rotation;
-const srs180 = root.kicks.srs180;
+const srs180 = @import("srs180.zig").srs180;
 
 const no_kicks = [0]Position{};
 
