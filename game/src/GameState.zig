@@ -167,6 +167,12 @@ pub fn dropToGround(self: *Self) u8 {
 /// Tries to rotate the current piece.
 /// Returns whether the rotation was successful.
 pub fn rotate(self: *Self, rotation: Rotation) bool {
+    // O piece cannot rotate
+    if (self.current.kind == .O) {
+        return false;
+    }
+
+    // TODO: Add setting to disable half rotations
     const old_piece = self.current;
 
     self.current.facing = self.current.facing.rotate(rotation);
@@ -244,31 +250,31 @@ pub fn clearLines(self: *Self) u3 {
 /// If both corners in "front" of the T piece are filled, it is a normal
 /// T-spin. If only 1 corner is filled, it is a T-spin mini.
 pub fn tSpinType(self: *Self, rotated_last: bool) TSpin {
-    const all = comptime pieces.parsePiece(
+    const all = comptime PieceMask.parse(
         \\...
         \\#.#
         \\...
         \\#.#
     ).rows;
-    const no_br = comptime pieces.parsePiece(
+    const no_br = comptime PieceMask.parse(
         \\...
         \\#.#
         \\...
         \\#..
     ).rows;
-    const no_bl = comptime pieces.parsePiece(
+    const no_bl = comptime PieceMask.parse(
         \\...
         \\#.#
         \\...
         \\..#
     ).rows;
-    const no_tl = comptime pieces.parsePiece(
+    const no_tl = comptime PieceMask.parse(
         \\...
         \\..#
         \\...
         \\#.#
     ).rows;
-    const no_tr = comptime pieces.parsePiece(
+    const no_tr = comptime PieceMask.parse(
         \\...
         \\#..
         \\...
@@ -417,7 +423,7 @@ test "DT cannon" {
 
     // J piece
     game.hold();
-    try expect(game.rotate(.CCw));
+    try expect(game.rotate(.QuarterCCw));
     try expect(game.slide(1) == 1);
     try expect(game.dropToGround() == 18);
     try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
@@ -429,7 +435,7 @@ test "DT cannon" {
     game.nextPiece();
 
     // L piece
-    try expect(game.rotate(.Cw));
+    try expect(game.rotate(.QuarterCw));
     try expect(game.slide(3) == 3);
     try expect(game.dropToGround() == 18);
     try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
@@ -451,7 +457,7 @@ test "DT cannon" {
     game.nextPiece();
 
     // S piece
-    try expect(game.rotate(.Cw));
+    try expect(game.rotate(.QuarterCw));
     try expect(game.slide(10) == 4);
     try expect(game.dropToGround() == 18);
     try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
@@ -474,7 +480,7 @@ test "DT cannon" {
     game.nextPiece();
 
     // I piece
-    try expect(game.rotate(.Cw));
+    try expect(game.rotate(.QuarterCw));
     try expect(game.slide(1) == 1);
     try expect(game.dropToGround() == 17);
     try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
@@ -486,7 +492,7 @@ test "DT cannon" {
     game.nextPiece();
 
     // S piece
-    try expect(game.rotate(.Cw));
+    try expect(game.rotate(.QuarterCw));
     try expect(game.dropToGround() == 14);
     try expect(std.meta.eql(game.lockCurrent(true), ClearInfo{
         .b2b = false,
@@ -508,7 +514,7 @@ test "DT cannon" {
     game.nextPiece();
 
     // J piece
-    try expect(game.rotate(.Cw));
+    try expect(game.rotate(.QuarterCw));
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 16);
     try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
@@ -521,14 +527,14 @@ test "DT cannon" {
 
     // Z piece
     game.hold();
-    try expect(game.rotate(.CCw));
+    try expect(game.rotate(.QuarterCCw));
     try expect(game.slide(-1) == 1);
     try expect(game.dropToGround() == 15);
-    try expect(game.rotate(.CCw));
-    try expect(game.rotate(.Double));
-    try expect(!game.rotate(.CCw));
+    try expect(game.rotate(.QuarterCCw));
+    try expect(game.rotate(.Half));
+    try expect(!game.rotate(.QuarterCCw));
     try expect(game.dropToGround() == 1);
-    try expect(game.rotate(.CCw));
+    try expect(game.rotate(.QuarterCCw));
     try expect(game.slide(10) == 1);
     try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
         .b2b = false,
@@ -540,7 +546,7 @@ test "DT cannon" {
 
     // Z piece
     game.hold();
-    try expect(game.rotate(.Cw));
+    try expect(game.rotate(.QuarterCw));
     try expect(game.slide(2) == 2);
     try expect(game.dropToGround() == 14);
     try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
@@ -552,7 +558,7 @@ test "DT cannon" {
     game.nextPiece();
 
     // L piece
-    try expect(game.rotate(.CCw));
+    try expect(game.rotate(.QuarterCCw));
     try expect(game.slide(-1) == 1);
     try expect(game.dropToGround() == 14);
     try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
@@ -564,7 +570,7 @@ test "DT cannon" {
     game.nextPiece();
 
     // I piece
-    try expect(game.rotate(.Cw));
+    try expect(game.rotate(.QuarterCw));
     try expect(game.slide(10) == 4);
     try expect(game.dropToGround() == 15);
     try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
@@ -577,14 +583,14 @@ test "DT cannon" {
 
     // T piece
     game.hold();
-    try expect(game.rotate(.Cw));
+    try expect(game.rotate(.QuarterCw));
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 13);
-    try expect(game.rotate(.CCw));
-    try expect(game.rotate(.CCw));
-    try expect(!game.rotate(.CCw));
+    try expect(game.rotate(.QuarterCCw));
+    try expect(game.rotate(.QuarterCCw));
+    try expect(!game.rotate(.QuarterCCw));
     try expect(game.dropToGround() == 1);
-    try expect(game.rotate(.CCw));
+    try expect(game.rotate(.QuarterCCw));
     try expect(game.dropToGround() == 0);
     try expect(std.meta.eql(game.lockCurrent(true), ClearInfo{
         .b2b = false,
@@ -596,12 +602,12 @@ test "DT cannon" {
 
     // T piece
     game.hold();
-    try expect(game.rotate(.Cw));
+    try expect(game.rotate(.QuarterCw));
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 15);
-    try expect(game.rotate(.CCw));
-    try expect(game.rotate(.CCw));
-    try expect(!game.rotate(.CCw));
+    try expect(game.rotate(.QuarterCCw));
+    try expect(game.rotate(.QuarterCCw));
+    try expect(!game.rotate(.QuarterCCw));
     try expect(std.meta.eql(game.lockCurrent(true), ClearInfo{
         .b2b = true,
         .cleared = 3,

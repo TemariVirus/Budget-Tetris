@@ -116,13 +116,13 @@ const CCw_i_kicks = [4][4]Position{
 /// Classic SRS kicks. No 180 kicks.
 pub fn srs(piece: Piece, rotation: Rotation) []const Position {
     return &switch (rotation) {
-        .Cw => switch (piece.kind) {
+        .QuarterCw => switch (piece.kind) {
             .I => cw_i_kicks[@intFromEnum(piece.facing)],
             .O => no_kicks,
             .T, .S, .Z, .J, .L => cw_kicks[@intFromEnum(piece.facing)],
         },
-        .Double => no_kicks,
-        .CCw => switch (piece.kind) {
+        .Half => no_kicks,
+        .QuarterCCw => switch (piece.kind) {
             .I => CCw_i_kicks[@intFromEnum(piece.facing)],
             .O => no_kicks,
             .T, .S, .Z, .J, .L => CCw_kicks[@intFromEnum(piece.facing)],

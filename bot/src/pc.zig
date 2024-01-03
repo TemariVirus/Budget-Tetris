@@ -19,11 +19,20 @@ const Move = enum {
     RotateDouble,
     RotateCcw,
     Drop,
+
+    const moves = [_]Move{
+        .Left,
+        .Right,
+        .RotateCw,
+        .RotateDouble,
+        .RotateCcw,
+        .Drop,
+    };
 };
 
 pub const Placement = struct {
-    pos: Position,
     piece: Piece,
+    pos: Position,
 };
 
 const SearchNode = struct {
@@ -33,16 +42,7 @@ const SearchNode = struct {
     depth: u8,
 };
 
-const VISUALISE = true;
-
-const moves = [_]Move{
-    .Left,
-    .Right,
-    .RotateCw,
-    .RotateDouble,
-    .RotateCcw,
-    .Drop,
-};
+const VISUALISE = false;
 
 pub const FindPcError = error{
     NoPcExists,
@@ -91,6 +91,9 @@ pub fn findPc(allocator: Allocator, game: GameState, pieces: []PieceKind) ![]Pla
     // number of cells in a piece (4). 20 / 4 = 5 extra pieces for each bigger
     // perfect clear
     // TODO: locate memory leak
+    var cache = NodeSet.init(allocator);
+    defer cache.deinit();
+
     while (pieces_needed <= pieces.len) : (pieces_needed += 5) {
         const max_height = (4 * pieces_needed + bits_set) / BoardMask.WIDTH;
         if (max_height > 4) {
@@ -100,8 +103,7 @@ pub fn findPc(allocator: Allocator, game: GameState, pieces: []PieceKind) ![]Pla
         const placements = try allocator.alloc(Placement, pieces_needed);
         errdefer allocator.free(placements);
 
-        var cache = NodeSet.init(allocator);
-        defer cache.deinit();
+        cache.clearRetainingCapacity();
 
         const seens = try allocator.alloc(PlacementSet, pieces_needed);
         for (seens) |*seen| {
@@ -146,7 +148,7 @@ fn findPcInner(
 ) !bool {
     // Base case; check for perfect clear
     if (placements.len == 0) {
-        return game.playfield.rows[0] == BoardMask.EMPTY_ROW;
+        return max_height == 0;
     }
 
     const node = SearchNode{
@@ -159,7 +161,7 @@ fn findPcInner(
     }
 
     if (VISUALISE) {
-        // std.debug.print("\x1B[1;1H{}", .{game});
+        std.debug.print("\x1B[1;1H{}", .{game});
     }
 
     var seen = seens[0];
@@ -182,7 +184,9 @@ fn findPcInner(
             }
 
             // TODO: optimise move generation
-            for (moves) |move| {
+            // TODO: find solid columns and check if each segment has a number of
+            // empty cells which is a multiple of 4.
+            for (Move.moves) |move| {
                 var new_game = game;
                 new_game.current = placement.piece;
                 new_game.pos = placement.pos;
@@ -194,28 +198,33 @@ fn findPcInner(
                     .Right => if (new_game.slide(1) == 0) {
                         continue;
                     },
-                    .RotateCw => if (!new_game.rotate(.Cw)) {
+                    .RotateCw => if (!new_game.rotate(.QuarterCw)) {
                         continue;
                     },
-                    .RotateDouble => if (!new_game.rotate(.Double)) {
+                    .RotateDouble => if (!new_game.rotate(.Half)) {
                         continue;
                     },
-                    .RotateCcw => if (!new_game.rotate(.CCw)) {
+                    .RotateCcw => if (!new_game.rotate(.QuarterCCw)) {
                         continue;
                     },
-                    .Drop => _ = new_game.dropToGround(),
+                    .Drop => if (new_game.drop(1) == 0) {
+                        continue;
+                    },
                 }
+                // Branch out after movement
                 try stack.append(Placement{
                     .piece = new_game.current,
                     .pos = new_game.pos,
                 });
 
+                // Skip this placement if the piece is too high
                 _ = new_game.dropToGround();
                 if (new_game.pos.y + @as(i8, @intCast(new_game.current.top())) > max_height) {
                     continue;
                 }
 
-                const info = new_game.lockCurrent(false);
+                // Check if this placement has a perfect clear
+                const cleared = new_game.lockCurrent(false).cleared;
                 if (try findPcInner(
                     new_game,
                     pieces[1..],
@@ -223,7 +232,7 @@ fn findPcInner(
                     cache,
                     seens[1..],
                     stacks[1..],
-                    max_height - info.cleared,
+                    max_height - cleared,
                 )) {
                     placements[0] = .{
                         .piece = new_game.current,

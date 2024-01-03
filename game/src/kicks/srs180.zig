@@ -39,7 +39,7 @@ const double_kicks = [4][5]Position{
 
 /// The modified SRS kicks that Tetr.io uses. Introduces some 180 kicks.
 pub fn srs180(piece: Piece, rotation: Rotation) []const Position {
-    if (rotation == .Double) {
+    if (rotation == .Half) {
         return &switch (piece.kind) {
             .I, .O => no_kicks,
             .T, .S, .Z, .J, .L => double_kicks[@intFromEnum(piece.facing)],

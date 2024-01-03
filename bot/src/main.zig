@@ -13,6 +13,7 @@ const PeriodicTrigger = engine.PeriodicTrigger;
 const PieceKind = engine.pieces.PieceKind;
 const SevenBag = engine.bags.SevenBag;
 
+const input = nterm.input;
 const View = nterm.View;
 
 const pc = root.pc;
@@ -21,6 +22,10 @@ const RingQueue = @import("ring_queue.zig").RingQueue;
 
 const FRAMERATE = 60;
 const FPS_TIMING_WINDOW = 60;
+
+var placements_i: usize = 0;
+var placements: []Placement = &.{};
+var player_game: Game = undefined;
 
 pub fn main() !void {
     // TODO: Explore performance of other allocators
@@ -32,10 +37,15 @@ pub fn main() !void {
     try nterm.init(allocator, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
+    try input.init(allocator);
+    defer input.deinit();
+
+    _ = try input.addKeyTrigger(.Space, 0, null, placePcPiece);
+
     const bag = SevenBag.init(0);
     const gamestate = GameState.init(bag, kicks.srsPlus);
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
-    var player_game = Game.init(
+    player_game = Game.init(
         "You",
         gamestate,
         6,
@@ -61,7 +71,9 @@ pub fn main() !void {
             try frame_times.enqueue(new_time);
             try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{fps});
 
-            player_game.tick();
+            input.tick();
+
+            // player_game.tick();
             try player_game.draw();
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {
@@ -75,16 +87,50 @@ pub fn main() !void {
     }
 }
 
-fn pcHelper(allocator: Allocator, gamestate: GameState, comptime n_pieces: comptime_int) ![]Placement {
+fn pcHelper(allocator: Allocator, comptime n_pieces: comptime_int) ![]Placement {
+    const gamestate = player_game.state;
+
     var pieces = [_]PieceKind{undefined} ** n_pieces;
     pieces[0] = gamestate.current.kind;
-    for (gamestate.next_pieces, 1..) |piece, i| {
+    const start: usize = if (gamestate.hold_kind) |hold| blk: {
+        pieces[1] = hold;
+        break :blk 2;
+    } else 1;
+
+    for (gamestate.next_pieces, start..) |piece, i| {
+        if (i >= pieces.len) {
+            break;
+        }
         pieces[i] = piece;
     }
+
     var bag_copy = gamestate.bag;
-    for (1 + gamestate.next_pieces.len..pieces.len) |i| {
+    for (start + gamestate.next_pieces.len..pieces.len) |i| {
         pieces[i] = bag_copy.next();
     }
 
     return try pc.findPc(allocator, gamestate, &pieces);
+}
+
+// TODO: generate placements on a separate thread
+fn placePcPiece() void {
+    if (placements_i == placements.len) {
+        var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+        const allocator = gpa.allocator();
+        defer _ = gpa.deinit();
+
+        allocator.free(placements);
+        placements = pcHelper(allocator, 11) catch unreachable;
+        placements_i = 0;
+    }
+
+    const placement = placements[placements_i];
+    if (placement.piece.kind != player_game.state.current.kind) {
+        player_game.hold();
+    }
+    player_game.state.pos = placement.pos;
+    player_game.state.current = placement.piece;
+    player_game.hardDrop();
+
+    placements_i += 1;
 }

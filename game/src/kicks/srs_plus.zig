@@ -79,9 +79,9 @@ const CCw_i_kicks = [4][4]Position{
 pub fn srsPlus(piece: Piece, rotation: Rotation) []const Position {
     if (piece.kind == .I) {
         return &switch (rotation) {
-            .Cw => cw_i_kicks[@intFromEnum(piece.facing)],
-            .Double => double_i_kicks[@intFromEnum(piece.facing)],
-            .CCw => CCw_i_kicks[@intFromEnum(piece.facing)],
+            .QuarterCw => cw_i_kicks[@intFromEnum(piece.facing)],
+            .Half => double_i_kicks[@intFromEnum(piece.facing)],
+            .QuarterCCw => CCw_i_kicks[@intFromEnum(piece.facing)],
         };
     }
 

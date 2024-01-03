@@ -1,8 +1,12 @@
-const tokenizeScalar = @import("std").mem.tokenizeScalar;
+const std = @import("std");
+const tokenizeScalar = std.mem.tokenizeScalar;
 
 const Color = @import("nterm").Color;
-const PieceMask = @import("bit_masks.zig").PieceMask;
-const Rotation = @import("kicks.zig").Rotation;
+
+const root = @import("root.zig");
+const BoardMask = root.bit_masks.BoardMask;
+const PieceMask = root.bit_masks.PieceMask;
+const Rotation = root.kicks.Rotation;
 
 /// The position of a piece on the playfield.
 pub const Position = struct {
@@ -29,24 +33,24 @@ pub const Facing = enum(u2) {
     pub fn rotate(self: Facing, rotation: Rotation) Facing {
         return switch (self) {
             .Up => switch (rotation) {
-                .Cw => .Right,
-                .Double => .Down,
-                .CCw => .Left,
+                .QuarterCw => .Right,
+                .Half => .Down,
+                .QuarterCCw => .Left,
             },
             .Right => switch (rotation) {
-                .Cw => .Down,
-                .Double => .Left,
-                .CCw => .Up,
+                .QuarterCw => .Down,
+                .Half => .Left,
+                .QuarterCCw => .Up,
             },
             .Down => switch (rotation) {
-                .Cw => .Left,
-                .Double => .Up,
-                .CCw => .Right,
+                .QuarterCw => .Left,
+                .Half => .Up,
+                .QuarterCCw => .Right,
             },
             .Left => switch (rotation) {
-                .Cw => .Up,
-                .Double => .Right,
-                .CCw => .Down,
+                .QuarterCw => .Up,
+                .Half => .Right,
+                .QuarterCCw => .Down,
             },
         };
     }
@@ -94,57 +98,57 @@ pub const Piece = packed struct {
         @setEvalBranchQuota(10_000);
         return switch (self.kind) {
             .I => switch (self.facing) {
-                .Up => comptime parsePiece(
+                .Up => comptime PieceMask.parse(
                     \\....
                     \\####
                     \\....
                     \\....
                 ),
-                .Right => comptime parsePiece(
+                .Right => comptime PieceMask.parse(
                     \\..#.
                     \\..#.
                     \\..#.
                     \\..#.
                 ),
-                .Down => comptime parsePiece(
+                .Down => comptime PieceMask.parse(
                     \\....
                     \\....
                     \\####
                     \\....
                 ),
-                .Left => comptime parsePiece(
+                .Left => comptime PieceMask.parse(
                     \\.#..
                     \\.#..
                     \\.#..
                     \\.#..
                 ),
             },
-            .O => comptime parsePiece(
+            .O => comptime PieceMask.parse(
                 \\....
                 \\.##.
                 \\.##.
                 \\....
             ),
             .T => switch (self.facing) {
-                .Up => comptime parsePiece(
+                .Up => comptime PieceMask.parse(
                     \\....
                     \\.#..
                     \\###.
                     \\....
                 ),
-                .Right => comptime parsePiece(
+                .Right => comptime PieceMask.parse(
                     \\....
                     \\.#..
                     \\.##.
                     \\.#..
                 ),
-                .Down => comptime parsePiece(
+                .Down => comptime PieceMask.parse(
                     \\....
                     \\....
                     \\###.
                     \\.#..
                 ),
-                .Left => comptime parsePiece(
+                .Left => comptime PieceMask.parse(
                     \\....
                     \\.#..
                     \\##..
@@ -152,25 +156,25 @@ pub const Piece = packed struct {
                 ),
             },
             .S => switch (self.facing) {
-                .Up => comptime parsePiece(
+                .Up => comptime PieceMask.parse(
                     \\....
                     \\.##.
                     \\##..
                     \\....
                 ),
-                .Right => comptime parsePiece(
+                .Right => comptime PieceMask.parse(
                     \\....
                     \\.#..
                     \\.##.
                     \\..#.
                 ),
-                .Down => comptime parsePiece(
+                .Down => comptime PieceMask.parse(
                     \\....
                     \\....
                     \\.##.
                     \\##..
                 ),
-                .Left => comptime parsePiece(
+                .Left => comptime PieceMask.parse(
                     \\....
                     \\#...
                     \\##..
@@ -178,25 +182,25 @@ pub const Piece = packed struct {
                 ),
             },
             .Z => switch (self.facing) {
-                .Up => comptime parsePiece(
+                .Up => comptime PieceMask.parse(
                     \\....
                     \\##..
                     \\.##.
                     \\....
                 ),
-                .Right => comptime parsePiece(
+                .Right => comptime PieceMask.parse(
                     \\....
                     \\..#.
                     \\.##.
                     \\.#..
                 ),
-                .Down => comptime parsePiece(
+                .Down => comptime PieceMask.parse(
                     \\....
                     \\....
                     \\##..
                     \\.##.
                 ),
-                .Left => comptime parsePiece(
+                .Left => comptime PieceMask.parse(
                     \\....
                     \\.#..
                     \\##..
@@ -204,25 +208,25 @@ pub const Piece = packed struct {
                 ),
             },
             .J => switch (self.facing) {
-                .Up => comptime parsePiece(
+                .Up => comptime PieceMask.parse(
                     \\....
                     \\#...
                     \\###.
                     \\....
                 ),
-                .Right => comptime parsePiece(
+                .Right => comptime PieceMask.parse(
                     \\....
                     \\.##.
                     \\.#..
                     \\.#..
                 ),
-                .Down => comptime parsePiece(
+                .Down => comptime PieceMask.parse(
                     \\....
                     \\....
                     \\###.
                     \\..#.
                 ),
-                .Left => comptime parsePiece(
+                .Left => comptime PieceMask.parse(
                     \\....
                     \\.#..
                     \\.#..
@@ -230,25 +234,25 @@ pub const Piece = packed struct {
                 ),
             },
             .L => switch (self.facing) {
-                .Up => comptime parsePiece(
+                .Up => comptime PieceMask.parse(
                     \\....
                     \\..#.
                     \\###.
                     \\....
                 ),
-                .Right => comptime parsePiece(
+                .Right => comptime PieceMask.parse(
                     \\....
                     \\.#..
                     \\.#..
                     \\.##.
                 ),
-                .Down => comptime parsePiece(
+                .Down => comptime PieceMask.parse(
                     \\....
                     \\....
                     \\###.
                     \\#...
                 ),
-                .Left => comptime parsePiece(
+                .Left => comptime PieceMask.parse(
                     \\....
                     \\##..
                     \\.#..
@@ -256,151 +260,119 @@ pub const Piece = packed struct {
                 ),
             },
         };
+    }
+
+    pub fn left(self: Piece) u8 {
+        const table = comptime makeAttributeTable(u8, findLeft);
+        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+    }
+
+    pub fn right(self: Piece) u8 {
+        const table = comptime makeAttributeTable(u8, findRight);
+        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
     }
 
     pub fn top(self: Piece) u8 {
-        return switch (self.kind) {
-            .I => switch (self.facing) {
-                .Up => comptime topComptime(.{
-                    .facing = .Up,
-                    .kind = .I,
-                }),
-                .Right => comptime topComptime(.{
-                    .facing = .Right,
-                    .kind = .I,
-                }),
-                .Down => comptime topComptime(.{
-                    .facing = .Down,
-                    .kind = .I,
-                }),
-                .Left => comptime topComptime(.{
-                    .facing = .Left,
-                    .kind = .I,
-                }),
-            },
-            .O => comptime topComptime(.{
-                .facing = .Up,
-                .kind = .O,
-            }),
-            .T => switch (self.facing) {
-                .Up => comptime topComptime(.{
-                    .facing = .Up,
-                    .kind = .T,
-                }),
-                .Right => comptime topComptime(.{
-                    .facing = .Right,
-                    .kind = .T,
-                }),
-                .Down => comptime topComptime(.{
-                    .facing = .Down,
-                    .kind = .T,
-                }),
-                .Left => comptime topComptime(.{
-                    .facing = .Left,
-                    .kind = .T,
-                }),
-            },
-            .S => switch (self.facing) {
-                .Up => comptime topComptime(.{
-                    .facing = .Up,
-                    .kind = .S,
-                }),
-                .Right => comptime topComptime(.{
-                    .facing = .Right,
-                    .kind = .S,
-                }),
-                .Down => comptime topComptime(.{
-                    .facing = .Down,
-                    .kind = .S,
-                }),
-                .Left => comptime topComptime(.{
-                    .facing = .Left,
-                    .kind = .S,
-                }),
-            },
-            .Z => switch (self.facing) {
-                .Up => comptime topComptime(.{
-                    .facing = .Up,
-                    .kind = .Z,
-                }),
-                .Right => comptime topComptime(.{
-                    .facing = .Right,
-                    .kind = .Z,
-                }),
-                .Down => comptime topComptime(.{
-                    .facing = .Down,
-                    .kind = .Z,
-                }),
-                .Left => comptime topComptime(.{
-                    .facing = .Left,
-                    .kind = .Z,
-                }),
-            },
-            .J => switch (self.facing) {
-                .Up => comptime topComptime(.{
-                    .facing = .Up,
-                    .kind = .J,
-                }),
-                .Right => comptime topComptime(.{
-                    .facing = .Right,
-                    .kind = .J,
-                }),
-                .Down => comptime topComptime(.{
-                    .facing = .Down,
-                    .kind = .J,
-                }),
-                .Left => comptime topComptime(.{
-                    .facing = .Left,
-                    .kind = .J,
-                }),
-            },
-            .L => switch (self.facing) {
-                .Up => comptime topComptime(.{
-                    .facing = .Up,
-                    .kind = .L,
-                }),
-                .Right => comptime topComptime(.{
-                    .facing = .Right,
-                    .kind = .L,
-                }),
-                .Down => comptime topComptime(.{
-                    .facing = .Down,
-                    .kind = .L,
-                }),
-                .Left => comptime topComptime(.{
-                    .facing = .Left,
-                    .kind = .L,
-                }),
-            },
-        };
+        const table = comptime makeAttributeTable(u8, findTop);
+        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
     }
 
-    fn topComptime(comptime piece: Piece) u8 {
-        const piece_mask = comptime piece.mask();
-        var height = 4;
-        inline while (height > 0) : (height -= 1) {
-            if (piece_mask.rows[height - 1] != 0) {
-                return height;
-            }
-        }
-        return height;
+    pub fn bottom(self: Piece) u8 {
+        const table = comptime makeAttributeTable(u8, findBottom);
+        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+    }
+
+    pub fn minX(self: Piece) i8 {
+        const table = comptime makeAttributeTable(i8, findMinX);
+        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+    }
+
+    pub fn maxX(self: Piece) i8 {
+        const table = comptime makeAttributeTable(i8, findMaxX);
+        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+    }
+
+    pub fn minY(self: Piece) i8 {
+        const table = comptime makeAttributeTable(i8, findMinY);
+        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+    }
+
+    pub fn maxY(self: Piece) i8 {
+        const table = comptime makeAttributeTable(i8, findMaxY);
+        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
     }
 };
 
-pub fn parsePiece(comptime str: []const u8) PieceMask {
-    var result = [_]u16{0} ** 4;
-    var lines = tokenizeScalar(u8, str, '\n');
-
-    var i: usize = 4;
-    while (lines.next()) |line| {
-        i -= 1;
-        for (0..10) |j| {
-            if (j < line.len and line[j] == '#') {
-                result[i] |= 1;
-            }
-            result[i] <<= 1;
+fn makeAttributeTable(comptime T: type, comptime attribute: fn (PieceMask) T) [7][4]T {
+    var table: [7][4]T = undefined;
+    for (0..7) |piece_kind| {
+        for (0..4) |facing| {
+            const piece = Piece{
+                .facing = @enumFromInt(facing),
+                .kind = @enumFromInt(piece_kind),
+            };
+            table[piece_kind][facing] = attribute(piece.mask());
         }
     }
+    return table;
+}
 
-    return PieceMask{ .rows = result };
+fn findLeft(mask: PieceMask) u8 {
+    var x = 0;
+    outer: while (x < 4) : (x += 1) {
+        for (0..4) |y| {
+            if (mask.get(x, y)) {
+                break :outer;
+            }
+        }
+    }
+    return x;
+}
+
+fn findRight(mask: PieceMask) u8 {
+    var right = 3;
+    outer: while (right >= 0) : (right -= 1) {
+        for (0..4) |y| {
+            if (mask.get(right, y)) {
+                break :outer;
+            }
+        }
+    }
+    return right + 1;
+}
+
+fn findTop(mask: PieceMask) u8 {
+    var y = 3;
+    while (y >= 0) : (y -= 1) {
+        if (mask.rows[y] != 0) {
+            break;
+        }
+    }
+    return y + 1;
+}
+
+fn findBottom(mask: PieceMask) u8 {
+    var y = 0;
+    while (y < 4) : (y += 1) {
+        if (mask.rows[y] != 0) {
+            break;
+        }
+    }
+    return y;
+}
+
+fn findMinX(mask: PieceMask) i8 {
+    return -@as(i8, @intCast(findLeft(mask)));
+}
+
+fn findMaxX(mask: PieceMask) i8 {
+    return PieceMask.WIDTH - @as(i8, @intCast(findRight(mask)));
+}
+
+fn findMinY(mask: PieceMask) i8 {
+    return -@as(i8, @intCast(findBottom(mask)));
+}
+
+fn findMaxY(mask: PieceMask) i8 {
+    return BoardMask.HEIGHT - @as(i8, @intCast(findTop(mask)));
 }

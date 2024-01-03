@@ -1,6 +1,7 @@
 const std = @import("std");
 const math = std.math;
 const assert = std.debug.assert;
+const tokenizeScalar = std.mem.tokenizeScalar;
 
 const Position = @import("pieces.zig").Position;
 
@@ -20,8 +21,23 @@ pub const BoardMask = struct {
     /// Returns true if the bit at (x, y) is set; otherwise, false.
     /// Panics if (x, y) is out of bounds.
     pub fn get(self: BoardMask, x: usize, y: usize) bool {
+        assert(x < WIDTH);
+        assert(y < HEIGHT);
+
         const shift: u4 = @intCast(WIDTH - x);
         return (self.rows[y] >> shift) & 1 == 1;
+    }
+
+    pub fn set(self: *BoardMask, x: usize, y: usize, value: bool) void {
+        assert(x < WIDTH);
+        assert(y < HEIGHT);
+
+        const shift: u4 = @intCast(WIDTH - x);
+        if (value) {
+            self.rows[y] |= 1 << shift;
+        } else {
+            self.rows[y] &= ~(1 << shift);
+        }
     }
 
     pub fn collides(self: BoardMask, piece: PieceMask, pos: Position) bool {
@@ -79,9 +95,30 @@ pub const PieceMask = struct {
 
     rows: [HEIGHT]u16 = [_]u16{0} ** HEIGHT,
 
+    pub fn parse(comptime str: []const u8) PieceMask {
+        var rows = [_]u16{0} ** 4;
+        var lines = tokenizeScalar(u8, str, '\n');
+
+        var i: usize = 4;
+        while (lines.next()) |line| {
+            i -= 1;
+            for (0..10) |j| {
+                if (j < line.len and line[j] == '#') {
+                    rows[i] |= 1;
+                }
+                rows[i] <<= 1;
+            }
+        }
+
+        return PieceMask{ .rows = rows };
+    }
+
     /// Returns true if the bit at (x, y) is set; otherwise, false.
     /// Panics if (x, y) is out of bounds.
     pub fn get(self: PieceMask, x: usize, y: usize) bool {
+        assert(x < WIDTH);
+        assert(y < HEIGHT);
+
         const shift: u4 = @intCast(WIDTH - x);
         return (self.rows[y] >> shift) & 1 == 1;
     }

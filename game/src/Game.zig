@@ -187,7 +187,7 @@ pub fn moveRightAll(self: *Self) void {
 
 pub fn rotateCw(self: *Self) void {
     self.current_piece_keys += 1;
-    if (!self.state.rotate(.Cw)) {
+    if (!self.state.rotate(.QuarterCw)) {
         return;
     }
 
@@ -200,7 +200,7 @@ pub fn rotateCw(self: *Self) void {
 
 pub fn rotateDouble(self: *Self) void {
     self.current_piece_keys += 1;
-    if (!self.state.rotate(.Double)) {
+    if (!self.state.rotate(.Half)) {
         return;
     }
 
@@ -213,7 +213,7 @@ pub fn rotateDouble(self: *Self) void {
 
 pub fn rotateCcw(self: *Self) void {
     self.current_piece_keys += 1;
-    if (!self.state.rotate(.CCw)) {
+    if (!self.state.rotate(.QuarterCCw)) {
         return;
     }
 
