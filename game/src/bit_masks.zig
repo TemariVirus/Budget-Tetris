@@ -34,9 +34,9 @@ pub const BoardMask = struct {
 
         const shift: u4 = @intCast(WIDTH - x);
         if (value) {
-            self.rows[y] |= 1 << shift;
+            self.rows[y] |= @as(u16, 1) << shift;
         } else {
-            self.rows[y] &= ~(1 << shift);
+            self.rows[y] &= ~(@as(u16, 1) << shift);
         }
     }
 
