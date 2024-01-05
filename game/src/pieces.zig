@@ -57,13 +57,13 @@ pub const Facing = enum(u2) {
 };
 
 pub const PieceKind = enum(u3) {
-    I,
-    O,
-    T,
-    S,
-    Z,
-    L,
-    J,
+    I = 0,
+    O = 1,
+    T = 2,
+    S = 3,
+    Z = 4,
+    L = 5,
+    J = 6,
 
     pub fn startPos(self: PieceKind) Position {
         return switch (self) {
@@ -264,54 +264,54 @@ pub const Piece = packed struct {
 
     pub fn left(self: Piece) u8 {
         const table = comptime makeAttributeTable(u8, findLeft);
-        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+        return table[@as(u5, @bitCast(self))];
     }
 
     pub fn right(self: Piece) u8 {
         const table = comptime makeAttributeTable(u8, findRight);
-        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+        return table[@as(u5, @bitCast(self))];
     }
 
     pub fn top(self: Piece) u8 {
         const table = comptime makeAttributeTable(u8, findTop);
-        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+        return table[@as(u5, @bitCast(self))];
     }
 
     pub fn bottom(self: Piece) u8 {
         const table = comptime makeAttributeTable(u8, findBottom);
-        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+        return table[@as(u5, @bitCast(self))];
     }
 
     pub fn minX(self: Piece) i8 {
         const table = comptime makeAttributeTable(i8, findMinX);
-        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+        return table[@as(u5, @bitCast(self))];
     }
 
     pub fn maxX(self: Piece) i8 {
         const table = comptime makeAttributeTable(i8, findMaxX);
-        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+        return table[@as(u5, @bitCast(self))];
     }
 
     pub fn minY(self: Piece) i8 {
         const table = comptime makeAttributeTable(i8, findMinY);
-        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+        return table[@as(u5, @bitCast(self))];
     }
 
     pub fn maxY(self: Piece) i8 {
         const table = comptime makeAttributeTable(i8, findMaxY);
-        return table[@intFromEnum(self.kind)][@intFromEnum(self.facing)];
+        return table[@as(u5, @bitCast(self))];
     }
 };
 
-fn makeAttributeTable(comptime T: type, comptime attribute: fn (PieceMask) T) [7][4]T {
-    var table: [7][4]T = undefined;
+fn makeAttributeTable(comptime T: type, comptime attribute: fn (PieceMask) T) [28]T {
+    var table: [28]T = undefined;
     for (0..7) |piece_kind| {
         for (0..4) |facing| {
             const piece = Piece{
                 .facing = @enumFromInt(facing),
                 .kind = @enumFromInt(piece_kind),
             };
-            table[piece_kind][facing] = attribute(piece.mask());
+            table[@as(u5, @bitCast(piece))] = attribute(piece.mask());
         }
     }
     return table;

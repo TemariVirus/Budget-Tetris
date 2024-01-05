@@ -419,7 +419,7 @@ fn drawNextRow(self: Self, writer: anytype, i: usize) !void {
 
 test "DT cannon" {
     const bag = root.bags.SevenBag.init(69);
-    var game = try init(bag, root.kicks.srsPlus);
+    var game = init(bag, root.kicks.srsPlus);
 
     // J piece
     game.hold();

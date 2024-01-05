@@ -8,9 +8,20 @@ const Position = engine.pieces.Position;
 const Piece = engine.pieces.Piece;
 const PieceKind = engine.pieces.PieceKind;
 
+const root = @import("root.zig");
+const PiecePosSet = root.PiecePosSet(.{ 10, 24, 4 });
+pub const PiecePosition = root.PiecePosition;
+
 const NodeSet = std.AutoHashMap(SearchNode, void);
-const PlacementSet = std.AutoHashMap(Placement, void);
-const PlacementStack = std.ArrayList(Placement);
+// By drawing a snaking path through the playfield, the highest density of
+// pushed unexplored nodes (around 2 / 3) is achieved. Thus, the highest stack
+// length is given by: 10 * 24 * 4 * (2 / 3) = 640.
+const PlacementStack = std.BoundedArray(PiecePosition, 640);
+
+pub const Placement = struct {
+    piece: Piece,
+    pos: Position,
+};
 
 const Move = enum {
     Left,
@@ -30,11 +41,6 @@ const Move = enum {
     };
 };
 
-pub const Placement = struct {
-    piece: Piece,
-    pos: Position,
-};
-
 const SearchNode = struct {
     // Oversized boardmask doesn't seem to be a bottleneck??
     board: BoardMask,
@@ -51,10 +57,7 @@ pub const FindPcError = error{
 
 /// Finds a perfect clear with the least number of pieces possible for the given
 /// game state, and returns the sequence of placements required to achieve it.
-///
-/// The layout of `pieces` is expected to be `{ current, hold, next[0], next[1], ... }`.
-/// If there is no hold piece, the layout must be `{ current, next[0], next[1], ... }`.
-pub fn findPc(allocator: Allocator, game: GameState, pieces: []PieceKind) ![]Placement {
+pub fn findPc(allocator: Allocator, game: GameState, start_height: u8, comptime max_pieces: usize) ![]Placement {
     const field_height = blk: {
         var i: usize = BoardMask.HEIGHT;
         while (i >= 1) : (i -= 1) {
@@ -94,40 +97,18 @@ pub fn findPc(allocator: Allocator, game: GameState, pieces: []PieceKind) ![]Pla
     var cache = NodeSet.init(allocator);
     defer cache.deinit();
 
+    var pieces = getPieces(game, max_pieces);
     while (pieces_needed <= pieces.len) : (pieces_needed += 5) {
         const max_height = (4 * pieces_needed + bits_set) / BoardMask.WIDTH;
-        if (max_height > 4) {
-            return FindPcError.NoPcExists;
+        if (max_height < start_height) {
+            continue;
         }
 
         const placements = try allocator.alloc(Placement, pieces_needed);
         errdefer allocator.free(placements);
 
         cache.clearRetainingCapacity();
-
-        const seens = try allocator.alloc(PlacementSet, pieces_needed);
-        for (seens) |*seen| {
-            seen.* = PlacementSet.init(allocator);
-        }
-        defer {
-            for (seens) |*seen| {
-                seen.deinit();
-            }
-            allocator.free(seens);
-        }
-
-        const stacks = try allocator.alloc(PlacementStack, pieces_needed);
-        for (stacks) |*stack| {
-            stack.* = PlacementStack.init(allocator);
-        }
-        defer {
-            for (stacks) |*stack| {
-                stack.deinit();
-            }
-            allocator.free(stacks);
-        }
-
-        if (try findPcInner(game, pieces, placements, &cache, seens, stacks, @intCast(max_height))) {
+        if (try findPcInner(game, &pieces, placements, &cache, @intCast(max_height))) {
             return placements;
         }
 
@@ -137,13 +118,41 @@ pub fn findPc(allocator: Allocator, game: GameState, pieces: []PieceKind) ![]Pla
     return FindPcError.NotEnoughPieces;
 }
 
+fn getPieces(game: GameState, comptime pieces_count: usize) [pieces_count]PieceKind {
+    if (pieces_count == 0) {
+        return .{};
+    }
+    if (pieces_count == 1) {
+        return .{game.current.kind};
+    }
+
+    var pieces = [_]PieceKind{undefined} ** pieces_count;
+    pieces[0] = game.current.kind;
+    const start: usize = if (game.hold_kind) |hold| blk: {
+        pieces[1] = hold;
+        break :blk 2;
+    } else 1;
+
+    for (game.next_pieces, start..) |piece, i| {
+        if (i >= pieces.len) {
+            break;
+        }
+        pieces[i] = piece;
+    }
+
+    var bag_copy = game.bag;
+    for (start + game.next_pieces.len..pieces.len) |i| {
+        pieces[i] = bag_copy.next();
+    }
+
+    return pieces;
+}
+
 fn findPcInner(
     game: GameState,
     pieces: []PieceKind,
     placements: []Placement,
     cache: *NodeSet,
-    seens: []const PlacementSet,
-    stacks: []const PlacementStack,
     max_height: u8,
 ) !bool {
     // Base case; check for perfect clear
@@ -164,22 +173,30 @@ fn findPcInner(
         std.debug.print("\x1B[1;1H{}", .{game});
     }
 
-    var seen = seens[0];
-    var stack = stacks[0];
     for (0..2) |_| {
-        seen.clearRetainingCapacity();
-        stack.clearRetainingCapacity();
+        var seen = PiecePosSet.init();
+        var stack = PlacementStack.init(0) catch unreachable;
 
         // Start at lowest possible position
-        const piece = pieces[0];
-        const start_pos = Position{
-            .x = 0,
-            .y = @as(i8, @intCast(max_height)) - 1,
-        };
-        try stack.append(.{ .piece = .{ .facing = .Up, .kind = piece }, .pos = start_pos });
+        {
+            const piece = Piece{ .facing = .Up, .kind = pieces[0] };
+            const pos = Position{
+                .x = 0,
+                .y = @as(i8, @intCast(max_height)) + piece.minY(),
+            };
+            stack.append(PiecePosition.pack(piece, pos)) catch unreachable;
+        }
 
         while (stack.popOrNull()) |placement| {
-            if ((try seen.getOrPut(placement)).found_existing) {
+            const piece = Piece{
+                .facing = placement.facing,
+                .kind = pieces[0],
+            };
+            const pos = Position{
+                .x = placement.getX(),
+                .y = placement.y,
+            };
+            if (seen.putGet(piece, pos)) {
                 continue;
             }
 
@@ -188,8 +205,8 @@ fn findPcInner(
             // empty cells which is a multiple of 4.
             for (Move.moves) |move| {
                 var new_game = game;
-                new_game.current = placement.piece;
-                new_game.pos = placement.pos;
+                new_game.current = piece;
+                new_game.pos = pos;
 
                 switch (move) {
                     .Left => if (new_game.slide(-1) == 0) {
@@ -212,10 +229,7 @@ fn findPcInner(
                     },
                 }
                 // Branch out after movement
-                try stack.append(Placement{
-                    .piece = new_game.current,
-                    .pos = new_game.pos,
-                });
+                stack.append(PiecePosition.pack(new_game.current, new_game.pos)) catch unreachable;
 
                 // Skip this placement if the piece is too high
                 _ = new_game.dropToGround();
@@ -230,8 +244,6 @@ fn findPcInner(
                     pieces[1..],
                     placements[1..],
                     cache,
-                    seens[1..],
-                    stacks[1..],
                     max_height - cleared,
                 )) {
                     placements[0] = .{

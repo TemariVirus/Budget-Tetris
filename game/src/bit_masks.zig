@@ -42,6 +42,7 @@ pub const BoardMask = struct {
 
     pub fn collides(self: BoardMask, piece: PieceMask, pos: Position) bool {
         const start = @max(0, -pos.y);
+        // Check if piece is inside ground
         for (0..start) |i| {
             if (piece.rows[i] != 0) {
                 return true;
