@@ -293,7 +293,7 @@ fn isPcPossible(rows: []const u16) bool {
         // as pieces can only be placed in one segment.
         var empty_count: u16 = 0;
         for (rows) |row| {
-            const segment = ~row << (15 - start) >> (end - start);
+            const segment = ~row << (15 - start) >> (end -% start);
             empty_count += @popCount(segment);
         }
         if (empty_count % 4 != 0) {
