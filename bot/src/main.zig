@@ -20,12 +20,11 @@ const RingQueue = @import("ring_queue.zig").RingQueue;
 
 const FRAMERATE = 4;
 const FPS_TIMING_WINDOW = 60;
-const PC_QUEUE_LEN = 16;
+const PC_QUEUE_LEN = 32;
 
 var pc_semaphore = Semaphore{};
 
 pub fn main() !void {
-    // TODO: Explore performance of other allocators
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
@@ -128,4 +127,29 @@ fn pcThread(allocator: Allocator, state: GameState, queue: *RingQueue([]Placemen
         }
         Semaphore.wait(&pc_semaphore);
     }
+}
+
+// There are 241,315,200 possible 4-line PCs from an empty board with a 7-bag
+// randomiser, so creating a table of all of them is actually feasible.
+// Old 4-line PC average: 20.69s
+// Current 4-line PC average: 2.80s
+fn pcBenchmark() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+
+    const total_start = time.nanoTimestamp();
+    for (0..100) |seed| {
+        const bag = SevenBag.init(seed);
+        const gamestate = GameState.init(bag, kicks.srsPlus);
+
+        const start = time.nanoTimestamp();
+        const solution = try pc.findPc(allocator, gamestate, 0, 11);
+        const time_taken: u64 = @intCast(time.nanoTimestamp() - start);
+
+        std.debug.print("Seed: {} | Time taken: {}\n", .{ seed, std.fmt.fmtDuration(time_taken) });
+        allocator.free(solution);
+    }
+    const total_time: u64 = @intCast(time.nanoTimestamp() - total_start);
+    std.debug.print("Total time: {}", .{std.fmt.fmtDuration(total_time)});
 }

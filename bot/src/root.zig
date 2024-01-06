@@ -80,3 +80,7 @@ pub fn PiecePosSet(comptime shape: [3]usize) type {
         }
     };
 }
+
+test {
+    std.testing.refAllDecls(@This());
+}

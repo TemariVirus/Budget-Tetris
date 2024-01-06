@@ -57,6 +57,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    lib_tests.addModule("engine", engine_module);
     const run_lib_tests = b.addRunArtifact(lib_tests);
 
     const exe_tests = b.addTest(.{

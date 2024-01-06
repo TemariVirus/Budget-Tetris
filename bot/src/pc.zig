@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const expect = std.testing.expect;
 
 const engine = @import("engine");
 const BoardMask = engine.bit_masks.BoardMask;
@@ -272,6 +273,8 @@ fn findPcInner(
     return false;
 }
 
+// TODO: Check against dictionary of possible PCs if the remaining peice count
+// is high (maybe around 6 to 7)
 fn isPcPossible(rows: []const u16) bool {
     var walls = ~BoardMask.EMPTY_ROW;
     for (rows) |row| {
@@ -303,4 +306,26 @@ fn isPcPossible(rows: []const u16) bool {
     }
 
     return true;
+}
+
+test "4-line PC" {
+    const allocator = std.testing.allocator;
+
+    const bag = engine.bags.SevenBag.init(0);
+    var gamestate = GameState.init(bag, engine.kicks.srsPlus);
+
+    const solution = try findPc(allocator, gamestate, 0, 11);
+    defer allocator.free(solution);
+
+    try expect(solution.len == 10);
+
+    for (solution[0 .. solution.len - 1]) |placement| {
+        gamestate.current = placement.piece;
+        gamestate.pos = placement.pos;
+        _ = gamestate.lockCurrent(false);
+    }
+
+    gamestate.current = solution[solution.len - 1].piece;
+    gamestate.pos = solution[solution.len - 1].pos;
+    try expect(gamestate.lockCurrent(false).pc);
 }
