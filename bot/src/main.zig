@@ -18,8 +18,9 @@ const pc = root.pc;
 const Placement = pc.Placement;
 const RingQueue = @import("ring_queue.zig").RingQueue;
 
-const FRAMERATE = 2;
+const FRAMERATE = 4;
 const FPS_TIMING_WINDOW = 60;
+const PC_QUEUE_LEN = 16;
 
 var pc_semaphore = Semaphore{};
 
@@ -45,7 +46,7 @@ pub fn main() !void {
     );
 
     var placement_i: usize = 0;
-    var pc_queue = try RingQueue([]Placement).init(allocator, 8);
+    var pc_queue = try RingQueue([]Placement).init(allocator, PC_QUEUE_LEN);
     defer pc_queue.deinit(allocator);
 
     const pc_thread = try std.Thread.spawn(.{

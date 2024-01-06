@@ -42,7 +42,7 @@ const Move = enum {
 };
 
 const SearchNode = struct {
-    // Oversized boardmask doesn't seem to be a bottleneck??
+    // TODO: compress the boardmask
     board: BoardMask,
     current: PieceKind,
     depth: u8,
@@ -201,8 +201,7 @@ fn findPcInner(
             }
 
             // TODO: optimise move generation
-            // TODO: find solid columns and check if each segment has a number of
-            // empty cells which is a multiple of 4.
+            // TODO: optimise move ordering
             for (Move.moves) |move| {
                 var new_game = game;
                 new_game.current = piece;
@@ -237,14 +236,18 @@ fn findPcInner(
                     continue;
                 }
 
-                // Check if this placement has a perfect clear
                 const cleared = new_game.lockCurrent(false).cleared;
+                const new_height = max_height - cleared;
+                if (!isPcPossible(new_game.playfield.rows[0..new_height])) {
+                    continue;
+                }
+
                 if (try findPcInner(
                     new_game,
                     pieces[1..],
                     placements[1..],
                     cache,
-                    max_height - cleared,
+                    new_height,
                 )) {
                     placements[0] = .{
                         .piece = new_game.current,
@@ -267,4 +270,37 @@ fn findPcInner(
     }
 
     return false;
+}
+
+fn isPcPossible(rows: []const u16) bool {
+    var walls = ~BoardMask.EMPTY_ROW;
+    for (rows) |row| {
+        walls &= row;
+    }
+    walls >>= 1; // Remove padding
+    walls &= 0b0111111110; // Any walls at the edges can be skipped
+
+    var end: u4 = 0;
+    while (walls != 0) {
+        const start: u4 = @intCast(@ctz(walls));
+        walls &= walls - 1; // Clear lowest bit
+        if (start == end) {
+            end += 1;
+            continue;
+        }
+
+        // Each "segment" separated by a wall must have a multiple of 4 empty cells,
+        // as pieces can only be placed in one segment.
+        var empty_count: u16 = 0;
+        for (rows) |row| {
+            const segment = ~row << (15 - start) >> (end - start);
+            empty_count += @popCount(segment);
+        }
+        if (empty_count % 4 != 0) {
+            return false;
+        }
+        end = start;
+    }
+
+    return true;
 }
