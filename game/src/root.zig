@@ -8,6 +8,7 @@ pub const bags = @import("bags.zig");
 pub const bit_masks = @import("bit_masks.zig");
 pub const kicks = @import("kicks.zig");
 pub const pieces = @import("pieces.zig");
+pub const tbp = @import("tbp.zig");
 
 pub const Game = @import("Game.zig");
 pub const GameState = @import("GameState.zig");

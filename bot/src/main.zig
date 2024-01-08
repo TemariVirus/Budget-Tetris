@@ -1,6 +1,5 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const Semaphore = std.Thread.Semaphore;
 const time = std.time;
 
 const engine = @import("engine");
@@ -16,21 +15,18 @@ const View = nterm.View;
 const root = @import("root.zig");
 const pc = root.pc;
 const Placement = pc.Placement;
-const RingQueue = @import("ring_queue.zig").RingQueue;
 
 const FRAMERATE = 4;
 const FPS_TIMING_WINDOW = 60;
-const PC_QUEUE_LEN = 32;
-
-var pc_semaphore = Semaphore{};
 
 pub fn main() !void {
+    // All allocators appear to perform the same for `pc.findPc()`
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
     // Add 2 to create a 1-wide empty boarder on the left and right.
-    try nterm.init(allocator, Game.DISPLAY_W + 2, Game.DISPLAY_H);
+    try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
     const bag = SevenBag.init(0);
@@ -45,31 +41,20 @@ pub fn main() !void {
     );
 
     var placement_i: usize = 0;
-    var pc_queue = try RingQueue([]Placement).init(allocator, PC_QUEUE_LEN);
-    defer pc_queue.deinit(allocator);
+    var pc_queue = std.ArrayList([]Placement).init(allocator);
+    defer pc_queue.deinit();
 
     const pc_thread = try std.Thread.spawn(.{
         .allocator = allocator,
     }, pcThread, .{ allocator, gamestate, &pc_queue });
     defer pc_thread.join();
 
-    const start = time.nanoTimestamp();
     const fps_view = View.init(1, 0, 15, 1);
-    var frame_times = try RingQueue(u64).init(allocator, FPS_TIMING_WINDOW);
-    try frame_times.enqueue(0);
-    defer frame_times.deinit(allocator);
 
     var render_timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
     while (true) {
         if (render_timer.trigger()) {
-            const old_time = frame_times.peekIndex(0).?;
-            const new_time: u64 = @intCast(time.nanoTimestamp() - start);
-            const fps = @as(f32, @floatFromInt(frame_times.len())) / @as(f32, @floatFromInt(new_time - old_time)) * time.ns_per_s;
-            if (frame_times.isFull()) {
-                _ = frame_times.dequeue() orelse unreachable;
-            }
-            try frame_times.enqueue(new_time);
-            try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{fps});
+            try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
 
             placePcPiece(allocator, &game, &pc_queue, &placement_i);
             try game.draw();
@@ -85,11 +70,11 @@ pub fn main() !void {
     }
 }
 
-fn placePcPiece(allocator: Allocator, game: *Game, queue: *RingQueue([]Placement), placement_i: *usize) void {
-    const placements = queue.peekIndex(0) orelse {
-        Semaphore.post(&pc_semaphore);
+fn placePcPiece(allocator: Allocator, game: *Game, queue: *std.ArrayList([]Placement), placement_i: *usize) void {
+    if (queue.items.len == 0) {
         return;
-    };
+    }
+    const placements = queue.items[0];
 
     const placement = placements[placement_i.*];
     if (placement.piece.kind != game.state.current.kind) {
@@ -101,55 +86,26 @@ fn placePcPiece(allocator: Allocator, game: *Game, queue: *RingQueue([]Placement
     placement_i.* += 1;
 
     if (placement_i.* == placements.len) {
-        allocator.free(queue.dequeue() orelse unreachable);
+        allocator.free(queue.orderedRemove(0));
         placement_i.* = 0;
-        Semaphore.post(&pc_semaphore);
     }
 }
 
-fn pcThread(allocator: Allocator, state: GameState, queue: *RingQueue([]Placement)) !void {
+fn pcThread(allocator: Allocator, state: GameState, queue: *std.ArrayList([]Placement)) !void {
     var game = state;
 
     while (true) {
-        while (!queue.isFull()) {
-            const placements = try pc.findPc(allocator, game, 0, 11);
-            for (placements) |placement| {
-                if (game.current.kind != placement.piece.kind) {
-                    game.hold();
-                }
-                game.current = placement.piece;
-                game.pos = placement.pos;
-                _ = game.lockCurrent(false);
-                game.nextPiece();
+        const placements = try pc.findPc(allocator, game, 0, 16);
+        for (placements) |placement| {
+            if (game.current.kind != placement.piece.kind) {
+                game.hold();
             }
-
-            try queue.enqueue(placements);
+            game.current = placement.piece;
+            game.pos = placement.pos;
+            _ = game.lockCurrent(false);
+            game.nextPiece();
         }
-        Semaphore.wait(&pc_semaphore);
+
+        try queue.append(placements);
     }
-}
-
-// There are 241,315,200 possible 4-line PCs from an empty board with a 7-bag
-// randomiser, so creating a table of all of them is actually feasible.
-// Old 4-line PC average: 20.69s
-// Current 4-line PC average: 2.80s
-fn pcBenchmark() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
-
-    const total_start = time.nanoTimestamp();
-    for (0..100) |seed| {
-        const bag = SevenBag.init(seed);
-        const gamestate = GameState.init(bag, kicks.srsPlus);
-
-        const start = time.nanoTimestamp();
-        const solution = try pc.findPc(allocator, gamestate, 0, 11);
-        const time_taken: u64 = @intCast(time.nanoTimestamp() - start);
-
-        std.debug.print("Seed: {} | Time taken: {}\n", .{ seed, std.fmt.fmtDuration(time_taken) });
-        allocator.free(solution);
-    }
-    const total_time: u64 = @intCast(time.nanoTimestamp() - total_start);
-    std.debug.print("Total time: {}", .{std.fmt.fmtDuration(total_time)});
 }

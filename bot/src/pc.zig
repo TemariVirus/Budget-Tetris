@@ -1,13 +1,16 @@
 const std = @import("std");
+const time = std.time;
 const Allocator = std.mem.Allocator;
 const expect = std.testing.expect;
 
 const engine = @import("engine");
+const kicks = engine.kicks;
 const BoardMask = engine.bit_masks.BoardMask;
 const GameState = engine.GameState;
 const Position = engine.pieces.Position;
 const Piece = engine.pieces.Piece;
 const PieceKind = engine.pieces.PieceKind;
+const SevenBag = engine.bags.SevenBag;
 
 const root = @import("root.zig");
 const PiecePosSet = root.PiecePosSet(.{ 10, 24, 4 });
@@ -94,7 +97,6 @@ pub fn findPc(allocator: Allocator, game: GameState, start_height: u8, comptime 
     // 20 is the lowest common multiple of the width of the playfield (10) and the
     // number of cells in a piece (4). 20 / 4 = 5 extra pieces for each bigger
     // perfect clear
-    // TODO: locate memory leak
     var cache = NodeSet.init(allocator);
     defer cache.deinit();
 
@@ -166,6 +168,7 @@ fn findPcInner(
         .current = game.current.kind,
         .depth = @intCast(placements.len),
     };
+    // TODO: ~97% cache hit rate, consider optimising the cache
     if ((try cache.getOrPut(node)).found_existing) {
         return false;
     }
@@ -308,6 +311,38 @@ fn isPcPossible(rows: []const u16) bool {
     return true;
 }
 
+// There are 241,315,200 possible 4-line PCs from an empty board with a 7-bag
+// randomiser, so creating a table of all of them is actually feasible.
+// Old 4-line PC average: 20.69s
+// Current 4-line PC average: 2.80s
+pub fn pcBenchmark() !void {
+    const RUN_COUNT = 100;
+
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+
+    const total_start = time.nanoTimestamp();
+    var max_time: u64 = 0;
+
+    for (0..RUN_COUNT) |seed| {
+        const bag = SevenBag.init(seed);
+        const gamestate = GameState.init(bag, kicks.srsPlus);
+
+        const start = time.nanoTimestamp();
+        const solution = try findPc(allocator, gamestate, 4, 11);
+        const time_taken: u64 = @intCast(time.nanoTimestamp() - start);
+        max_time = @max(max_time, time_taken);
+
+        std.debug.print("Seed: {} | Time taken: {}\n", .{ seed, std.fmt.fmtDuration(time_taken) });
+        allocator.free(solution);
+    }
+
+    const total_time: u64 = @intCast(time.nanoTimestamp() - total_start);
+    std.debug.print("Average: {}", .{std.fmt.fmtDuration(total_time / RUN_COUNT)});
+    std.debug.print("Max: {}", .{std.fmt.fmtDuration(max_time)});
+}
+
 test "4-line PC" {
     const allocator = std.testing.allocator;
 
@@ -322,7 +357,7 @@ test "4-line PC" {
     for (solution[0 .. solution.len - 1]) |placement| {
         gamestate.current = placement.piece;
         gamestate.pos = placement.pos;
-        _ = gamestate.lockCurrent(false);
+        try expect(!gamestate.lockCurrent(false).pc);
     }
 
     gamestate.current = solution[solution.len - 1].piece;

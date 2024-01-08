@@ -10,7 +10,6 @@ const nterm = @import("nterm");
 const Game = root.Game;
 const GameState = root.GameState;
 const PeriodicTrigger = root.PeriodicTrigger;
-const RingQueue = @import("ring_queue.zig").RingQueue;
 const SevenBag = root.bags.SevenBag;
 const View = nterm.View;
 
@@ -94,7 +93,7 @@ pub fn main() !void {
     defer _ = timeEndPeriod(WIN_TIMER_PERIOD);
 
     // Add 2 to create a 1-wide empty boarder on the left and right.
-    try nterm.init(allocator, Game.DISPLAY_W + 2, Game.DISPLAY_H);
+    try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
     const bag = SevenBag.init(randomSeed());
@@ -109,12 +108,7 @@ pub fn main() !void {
     );
     try setupPlayerInput(&player_game);
 
-    const start = time.nanoTimestamp();
     const fps_view = View.init(1, 0, 15, 1);
-    var frame_times = try RingQueue(u64).init(allocator, FPS_TIMING_WINDOW);
-    try frame_times.enqueue(0);
-    defer frame_times.deinit(allocator);
-
     var input_timer = PeriodicTrigger.init(time.ns_per_s / INPUT_RATE);
     var render_timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
     while (true) {
@@ -125,14 +119,7 @@ pub fn main() !void {
             triggered = true;
         }
         if (render_timer.trigger()) {
-            const old_time = frame_times.peekIndex(0).?;
-            const new_time: u64 = @intCast(time.nanoTimestamp() - start);
-            const fps = @as(f32, @floatFromInt(frame_times.len())) / @as(f32, @floatFromInt(new_time - old_time)) * time.ns_per_s;
-            if (frame_times.isFull()) {
-                _ = frame_times.dequeue() orelse unreachable;
-            }
-            try frame_times.enqueue(new_time);
-            try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{fps});
+            try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
 
             player_game.tick();
             try player_game.draw();

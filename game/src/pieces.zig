@@ -262,23 +262,54 @@ pub const Piece = packed struct {
         };
     }
 
-    pub fn left(self: Piece) u8 {
-        const table = comptime makeAttributeTable(u8, findLeft);
+    pub fn canonicalCenter(self: Piece) Position {
+        return switch (self.kind) {
+            .I => switch (self.facing) {
+                .Up => .{ .x = 1, .y = 2 },
+                .Right => .{ .x = 2, .y = 2 },
+                .Down => .{ .x = 2, .y = 1 },
+                .Left => .{ .x = 1, .y = 1 },
+            },
+            .O => switch (self.facing) {
+                .Up => .{ .x = 1, .y = 1 },
+                .Right => .{ .x = 1, .y = 2 },
+                .Down => .{ .x = 2, .y = 2 },
+                .Left => .{ .x = 2, .y = 1 },
+            },
+            .T, .S, .Z, .J, .L => .{ .x = 1, .y = 1 },
+        };
+    }
+
+    pub fn canonicalPosition(self: Piece, pos: Position) struct { x: u4, y: u6 } {
+        const canonical_pos = self.canonicalCenter().add(pos);
+        return .{
+            .x = @intCast(canonical_pos.x),
+            .y = @intCast(canonical_pos.y),
+        };
+    }
+
+    pub fn fromCanonicalPosition(self: Piece, pos: struct { x: u4, y: u6 }) Position {
+        const canonical_pos = Position{ .x = pos.x, .y = pos.y };
+        return canonical_pos.sub(self.canonicalCenter());
+    }
+
+    pub fn left(self: Piece) u3 {
+        const table = comptime makeAttributeTable(u3, findLeft);
         return table[@as(u5, @bitCast(self))];
     }
 
-    pub fn right(self: Piece) u8 {
-        const table = comptime makeAttributeTable(u8, findRight);
+    pub fn right(self: Piece) u3 {
+        const table = comptime makeAttributeTable(u3, findRight);
         return table[@as(u5, @bitCast(self))];
     }
 
-    pub fn top(self: Piece) u8 {
-        const table = comptime makeAttributeTable(u8, findTop);
+    pub fn top(self: Piece) u3 {
+        const table = comptime makeAttributeTable(u3, findTop);
         return table[@as(u5, @bitCast(self))];
     }
 
-    pub fn bottom(self: Piece) u8 {
-        const table = comptime makeAttributeTable(u8, findBottom);
+    pub fn bottom(self: Piece) u3 {
+        const table = comptime makeAttributeTable(u3, findBottom);
         return table[@as(u5, @bitCast(self))];
     }
 
@@ -317,7 +348,7 @@ fn makeAttributeTable(comptime T: type, comptime attribute: fn (PieceMask) T) [2
     return table;
 }
 
-fn findLeft(mask: PieceMask) u8 {
+fn findLeft(mask: PieceMask) u3 {
     var x = 0;
     outer: while (x < 4) : (x += 1) {
         for (0..4) |y| {
@@ -329,7 +360,7 @@ fn findLeft(mask: PieceMask) u8 {
     return x;
 }
 
-fn findRight(mask: PieceMask) u8 {
+fn findRight(mask: PieceMask) u3 {
     var right = 3;
     outer: while (right >= 0) : (right -= 1) {
         for (0..4) |y| {
@@ -341,7 +372,7 @@ fn findRight(mask: PieceMask) u8 {
     return right + 1;
 }
 
-fn findTop(mask: PieceMask) u8 {
+fn findTop(mask: PieceMask) u3 {
     var y = 3;
     while (y >= 0) : (y -= 1) {
         if (mask.rows[y] != 0) {
@@ -351,7 +382,7 @@ fn findTop(mask: PieceMask) u8 {
     return y + 1;
 }
 
-fn findBottom(mask: PieceMask) u8 {
+fn findBottom(mask: PieceMask) u3 {
     var y = 0;
     while (y < 4) : (y += 1) {
         if (mask.rows[y] != 0) {
