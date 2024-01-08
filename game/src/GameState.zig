@@ -69,7 +69,7 @@ pub fn canonicalB2B(self: Self) ?u32 {
     return if (self.b2b == U32_NULL) null else self.b2b;
 }
 
-pub fn setCanonicalB2B(self: Self, value: ?u32) void {
+pub fn setCanonicalB2B(self: *Self, value: ?u32) void {
     if (value) |v| {
         self.b2b = v;
     } else {
@@ -82,7 +82,7 @@ pub fn canonicalcombo(self: Self) ?u32 {
     return if (self.combo == U32_NULL) null else self.combo;
 }
 
-pub fn setCanonicalcombo(self: Self, value: ?u32) void {
+pub fn setCanonicalcombo(self: *Self, value: ?u32) void {
     if (value) |v| {
         self.combo = v;
     } else {

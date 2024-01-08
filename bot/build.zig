@@ -6,8 +6,8 @@ pub fn build(b: *std.Build) void {
     const target_os = target.os_tag orelse builtin.os.tag;
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
-        .name = "Budget Tetris Bot",
+    const train_exe = b.addExecutable(.{
+        .name = "Budget Tetris Bot Training",
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
@@ -15,22 +15,30 @@ pub fn build(b: *std.Build) void {
 
     // LibC required on Windows for signal handling
     if (target_os == .windows) {
-        exe.linkLibC();
+        train_exe.linkLibC();
     }
+
+    const bot_exe = b.addExecutable(.{
+        .name = "Budget Tetris Bot",
+        .root_source_file = .{ .path = "src/bot.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
 
     // Add engine dependency
     const engine_module = b.dependency("engine", .{
         .target = target,
         .optimize = optimize,
     }).module("engine");
-    exe.addModule("engine", engine_module);
+    train_exe.addModule("engine", engine_module);
+    bot_exe.addModule("engine", engine_module);
 
     // Add nterm dependency
     const nterm_module = b.dependency("nterm", .{
         .target = target,
         .optimize = optimize,
     }).module("nterm");
-    exe.addModule("nterm", nterm_module);
+    train_exe.addModule("nterm", nterm_module);
 
     // Expose the library root
     _ = b.addModule("bot", .{
@@ -40,10 +48,11 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    b.installArtifact(exe);
+    b.installArtifact(train_exe);
+    b.installArtifact(bot_exe);
 
     // Add run step
-    const run_cmd = b.addRunArtifact(exe);
+    const run_cmd = b.addRunArtifact(train_exe);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
         run_cmd.addArgs(args);
@@ -60,14 +69,22 @@ pub fn build(b: *std.Build) void {
     lib_tests.addModule("engine", engine_module);
     const run_lib_tests = b.addRunArtifact(lib_tests);
 
-    const exe_tests = b.addTest(.{
+    const train_exe_tests = b.addTest(.{
         .root_source_file = .{ .path = "src/main.zig" },
         .target = target,
         .optimize = optimize,
     });
-    const run_exe_tests = b.addRunArtifact(exe_tests);
+    const run_train_exe_tests = b.addRunArtifact(train_exe_tests);
+
+    const bot_exe_tests = b.addTest(.{
+        .root_source_file = .{ .path = "src/bot.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    const run_bot_exe_tests = b.addRunArtifact(bot_exe_tests);
 
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&run_lib_tests.step);
-    test_step.dependOn(&run_exe_tests.step);
+    test_step.dependOn(&run_train_exe_tests.step);
+    test_step.dependOn(&run_bot_exe_tests.step);
 }
