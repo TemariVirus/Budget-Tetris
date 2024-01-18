@@ -4,8 +4,8 @@ const windows = std.os.windows;
 
 const root = @import("root.zig");
 const kicks = root.kicks;
-const input = nterm.input;
 const nterm = @import("nterm");
+const input = nterm.input;
 
 const Game = root.Game;
 const GameState = root.GameState;
@@ -96,10 +96,11 @@ pub fn main() !void {
     try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
-    const bag = SevenBag.init(randomSeed());
+    const bag = SevenBag.init(std.crypto.random.int(u64));
     const player = GameState.init(bag, kicks.srsPlus);
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
     var player_game = Game.init(
+        allocator,
         "You",
         player,
         6,
@@ -136,15 +137,6 @@ pub fn main() !void {
             time.sleep(1 * time.ns_per_ms);
         }
     }
-}
-
-fn randomSeed() u64 {
-    // Probably random enough?
-    var seed: u128 = @bitCast(std.time.nanoTimestamp());
-    seed *%= 0x6cfc7228c1e15b4883c70617;
-    seed +%= 0x1155e8e3c0b3fe3963e841510f42e8e;
-    seed ^= seed >> 64;
-    return @truncate(seed);
 }
 
 fn setupPlayerInput(player: *Game) !void {

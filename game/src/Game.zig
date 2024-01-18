@@ -5,6 +5,8 @@ const std = @import("std");
 const root = @import("root.zig");
 const nterm = @import("nterm");
 const assert = std.debug.assert;
+const Allocator = std.mem.Allocator;
+const GarbageQueue = std.ArrayList(IncomingGarbage);
 
 const AttackTable = root.attack.AttackTable;
 const ClearInfo = root.attack.ClearInfo;
@@ -40,6 +42,7 @@ state: GameState,
 last_clear_info: ClearInfo,
 last_clear_millis: u32,
 playfield_colors: ColorArray,
+garbage_queue: GarbageQueue,
 show_next_count: u3,
 view: View,
 
@@ -94,7 +97,12 @@ pub const Stat = enum {
     VsScore,
 };
 
-pub fn init(name: []const u8, state: GameState, show_next_count: u3, view: View, display_stats: []const Stat) Self {
+const IncomingGarbage = struct {
+    lines: u16,
+    time: u32,
+};
+
+pub fn init(allocator: Allocator, name: []const u8, state: GameState, show_next_count: u3, view: View, display_stats: []const Stat) Self {
     const now = std.time.milliTimestamp();
     return Self{
         .name = name,
@@ -107,6 +115,7 @@ pub fn init(name: []const u8, state: GameState, show_next_count: u3, view: View,
         },
         .last_clear_millis = 0,
         .playfield_colors = ColorArray.init(),
+        .garbage_queue = GarbageQueue.init(allocator),
         .show_next_count = show_next_count,
         .view = view,
 
