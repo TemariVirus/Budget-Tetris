@@ -48,6 +48,7 @@ view: View,
 
 already_held: bool,
 just_rotated: bool,
+last_kick: i8,
 move_count: u8,
 last_move_millis: u32,
 last_tick_millis: u32,
@@ -121,6 +122,7 @@ pub fn init(allocator: Allocator, name: []const u8, state: GameState, show_next_
 
         .already_held = false,
         .just_rotated = false,
+        .last_kick = -1,
         .move_count = 0,
         .last_move_millis = 0,
         .last_tick_millis = 0,
@@ -196,11 +198,13 @@ pub fn moveRightAll(self: *Self) void {
 
 pub fn rotateCw(self: *Self) void {
     self.current_piece_keys += 1;
-    if (!self.state.rotate(.QuarterCw)) {
+    const kick = self.state.rotate(.QuarterCw);
+    if (kick == -1) {
         return;
     }
 
     self.just_rotated = true;
+    self.last_kick = kick;
     if (self.move_count < AUTOLOCK_GRACE) {
         self.move_count += 1;
         self.last_move_millis = self.time();
@@ -209,11 +213,13 @@ pub fn rotateCw(self: *Self) void {
 
 pub fn rotateDouble(self: *Self) void {
     self.current_piece_keys += 1;
-    if (!self.state.rotate(.Half)) {
+    const kick = self.state.rotate(.Half);
+    if (kick == -1) {
         return;
     }
 
     self.just_rotated = true;
+    self.last_kick = kick;
     if (self.move_count < AUTOLOCK_GRACE) {
         self.move_count += 1;
         self.last_move_millis = self.time();
@@ -222,11 +228,13 @@ pub fn rotateDouble(self: *Self) void {
 
 pub fn rotateCcw(self: *Self) void {
     self.current_piece_keys += 1;
-    if (!self.state.rotate(.QuarterCCw)) {
+    const kick = self.state.rotate(.QuarterCCw);
+    if (kick == -1) {
         return;
     }
 
     self.just_rotated = true;
+    self.last_kick = kick;
     if (self.move_count < AUTOLOCK_GRACE) {
         self.move_count += 1;
         self.last_move_millis = self.time();
@@ -266,6 +274,7 @@ fn place(self: *Self) void {
     self.state.nextPiece();
     self.already_held = false;
     self.just_rotated = false;
+    self.last_kick = -1;
     self.move_count = 0;
     self.last_move_millis = self.time();
     self.softdropping = false;
@@ -291,7 +300,7 @@ fn lockCurrent(self: *Self) struct { ClearInfo, u64, u16 } {
 
     // Scoring values taken from Tetris.wiki
     // https://tetris.wiki/Scoring#Recent_guideline_compatible_games
-    const info = self.state.lockCurrent(self.just_rotated);
+    const info = self.state.lockCurrent(self.just_rotated, self.last_kick);
     var clear_score = ([_]u64{ 0, 100, 300, 500, 800 })[info.cleared];
     clear_score += switch (info.t_spin) {
         .Mini => 100,

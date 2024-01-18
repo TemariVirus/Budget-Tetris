@@ -164,12 +164,12 @@ pub fn dropToGround(self: *Self) u8 {
     return self.drop(self.playfield.rows.len);
 }
 
-/// Tries to rotate the current piece.
-/// Returns whether the rotation was successful.
-pub fn rotate(self: *Self, rotation: Rotation) bool {
+/// Tries to rotate the current piece. Returns the index of the kick used. `-1`
+/// indicates that the rotation failed.
+pub fn rotate(self: *Self, rotation: Rotation) i8 {
     // O piece cannot rotate
     if (self.current.kind == .O) {
-        return false;
+        return -1;
     }
 
     // TODO: Add setting to disable half rotations
@@ -177,25 +177,25 @@ pub fn rotate(self: *Self, rotation: Rotation) bool {
 
     self.current.facing = self.current.facing.rotate(rotation);
     if (!self.collides(self.current, self.pos)) {
-        return true;
+        return 0;
     }
 
-    for (self.kicksFn(old_piece, rotation)) |kick| {
+    for (self.kicksFn(old_piece, rotation), 1..) |kick, i| {
         const kicked_pos = self.pos.add(kick);
         if (!self.collides(self.current, kicked_pos)) {
             self.pos = kicked_pos;
-            return true;
+            return @intCast(i);
         }
     }
 
     self.current = old_piece;
-    return false;
+    return -1;
 }
 
 /// Locks the current piece at the current position,
 /// and clears lines if possible. Returns information about the clear.
-pub fn lockCurrent(self: *Self, rotated_last: bool) ClearInfo {
-    const t_spin = self.tSpinType(rotated_last);
+pub fn lockCurrent(self: *Self, rotated_last: bool, last_kick: i8) ClearInfo {
+    const t_spin = self.tSpinType(rotated_last, last_kick);
 
     self.playfield.place(self.current.mask(), self.pos);
     const cleared = self.clearLines();
@@ -249,7 +249,7 @@ pub fn clearLines(self: *Self) u3 {
 /// as filled blocks.
 /// If both corners in "front" of the T piece are filled, it is a normal
 /// T-spin. If only 1 corner is filled, it is a T-spin mini.
-pub fn tSpinType(self: *Self, rotated_last: bool) TSpin {
+pub fn tSpinType(self: *Self, rotated_last: bool, last_kick: i8) TSpin {
     const all = comptime PieceMask.parse(
         \\...
         \\#.#
@@ -308,28 +308,43 @@ pub fn tSpinType(self: *Self, rotated_last: bool) TSpin {
         break :blk c;
     };
 
+    // All 4 corners
     if (corners[0] == all[0] and corners[1] == all[2]) {
         return .Full;
     }
+
+    // 3 corner cases (make a special exception for the last SRS kick)
     if (corners[0] == no_br[0] and corners[1] == no_br[2]) {
+        if (last_kick == 4) {
+            return .Full;
+        }
         return switch (self.current.facing) {
             .Up, .Left => .Full,
             .Right, .Down => .Mini,
         };
     }
     if (corners[0] == no_bl[0] and corners[1] == no_bl[2]) {
+        if (last_kick == 4) {
+            return .Full;
+        }
         return switch (self.current.facing) {
             .Up, .Right => .Full,
             .Down, .Left => .Mini,
         };
     }
     if (corners[0] == no_tl[0] and corners[1] == no_tl[2]) {
+        if (last_kick == 4) {
+            return .Full;
+        }
         return switch (self.current.facing) {
             .Right, .Down => .Full,
             .Up, .Left => .Mini,
         };
     }
     if (corners[0] == no_tr[0] and corners[1] == no_tr[2]) {
+        if (last_kick == 4) {
+            return .Full;
+        }
         return switch (self.current.facing) {
             .Down, .Left => .Full,
             .Up, .Right => .Mini,
@@ -423,10 +438,11 @@ test "DT cannon" {
 
     // J piece
     game.hold();
-    try expect(game.rotate(.QuarterCCw));
+    var kick = game.rotate(.QuarterCCw);
+    try expect(kick != -1);
     try expect(game.slide(1) == 1);
     try expect(game.dropToGround() == 18);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -435,10 +451,11 @@ test "DT cannon" {
     game.nextPiece();
 
     // L piece
-    try expect(game.rotate(.QuarterCw));
+    kick = game.rotate(.QuarterCw);
+    try expect(kick != -1);
     try expect(game.slide(3) == 3);
     try expect(game.dropToGround() == 18);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -447,8 +464,9 @@ test "DT cannon" {
     game.nextPiece();
 
     // T piece
+    kick = -1;
     try expect(game.dropToGround() == 16);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -457,10 +475,11 @@ test "DT cannon" {
     game.nextPiece();
 
     // S piece
-    try expect(game.rotate(.QuarterCw));
+    kick = game.rotate(.QuarterCw);
+    try expect(kick != -1);
     try expect(game.slide(10) == 4);
     try expect(game.dropToGround() == 18);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -469,9 +488,10 @@ test "DT cannon" {
     game.nextPiece();
 
     // O piece
+    kick = -1;
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 19);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -480,10 +500,11 @@ test "DT cannon" {
     game.nextPiece();
 
     // I piece
-    try expect(game.rotate(.QuarterCw));
+    kick = game.rotate(.QuarterCw);
+    try expect(kick != -1);
     try expect(game.slide(1) == 1);
     try expect(game.dropToGround() == 17);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -492,9 +513,10 @@ test "DT cannon" {
     game.nextPiece();
 
     // S piece
-    try expect(game.rotate(.QuarterCw));
+    kick = game.rotate(.QuarterCw);
+    try expect(kick != -1);
     try expect(game.dropToGround() == 14);
-    try expect(std.meta.eql(game.lockCurrent(true), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(true, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -503,9 +525,10 @@ test "DT cannon" {
     game.nextPiece();
 
     // O piece
+    kick = -1;
     try expect(game.slide(3) == 3);
     try expect(game.dropToGround() == 16);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -514,10 +537,11 @@ test "DT cannon" {
     game.nextPiece();
 
     // J piece
-    try expect(game.rotate(.QuarterCw));
+    kick = game.rotate(.QuarterCw);
+    try expect(kick != -1);
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 16);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -527,16 +551,17 @@ test "DT cannon" {
 
     // Z piece
     game.hold();
-    try expect(game.rotate(.QuarterCCw));
+    try expect(game.rotate(.QuarterCCw) != -1);
     try expect(game.slide(-1) == 1);
     try expect(game.dropToGround() == 15);
-    try expect(game.rotate(.QuarterCCw));
-    try expect(game.rotate(.Half));
-    try expect(!game.rotate(.QuarterCCw));
+    try expect(game.rotate(.QuarterCCw) != -1);
+    try expect(game.rotate(.Half) != -1);
+    try expect(game.rotate(.QuarterCCw) == -1);
     try expect(game.dropToGround() == 1);
-    try expect(game.rotate(.QuarterCCw));
+    kick = game.rotate(.QuarterCCw);
+    try expect(kick != -1);
     try expect(game.slide(10) == 1);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -546,10 +571,11 @@ test "DT cannon" {
 
     // Z piece
     game.hold();
-    try expect(game.rotate(.QuarterCw));
+    kick = game.rotate(.QuarterCw);
+    try expect(kick != -1);
     try expect(game.slide(2) == 2);
     try expect(game.dropToGround() == 14);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -558,10 +584,11 @@ test "DT cannon" {
     game.nextPiece();
 
     // L piece
-    try expect(game.rotate(.QuarterCCw));
+    kick = game.rotate(.QuarterCCw);
+    try expect(kick != -1);
     try expect(game.slide(-1) == 1);
     try expect(game.dropToGround() == 14);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -570,10 +597,11 @@ test "DT cannon" {
     game.nextPiece();
 
     // I piece
-    try expect(game.rotate(.QuarterCw));
+    kick = game.rotate(.QuarterCw);
+    try expect(kick != -1);
     try expect(game.slide(10) == 4);
     try expect(game.dropToGround() == 15);
-    try expect(std.meta.eql(game.lockCurrent(false), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(false, kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
@@ -583,16 +611,17 @@ test "DT cannon" {
 
     // T piece
     game.hold();
-    try expect(game.rotate(.QuarterCw));
+    try expect(game.rotate(.QuarterCw) != -1);
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 13);
-    try expect(game.rotate(.QuarterCCw));
-    try expect(game.rotate(.QuarterCCw));
-    try expect(!game.rotate(.QuarterCCw));
+    try expect(game.rotate(.QuarterCCw) != -1);
+    try expect(game.rotate(.QuarterCCw) != -1);
+    try expect(game.rotate(.QuarterCCw) == -1);
     try expect(game.dropToGround() == 1);
-    try expect(game.rotate(.QuarterCCw));
+    kick = game.rotate(.QuarterCCw);
+    try expect(kick != -1);
     try expect(game.dropToGround() == 0);
-    try expect(std.meta.eql(game.lockCurrent(true), ClearInfo{
+    try expect(std.meta.eql(game.lockCurrent(true, kick), ClearInfo{
         .b2b = false,
         .cleared = 2,
         .pc = false,
@@ -602,13 +631,14 @@ test "DT cannon" {
 
     // T piece
     game.hold();
-    try expect(game.rotate(.QuarterCw));
+    try expect(game.rotate(.QuarterCw) != -1);
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 15);
-    try expect(game.rotate(.QuarterCCw));
-    try expect(game.rotate(.QuarterCCw));
-    try expect(!game.rotate(.QuarterCCw));
-    try expect(std.meta.eql(game.lockCurrent(true), ClearInfo{
+    try expect(game.rotate(.QuarterCCw) != -1);
+    kick = game.rotate(.QuarterCCw);
+    try expect(kick != -1);
+    try expect(game.rotate(.QuarterCCw) == -1);
+    try expect(std.meta.eql(game.lockCurrent(true, kick), ClearInfo{
         .b2b = true,
         .cleared = 3,
         .pc = false,
