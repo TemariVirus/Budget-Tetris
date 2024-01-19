@@ -7,8 +7,7 @@ const kicks = root.kicks;
 const nterm = @import("nterm");
 const input = nterm.input;
 
-const Game = root.Game;
-const GameState = root.GameState;
+const Game = root.Game(SevenBag, kicks.srsPlus);
 const PeriodicTrigger = root.PeriodicTrigger;
 const SevenBag = root.bags.SevenBag;
 const View = nterm.View;
@@ -96,18 +95,16 @@ pub fn main() !void {
     try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
-    const bag = SevenBag.init(std.crypto.random.int(u64));
-    const player = GameState.init(bag, kicks.srsPlus);
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
-    var player_game = Game.init(
+    var player = Game.init(
         allocator,
         "You",
-        player,
+        SevenBag.init(std.crypto.random.int(u64)),
         6,
         player_view,
         &.{ .PPS, .APP, .VsScore },
     );
-    try setupPlayerInput(&player_game);
+    try setupPlayerInput(&player);
 
     const fps_view = View.init(1, 0, 15, 1);
     var input_timer = PeriodicTrigger.init(time.ns_per_s / INPUT_RATE);
@@ -122,8 +119,8 @@ pub fn main() !void {
         if (render_timer.trigger()) {
             try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
 
-            player_game.tick();
-            try player_game.draw();
+            player.tick();
+            try player.draw();
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {
                     return;

@@ -10,8 +10,8 @@ pub const kicks = @import("kicks.zig");
 pub const pieces = @import("pieces.zig");
 pub const tbp = @import("tbp.zig");
 
-pub const Game = @import("Game.zig");
-pub const GameState = @import("GameState.zig");
+pub const Game = @import("Game.zig").Game;
+pub const GameState = @import("GameState.zig").GameState;
 pub const PeriodicTrigger = @import("PeriodicTrigger.zig");
 
 test {

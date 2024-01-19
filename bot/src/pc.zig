@@ -6,7 +6,7 @@ const expect = std.testing.expect;
 const engine = @import("engine");
 const kicks = engine.kicks;
 const BoardMask = engine.bit_masks.BoardMask;
-const GameState = engine.GameState;
+const GameState = engine.GameState(SevenBag, kicks.srsPlus);
 const Position = engine.pieces.Position;
 const Piece = engine.pieces.Piece;
 const PieceKind = engine.pieces.PieceKind;
@@ -218,13 +218,13 @@ fn findPcInner(
                     .Right => if (new_game.slide(1) == 0) {
                         continue;
                     },
-                    .RotateCw => if (!new_game.rotate(.QuarterCw)) {
+                    .RotateCw => if (new_game.rotate(.QuarterCw) == -1) {
                         continue;
                     },
-                    .RotateDouble => if (!new_game.rotate(.Half)) {
+                    .RotateDouble => if (new_game.rotate(.Half) == -1) {
                         continue;
                     },
-                    .RotateCcw => if (!new_game.rotate(.QuarterCCw)) {
+                    .RotateCcw => if (new_game.rotate(.QuarterCCw) == -1) {
                         continue;
                     },
                     .Drop => if (new_game.drop(1) == 0) {
@@ -240,7 +240,7 @@ fn findPcInner(
                     continue;
                 }
 
-                const cleared = new_game.lockCurrent(false).cleared;
+                const cleared = new_game.lockCurrent(false, 0).cleared;
                 const new_height = max_height - cleared;
                 if (!isPcPossible(new_game.playfield.rows[0..new_height])) {
                     continue;
@@ -346,8 +346,7 @@ pub fn pcBenchmark() !void {
 test "4-line PC" {
     const allocator = std.testing.allocator;
 
-    const bag = engine.bags.SevenBag.init(0);
-    var gamestate = GameState.init(bag, engine.kicks.srsPlus);
+    var gamestate = GameState.init(engine.bags.SevenBag.init(0));
 
     const solution = try findPc(allocator, gamestate, 0, 11);
     defer allocator.free(solution);
@@ -357,10 +356,10 @@ test "4-line PC" {
     for (solution[0 .. solution.len - 1]) |placement| {
         gamestate.current = placement.piece;
         gamestate.pos = placement.pos;
-        try expect(!gamestate.lockCurrent(false).pc);
+        try expect(!gamestate.lockCurrent(false, 0).pc);
     }
 
     gamestate.current = solution[solution.len - 1].piece;
     gamestate.pos = solution[solution.len - 1].pos;
-    try expect(gamestate.lockCurrent(false).pc);
+    try expect(gamestate.lockCurrent(false, 0).pc);
 }

@@ -3,8 +3,8 @@ const Allocator = std.mem.Allocator;
 const time = std.time;
 
 const engine = @import("engine");
-const Game = engine.Game;
-const GameState = engine.GameState;
+const Game = engine.Game(SevenBag, kicks.srsPlus);
+const GameState = engine.GameState(SevenBag, kicks.srsPlus);
 const kicks = engine.kicks;
 const PeriodicTrigger = engine.PeriodicTrigger;
 const SevenBag = engine.bags.SevenBag;
@@ -29,12 +29,11 @@ pub fn main() !void {
     try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
-    const bag = SevenBag.init(0);
-    const gamestate = GameState.init(bag, kicks.srsPlus);
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
     var game = Game.init(
+        allocator,
         "You",
-        gamestate,
+        SevenBag.init(0),
         6,
         player_view,
         &.{ .PPS, .APP, .VsScore },
@@ -46,7 +45,7 @@ pub fn main() !void {
 
     const pc_thread = try std.Thread.spawn(.{
         .allocator = allocator,
-    }, pcThread, .{ allocator, gamestate, &pc_queue });
+    }, pcThread, .{ allocator, game.state, &pc_queue });
     defer pc_thread.join();
 
     const fps_view = View.init(1, 0, 15, 1);
@@ -102,7 +101,7 @@ fn pcThread(allocator: Allocator, state: GameState, queue: *std.ArrayList([]Plac
             }
             game.current = placement.piece;
             game.pos = placement.pos;
-            _ = game.lockCurrent(false);
+            _ = game.lockCurrent(false, 0);
             game.nextPiece();
         }
 

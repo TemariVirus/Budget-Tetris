@@ -11,7 +11,7 @@ const eql = std.mem.eql;
 const root = @import("root.zig");
 const BoardMask = root.bit_masks.BoardMask;
 const Facing = root.pieces.Facing;
-const GameState = root.GameState;
+const GameState = root.GameState(SevenBag, kicks.srs);
 const kicks = root.kicks;
 const Piece = root.pieces.Piece;
 const PieceKind = root.pieces.PieceKind;
@@ -264,15 +264,14 @@ pub const GameStart = struct {
             .next_pieces = undefined,
 
             .bag = SevenBag.init(0),
-            .kicksFn = kicks.srs,
             .b2b = undefined,
             .combo = undefined,
         };
         for (self.queue[1..], 0..) |kind, i| {
             gamestate.next_pieces[i] = kind;
         }
-        gamestate.setCanonicalcombo(if (self.combo == 0) null else self.combo - 1);
-        gamestate.setCanonicalB2B(if (self.back_to_back) 1 else null);
+        gamestate.combo = self.combo;
+        gamestate.b2b = if (self.back_to_back) 1 else 0;
 
         return gamestate;
     }

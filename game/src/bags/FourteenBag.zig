@@ -5,10 +5,7 @@ const Xoroshiro128 = std.rand.Xoroshiro128;
 const testing = std.testing;
 const expect = testing.expect;
 
-const root = @import("../root.zig");
-const PieceKind = root.pieces.PieceKind;
-
-const Bag = root.bags.Bag;
+const PieceKind = @import("../root.zig").pieces.PieceKind;
 
 const Self = @This();
 
@@ -23,6 +20,7 @@ pub fn init(seed: u64) Self {
     return Self{ .random = Xoroshiro128.init(seed) };
 }
 
+/// Returns the next piece in the bag.
 pub fn next(self: *Self) PieceKind {
     if (self.index >= self.pieces.len) {
         self.random.random().shuffle(PieceKind, &self.pieces);
@@ -33,13 +31,9 @@ pub fn next(self: *Self) PieceKind {
     return self.pieces[self.index];
 }
 
+/// Sets the seed of the bag. The current bag will be discarded and refilled.
 pub fn setSeed(self: *Self, seed: u64) void {
     self.random = Xoroshiro128.init(seed);
-}
-
-pub fn bag(self: Self) Bag {
-    _ = self;
-    @compileError("TODO: implement");
 }
 
 test "14-bag randomizer" {

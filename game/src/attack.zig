@@ -36,7 +36,7 @@ pub const AttackTable = struct {
     perfect_clear: [4]u8,
 
     /// Returns the attack of the specified clear.
-    pub fn getAttack(self: AttackTable, info: ClearInfo, b2b: ?u32, combo: ?u32) u16 {
+    pub fn getAttack(self: AttackTable, info: ClearInfo, b2b: u32, combo: u32) u16 {
         var attack: u16 = if (info.pc)
             self.perfect_clear[info.cleared - 1]
         else if (info.t_spin == .Full)
@@ -45,15 +45,10 @@ pub const AttackTable = struct {
             self.clears[info.cleared];
 
         if (info.b2b) {
-            const idx = @min(b2b.?, self.b2b.len - 1);
-            attack += self.b2b[idx];
+            attack += self.b2b[@min(b2b, self.b2b.len - 1)];
         }
 
-        if (combo) |combo_len| {
-            const idx = @min(combo_len, self.combo.len - 1);
-            attack += self.combo[idx];
-        }
-
+        attack += self.combo[@min(combo, self.combo.len - 1)];
         return attack;
     }
 };

@@ -12,7 +12,7 @@ const engine = @import("engine");
 const tbp = engine.tbp;
 
 const BoardMask = engine.bit_masks.BoardMask;
-const GameState = engine.GameState;
+const GameState = engine.GameState(engine.bags.SevenBag, engine.kicks.srs);
 const PieceKind = engine.pieces.PieceKind;
 const Piece = engine.pieces.Piece;
 const Position = engine.pieces.Position;
@@ -108,7 +108,7 @@ pub fn main() !void {
 
                     game.current = move.piece;
                     game.pos = move.pos;
-                    _ = game.lockCurrent(move.spin != .None);
+                    _ = game.lockCurrent(move.spin != .None, 0);
                     game.nextPiece();
                 },
                 .new_piece => {
@@ -178,10 +178,10 @@ fn nextMove(allocator: Allocator, game: GameState, depth: u8) !PiecePosition {
                 .Right => if (new_game.slide(1) == 0) {
                     continue;
                 },
-                .RotateCw => if (!new_game.rotate(.QuarterCw)) {
+                .RotateCw => if (new_game.rotate(.QuarterCw) == -1) {
                     continue;
                 },
-                .RotateCcw => if (!new_game.rotate(.QuarterCCw)) {
+                .RotateCcw => if (new_game.rotate(.QuarterCCw) == -1) {
                     continue;
                 },
                 .Drop => if (new_game.drop(1) == 0) {
@@ -194,7 +194,7 @@ fn nextMove(allocator: Allocator, game: GameState, depth: u8) !PiecePosition {
             // Hard drop
             _ = new_game.dropToGround();
             const piece_pos = PiecePosition.pack(new_game.current, new_game.pos);
-            _ = new_game.lockCurrent(false);
+            _ = new_game.lockCurrent(false, 0);
             new_game.nextPiece();
 
             const score = try nextMoveInner(new_game, &cache, depth - 1);
@@ -259,10 +259,10 @@ fn nextMoveInner(game: GameState, cache: *NodeSet, depth: u8) !u64 {
                 .Right => if (new_game.slide(1) == 0) {
                     continue;
                 },
-                .RotateCw => if (!new_game.rotate(.QuarterCw)) {
+                .RotateCw => if (new_game.rotate(.QuarterCw) == -1) {
                     continue;
                 },
-                .RotateCcw => if (!new_game.rotate(.QuarterCCw)) {
+                .RotateCcw => if (new_game.rotate(.QuarterCCw) == -1) {
                     continue;
                 },
                 .Drop => if (new_game.drop(1) == 0) {
@@ -275,7 +275,7 @@ fn nextMoveInner(game: GameState, cache: *NodeSet, depth: u8) !u64 {
             // Hard drop
             _ = new_game.dropToGround();
             _ = PiecePosition.pack(new_game.current, new_game.pos);
-            _ = new_game.lockCurrent(false);
+            _ = new_game.lockCurrent(false, 0);
             new_game.nextPiece();
 
             const score = try nextMoveInner(new_game, cache, depth - 1);

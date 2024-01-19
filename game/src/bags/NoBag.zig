@@ -1,12 +1,7 @@
 //! Generates pieces completely at random.
 
-const std = @import("std");
-const Xoroshiro128 = std.rand.Xoroshiro128;
-
-const root = @import("../root.zig");
-const PieceKind = root.pieces.PieceKind;
-
-const Bag = root.bags.Bag;
+const Xoroshiro128 = @import("std").rand.Xoroshiro128;
+const PieceKind = @import("../root.zig").pieces.PieceKind;
 
 const Self = @This();
 
@@ -16,15 +11,12 @@ pub fn init(seed: u64) Self {
     return Self{ .random = Xoroshiro128.init(seed) };
 }
 
+/// Returns the next piece.
 pub fn next(self: *Self) PieceKind {
     return @enumFromInt(self.random.next() % 7);
 }
 
+/// Sets the seed of the bag.
 pub fn setSeed(self: *Self, seed: u64) void {
     self.random = Xoroshiro128.init(seed);
-}
-
-pub fn bag(self: Self) Bag {
-    _ = self;
-    @compileError("TODO: implement");
 }
