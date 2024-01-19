@@ -8,9 +8,7 @@ const sleep = std.time.sleep;
 const TETRIO_API = "https://ch.tetr.io/api/";
 // Reference: https://inoue.szy.lol/api/
 const INOUE_REPLAY_API = "https://inoue.szy.lol/api/replay/";
-
 const REPLAY_DIR = "replays/";
-const USER_COUNT = 500;
 
 const MongoId = [24]u8;
 
@@ -31,6 +29,10 @@ fn TetrioResponse(comptime T: type) type {
 }
 
 pub fn main() !void {
+    try fetchReplays(500);
+}
+
+fn fetchReplays(user_count: usize) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
@@ -38,7 +40,7 @@ pub fn main() !void {
     var client = HttpClient{ .allocator = allocator };
     defer client.deinit();
 
-    const users = try getLeagueTop(allocator, &client, USER_COUNT);
+    const users = try getLeagueTop(allocator, &client, user_count);
     defer allocator.free(users);
 
     // Save users to file

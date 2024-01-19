@@ -14,6 +14,7 @@ const ColorArray = @import("ColorArray.zig");
 const KickFn = root.kicks.KickFn;
 const PieceKind = root.pieces.PieceKind;
 const Piece = root.pieces.Piece;
+const Settings = root.Settings;
 
 const Color = nterm.Color;
 const View = nterm.View;
@@ -32,28 +33,14 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         pub const DISPLAY_W = 44;
         pub const DISPLAY_H = 24;
 
-        // TODO: Extract settings to config
-        const AUTOLOCK_GRACE = 15;
-        const G = 0.025 * 60; // Multiply by framerate before passing to Game
-        const SOFT_G = 40.0;
-        const LOCK_DELAY = 500;
-        const CLEAR_ERASE_DELAY = 1000;
-        const DEFAULT_ATTACK_TABLE = AttackTable{
-            .b2b = &.{ 0, 0, 1 },
-            .clears = .{ 0, 0, 1, 2, 4 },
-            .combo = &.{ 0, 0, 1, 1, 1, 2, 2, 3, 3, 4, 4, 4, 5 },
-            .perfect_clear = .{ 10, 10, 10, 10 },
-            .t_spin = .{ 0, 2, 4, 6 },
-        };
-
         name: []const u8,
         state: GameState,
         last_clear_info: ClearInfo,
         last_clear_millis: u32,
         playfield_colors: ColorArray,
         garbage_queue: GarbageQueue,
-        show_next_count: u3,
         view: View,
+        settings: *const Settings,
 
         already_held: bool,
         just_rotated: bool,
@@ -64,7 +51,6 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         softdropping: bool,
         vel: f32,
 
-        display_stats: []const Stat,
         start_time: i64,
         lines_cleared: u32,
         garbage_cleared: u32,
@@ -76,38 +62,13 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         keys_pressed: u32,
         finesse: u32,
 
-        const Stat = enum {
-            /// Attack Per Line.
-            APL,
-            /// Attack Per Minute.
-            APM,
-            /// Attack Per Piece.
-            APP,
-            /// Finesse.
-            Finesse,
-            /// Keys Pressed.
-            Keys,
-            /// Keys Per Piece.
-            KPP,
-            /// Level. Calculated as `(Lines / 10) + 1`.
-            Level,
-            /// Lines cleared.
-            Lines,
-            /// Pieces Per Second.
-            PPS,
-            /// Lines of garbage received.
-            Received,
-            /// Score.
-            Score,
-            /// Lines of garbage sent; Attack.
-            Sent,
-            /// Time elaspsed since start.
-            Time,
-            /// VS Score. Calculated as `100 * (Attack + Garbage cleared) / Seconds`.
-            VsScore,
-        };
-
-        pub fn init(allocator: Allocator, name: []const u8, bag: Bag, show_next_count: u3, view: View, display_stats: []const Stat) Self {
+        pub fn init(
+            allocator: Allocator,
+            name: []const u8,
+            bag: Bag,
+            view: View,
+            settings: *const Settings,
+        ) Self {
             const now = std.time.milliTimestamp();
             return Self{
                 .name = name,
@@ -121,8 +82,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 .last_clear_millis = 0,
                 .playfield_colors = ColorArray.init(),
                 .garbage_queue = GarbageQueue.init(allocator),
-                .show_next_count = show_next_count,
                 .view = view,
+                .settings = settings,
 
                 .already_held = false,
                 .just_rotated = false,
@@ -133,7 +94,6 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 .softdropping = false,
                 .vel = 0.0,
 
-                .display_stats = display_stats,
                 .start_time = now,
                 .lines_cleared = 0,
                 .garbage_cleared = 0,
@@ -159,7 +119,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             self.just_rotated = false;
-            if (self.move_count < AUTOLOCK_GRACE) {
+            if (self.move_count < self.settings.autolock_grace) {
                 self.move_count += 1;
                 self.last_move_millis = self.time();
             }
@@ -171,7 +131,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             self.just_rotated = false;
-            if (self.move_count < AUTOLOCK_GRACE) {
+            if (self.move_count < self.settings.autolock_grace) {
                 self.last_move_millis = self.time();
             }
         }
@@ -183,7 +143,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             self.just_rotated = false;
-            if (self.move_count < AUTOLOCK_GRACE) {
+            if (self.move_count < self.settings.autolock_grace) {
                 self.move_count += 1;
                 self.last_move_millis = self.time();
             }
@@ -195,7 +155,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             self.just_rotated = false;
-            if (self.move_count < AUTOLOCK_GRACE) {
+            if (self.move_count < self.settings.autolock_grace) {
                 self.last_move_millis = self.time();
             }
         }
@@ -209,7 +169,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
             self.just_rotated = true;
             self.last_kick = kick;
-            if (self.move_count < AUTOLOCK_GRACE) {
+            if (self.move_count < self.settings.autolock_grace) {
                 self.move_count += 1;
                 self.last_move_millis = self.time();
             }
@@ -224,7 +184,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
             self.just_rotated = true;
             self.last_kick = kick;
-            if (self.move_count < AUTOLOCK_GRACE) {
+            if (self.move_count < self.settings.autolock_grace) {
                 self.move_count += 1;
                 self.last_move_millis = self.time();
             }
@@ -239,7 +199,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
             self.just_rotated = true;
             self.last_kick = kick;
-            if (self.move_count < AUTOLOCK_GRACE) {
+            if (self.move_count < self.settings.autolock_grace) {
                 self.move_count += 1;
                 self.last_move_millis = self.time();
             }
@@ -251,7 +211,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             self.softdropping = true;
-            self.vel += SOFT_G;
+            self.vel += self.settings.soft_g;
         }
 
         pub fn hardDrop(self: *Self) void {
@@ -324,7 +284,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             if (self.state.combo > 1) {
                 clear_score += 50 * (self.state.combo - 1);
             }
-            const attack = DEFAULT_ATTACK_TABLE.getAttack(info, self.state.b2b, self.state.combo);
+            const attack = self.settings.attack_table.getAttack(info, self.state.b2b, self.state.combo);
 
             return .{
                 info,
@@ -364,6 +324,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
         }
 
+        /// Holds the current piece, or does nothing if the piece has already been held.
         pub fn hold(self: *Self) void {
             self.current_piece_keys += 1;
             if (self.already_held) {
@@ -377,16 +338,18 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             self.last_move_millis = self.time();
         }
 
-        pub fn tick(self: *Self) void {
-            const now = self.time();
-            const dt = @as(f32, @floatFromInt(now - self.last_tick_millis)) / 1000.0;
-            self.vel += G * dt;
+        /// Advances the game by `dt` seconds.
+        pub fn tick(self: *Self, dt: f32) void {
+            const now = self.last_tick_millis + @as(u32, @intFromFloat(dt * 1000));
+            self.vel += self.settings.g * dt;
 
             // Handle autolocking
             if (self.state.onGround()) {
                 self.vel = 0.0;
 
-                if (self.move_count > AUTOLOCK_GRACE or now - self.last_move_millis > LOCK_DELAY) {
+                if (self.move_count > self.settings.autolock_grace or
+                    now -| self.last_move_millis > self.settings.lock_delay)
+                {
                     self.place();
                 }
             }
@@ -458,7 +421,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             try self.drawClearInfo();
             self.drawMatrix();
             self.drawNext();
-            for (self.display_stats, 0..) |stat, i| {
+            for (self.settings.display_stats, 0..) |stat, i| {
                 try self.drawStat(stat, @intCast(i));
             }
         }
@@ -529,7 +492,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             const TOP = 15;
             const WIDTH = 10;
             const HEIGHT = 5;
-            if (self.time() - self.last_clear_millis >= CLEAR_ERASE_DELAY) {
+            if (self.time() - self.last_clear_millis >= self.settings.clear_erase_dalay) {
                 return;
             }
 
@@ -611,16 +574,16 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             const TOP = 2;
             const WIDTH = 10;
 
-            if (self.show_next_count == 0) {
+            if (self.settings.show_next_count == 0) {
                 return;
             }
 
-            const height = @as(u16, @intCast(self.show_next_count)) * 3 + 1;
+            const height = @as(u16, @intCast(self.settings.show_next_count)) * 3 + 1;
             const next_box = self.view.sub(LEFT, TOP, WIDTH, height);
             next_box.drawBox(0, 0, WIDTH, height);
             next_box.writeText(3, 0, .White, .Black, "NEXT");
 
-            for (0..self.show_next_count) |i| {
+            for (0..self.settings.show_next_count) |i| {
                 const piece = Piece{
                     .facing = .Up,
                     .kind = self.state.next_pieces[i],
@@ -630,7 +593,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
         }
 
-        fn drawStat(self: Self, stat: Stat, slot: u16) !void {
+        fn drawStat(self: Self, stat: Settings.Stat, slot: u16) !void {
             const top = 21 + slot;
             // Don't draw if stat slot is outside of view
             if (top >= self.view.height) {

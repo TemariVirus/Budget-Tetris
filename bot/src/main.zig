@@ -29,14 +29,16 @@ pub fn main() !void {
     try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
+    const settings = engine.Settings{
+        .display_stats = &.{ .PPS, .APP, .VsScore },
+    };
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
     var game = Game.init(
         allocator,
         "You",
         SevenBag.init(0),
-        6,
         player_view,
-        &.{ .PPS, .APP, .VsScore },
+        &settings,
     );
 
     var placement_i: usize = 0;

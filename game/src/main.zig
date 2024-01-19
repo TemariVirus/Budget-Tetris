@@ -95,14 +95,16 @@ pub fn main() !void {
     try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
+    const settings = root.Settings{
+        .display_stats = &.{ .PPS, .APP, .VsScore },
+    };
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
     var player = Game.init(
         allocator,
         "You",
         SevenBag.init(std.crypto.random.int(u64)),
-        6,
         player_view,
-        &.{ .PPS, .APP, .VsScore },
+        &settings,
     );
     try setupPlayerInput(&player);
 
@@ -119,7 +121,7 @@ pub fn main() !void {
         if (render_timer.trigger()) {
             try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
 
-            player.tick();
+            player.tick(@as(f32, @floatFromInt(render_timer.period)) / time.ns_per_s);
             try player.draw();
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {
