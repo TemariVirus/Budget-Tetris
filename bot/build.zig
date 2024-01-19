@@ -1,9 +1,7 @@
 const std = @import("std");
-const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-    const target_os = target.os_tag orelse builtin.os.tag;
     const optimize = b.standardOptimizeOption(.{});
 
     const train_exe = b.addExecutable(.{
@@ -12,11 +10,6 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-
-    // LibC required on Windows for signal handling
-    if (target_os == .windows) {
-        train_exe.linkLibC();
-    }
 
     const bot_exe = b.addExecutable(.{
         .name = "Budget Tetris Bot",
@@ -30,20 +23,20 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     }).module("engine");
-    train_exe.addModule("engine", engine_module);
-    bot_exe.addModule("engine", engine_module);
+    train_exe.root_module.addImport("engine", engine_module);
+    bot_exe.root_module.addImport("engine", engine_module);
 
     // Add nterm dependency
     const nterm_module = b.dependency("nterm", .{
         .target = target,
         .optimize = optimize,
     }).module("nterm");
-    train_exe.addModule("nterm", nterm_module);
+    train_exe.root_module.addImport("nterm", nterm_module);
 
     // Expose the library root
     _ = b.addModule("bot", .{
-        .source_file = .{ .path = "src/root.zig" },
-        .dependencies = &.{
+        .root_source_file = .{ .path = "src/root.zig" },
+        .imports = &.{
             .{ .name = "engine", .module = engine_module },
         },
     });
@@ -66,7 +59,7 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
-    lib_tests.addModule("engine", engine_module);
+    lib_tests.root_module.addImport("engine", engine_module);
     const run_lib_tests = b.addRunArtifact(lib_tests);
 
     const train_exe_tests = b.addTest(.{

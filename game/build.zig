@@ -1,9 +1,7 @@
 const std = @import("std");
-const builtin = @import("builtin");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
-    const target_os = target.os_tag orelse builtin.os.tag;
     const optimize = b.standardOptimizeOption(.{});
 
     const exe = b.addExecutable(.{
@@ -13,22 +11,17 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // LibC required on Windows for signal handling
-    if (target_os == .windows) {
-        exe.linkLibC();
-    }
-
     // Add nterm dependency
     const nterm_module = b.dependency("nterm", .{
         .target = target,
         .optimize = optimize,
     }).module("nterm");
-    exe.addModule("nterm", nterm_module);
+    exe.root_module.addImport("nterm", nterm_module);
 
     // Expose the library root
     _ = b.addModule("engine", .{
-        .source_file = .{ .path = "src/root.zig" },
-        .dependencies = &.{
+        .root_source_file = .{ .path = "src/root.zig" },
+        .imports = &.{
             .{ .name = "nterm", .module = nterm_module },
         },
     });
