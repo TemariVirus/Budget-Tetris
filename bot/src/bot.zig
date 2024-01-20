@@ -108,7 +108,7 @@ pub fn main() !void {
 
                     game.current = move.piece;
                     game.pos = move.pos;
-                    _ = game.lockCurrent(move.spin != .None, 0);
+                    _ = game.lockCurrent(-1);
                     game.nextPiece();
                 },
                 .new_piece => {
@@ -194,7 +194,7 @@ fn nextMove(allocator: Allocator, game: GameState, depth: u8) !PiecePosition {
             // Hard drop
             _ = new_game.dropToGround();
             const piece_pos = PiecePosition.pack(new_game.current, new_game.pos);
-            _ = new_game.lockCurrent(false, 0);
+            _ = new_game.lockCurrent(-1);
             new_game.nextPiece();
 
             const score = try nextMoveInner(new_game, &cache, depth - 1);
@@ -275,7 +275,7 @@ fn nextMoveInner(game: GameState, cache: *NodeSet, depth: u8) !u64 {
             // Hard drop
             _ = new_game.dropToGround();
             _ = PiecePosition.pack(new_game.current, new_game.pos);
-            _ = new_game.lockCurrent(false, 0);
+            _ = new_game.lockCurrent(-1);
             new_game.nextPiece();
 
             const score = try nextMoveInner(new_game, cache, depth - 1);

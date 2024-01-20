@@ -3,9 +3,11 @@ const Color = @import("nterm").Color;
 
 const Self = @This();
 
-pub const width = 10;
-pub const height = 40;
-const empty_byte = (@intFromEnum(PackedColor.Empty) << 4) | @intFromEnum(PackedColor.Empty);
+pub const WIDTH = 10;
+pub const HEIGHT = 40;
+pub const EMPTY_COLOR = Color.Black;
+pub const GARBAGE_COLOR = Color.White;
+const EMPTY_BYTE = (@intFromEnum(PackedColor.Empty) << 4) | @intFromEnum(PackedColor.Empty);
 
 const PackedColor = enum(u8) {
     Empty,
@@ -15,8 +17,8 @@ const PackedColor = enum(u8) {
     Blue,
     Magenta,
     Cyan,
-    White,
     Garbage,
+    BrightBlack,
     BrightRed,
     BrightGreen,
     BrightYellow,
@@ -26,10 +28,10 @@ const PackedColor = enum(u8) {
     BrightWhite,
 };
 
-data: [width * height / 2]u8,
+data: [WIDTH * HEIGHT / 2]u8,
 
 pub fn init() Self {
-    const data = [_]u8{empty_byte} ** (width * height / 2);
+    const data = [_]u8{EMPTY_BYTE} ** (WIDTH * HEIGHT / 2);
     return Self{ .data = data };
 }
 
@@ -42,8 +44,8 @@ fn pack(color: Color) PackedColor {
         .Blue => .Blue,
         .Magenta => .Magenta,
         .Cyan => .Cyan,
-        .White => .White,
-        .BrightBlack => .Garbage,
+        .White => .Garbage,
+        .BrightBlack => .BrightBlack,
         .BrightRed => .BrightRed,
         .BrightGreen => .BrightGreen,
         .BrightYellow => .BrightYellow,
@@ -63,8 +65,8 @@ fn unpack(color: PackedColor) Color {
         .Blue => .Blue,
         .Magenta => .Magenta,
         .Cyan => .Cyan,
-        .White => .White,
-        .Garbage => .BrightBlack,
+        .Garbage => .White,
+        .BrightBlack => .BrightBlack,
         .BrightRed => .BrightRed,
         .BrightGreen => .BrightGreen,
         .BrightYellow => .BrightYellow,
@@ -76,9 +78,9 @@ fn unpack(color: PackedColor) Color {
 }
 
 pub fn get(self: Self, x: usize, y: usize) Color {
-    assert(x < width and y < height);
+    assert(x < WIDTH and y < HEIGHT);
 
-    const i = (y * width + x) / 2;
+    const i = (y * WIDTH + x) / 2;
     const color = if (x % 2 == 0)
         self.data[i] & 0xF
     else
@@ -87,9 +89,9 @@ pub fn get(self: Self, x: usize, y: usize) Color {
 }
 
 pub fn set(self: *Self, x: usize, y: usize, color: Color) void {
-    assert(x < width and y < height);
+    assert(x < WIDTH and y < HEIGHT);
 
-    const i = (y * width + x) / 2;
+    const i = (y * WIDTH + x) / 2;
     const packed_color = @intFromEnum(pack(color));
     if (x % 2 == 0) {
         self.data[i] = (self.data[i] & 0xF0) | packed_color;
@@ -99,21 +101,21 @@ pub fn set(self: *Self, x: usize, y: usize, color: Color) void {
 }
 
 pub fn copyRow(self: *Self, dst: usize, src: usize) void {
-    assert(src < height and dst < height);
+    assert(src < HEIGHT and dst < HEIGHT);
 
-    const src_index = src * width / 2;
-    const dst_index = dst * width / 2;
-    for (0..width / 2) |i| {
+    const src_index = src * WIDTH / 2;
+    const dst_index = dst * WIDTH / 2;
+    for (0..WIDTH / 2) |i| {
         self.data[dst_index + i] = self.data[src_index + i];
     }
 }
 
 pub fn isRowFull(colors: Self, y: usize) bool {
-    assert(y < height);
+    assert(y < HEIGHT);
     const empty = @intFromEnum(PackedColor.Empty);
 
-    const i = y * width / 2;
-    for (colors.data[i .. i + width / 2]) |color| {
+    const i = y * WIDTH / 2;
+    for (colors.data[i .. i + WIDTH / 2]) |color| {
         const high = color >> 4;
         const low = color & 0xF;
         if (high == empty or low == empty) {
@@ -124,11 +126,11 @@ pub fn isRowFull(colors: Self, y: usize) bool {
 }
 
 pub fn isRowGarbage(colors: Self, y: usize) bool {
-    assert(y < height);
+    assert(y < HEIGHT);
     const garbage = @intFromEnum(PackedColor.Garbage);
 
-    const i = y * width / 2;
-    for (colors.data[i .. i + width / 2]) |color| {
+    const i = y * WIDTH / 2;
+    for (colors.data[i .. i + WIDTH / 2]) |color| {
         const high = color >> 4;
         const low = color & 0xF;
         if (high == garbage or low == garbage) {
@@ -139,10 +141,10 @@ pub fn isRowGarbage(colors: Self, y: usize) bool {
 }
 
 pub fn emptyRow(self: *Self, y: usize) void {
-    assert(y < height);
+    assert(y < HEIGHT);
 
-    const i = y * width / 2;
-    for (self.data[i .. i + width / 2]) |*color| {
-        color.* = empty_byte;
+    const i = y * WIDTH / 2;
+    for (self.data[i .. i + WIDTH / 2]) |*color| {
+        color.* = EMPTY_BYTE;
     }
 }

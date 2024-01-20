@@ -95,9 +95,7 @@ pub fn main() !void {
     try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
-    const settings = root.Settings{
-        .display_stats = &.{ .PPS, .APP, .VsScore },
-    };
+    const settings = root.Settings{};
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
     var player = Game.init(
         allocator,
@@ -114,14 +112,14 @@ pub fn main() !void {
     while (true) {
         var triggered = false;
 
-        if (input_timer.trigger()) {
+        if (input_timer.trigger()) |_| {
             input.tick();
             triggered = true;
         }
-        if (render_timer.trigger()) {
+        if (render_timer.trigger()) |dt| {
             try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
 
-            player.tick(@as(f32, @floatFromInt(render_timer.period)) / time.ns_per_s);
+            player.tick(dt);
             try player.draw();
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {

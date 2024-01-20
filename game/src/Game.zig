@@ -36,22 +36,23 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         name: []const u8,
         state: GameState,
         last_clear_info: ClearInfo,
-        last_clear_millis: u32,
+        /// The number of nanoseconds since the game started when the last clear info was displayed.
+        last_clear_time: u64,
         playfield_colors: ColorArray,
         garbage_queue: GarbageQueue,
         view: View,
         settings: *const Settings,
 
         already_held: bool,
-        just_rotated: bool,
         last_kick: i8,
         move_count: u8,
-        last_move_millis: u32,
-        last_tick_millis: u32,
+        /// The number of nanoseconds since the game started when the last move was made.
+        last_move_time: u64,
         softdropping: bool,
         vel: f32,
 
-        start_time: i64,
+        /// The number of nanoseconds since the game started.
+        time: u64,
         lines_cleared: u32,
         garbage_cleared: u32,
         pieces_placed: u32,
@@ -69,7 +70,6 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             view: View,
             settings: *const Settings,
         ) Self {
-            const now = std.time.milliTimestamp();
             return Self{
                 .name = name,
                 .state = GameState.init(bag),
@@ -79,22 +79,20 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                     .pc = false,
                     .t_spin = .None,
                 },
-                .last_clear_millis = 0,
+                .last_clear_time = 0,
                 .playfield_colors = ColorArray.init(),
                 .garbage_queue = GarbageQueue.init(allocator),
                 .view = view,
                 .settings = settings,
 
                 .already_held = false,
-                .just_rotated = false,
                 .last_kick = -1,
                 .move_count = 0,
-                .last_move_millis = 0,
-                .last_tick_millis = 0,
+                .last_move_time = 0,
                 .softdropping = false,
                 .vel = 0.0,
 
-                .start_time = now,
+                .time = 0,
                 .lines_cleared = 0,
                 .garbage_cleared = 0,
                 .pieces_placed = 0,
@@ -107,21 +105,30 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             };
         }
 
-        /// Returns the number of milliseconds elasped since start
-        pub fn time(self: Self) u32 {
-            return @intCast(std.time.milliTimestamp() - self.start_time);
+        /// Holds the current piece, or does nothing if the piece has already been held.
+        pub fn hold(self: *Self) void {
+            self.current_piece_keys +|= 1;
+            if (self.already_held) {
+                return;
+            }
+
+            self.state.hold();
+            self.already_held = true;
+            self.last_kick = -1;
+            self.move_count = 0;
+            self.last_move_time = self.time;
         }
 
         pub fn moveLeft(self: *Self) void {
-            self.current_piece_keys += 1;
+            self.current_piece_keys +|= 1;
             if (self.state.slide(-1) == 0) {
                 return;
             }
 
-            self.just_rotated = false;
+            self.last_kick = -1;
             if (self.move_count < self.settings.autolock_grace) {
-                self.move_count += 1;
-                self.last_move_millis = self.time();
+                self.move_count +|= 1;
+                self.last_move_time = self.time;
             }
         }
 
@@ -130,22 +137,22 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 return;
             }
 
-            self.just_rotated = false;
+            self.last_kick = -1;
             if (self.move_count < self.settings.autolock_grace) {
-                self.last_move_millis = self.time();
+                self.last_move_time = self.time;
             }
         }
 
         pub fn moveRight(self: *Self) void {
-            self.current_piece_keys += 1;
+            self.current_piece_keys +|= 1;
             if (self.state.slide(1) == 0) {
                 return;
             }
 
-            self.just_rotated = false;
+            self.last_kick = -1;
             if (self.move_count < self.settings.autolock_grace) {
-                self.move_count += 1;
-                self.last_move_millis = self.time();
+                self.move_count +|= 1;
+                self.last_move_time = self.time;
             }
         }
 
@@ -154,54 +161,51 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 return;
             }
 
-            self.just_rotated = false;
+            self.last_kick = -1;
             if (self.move_count < self.settings.autolock_grace) {
-                self.last_move_millis = self.time();
+                self.last_move_time = self.time;
             }
         }
 
         pub fn rotateCw(self: *Self) void {
-            self.current_piece_keys += 1;
+            self.current_piece_keys +|= 1;
             const kick = self.state.rotate(.QuarterCw);
             if (kick == -1) {
                 return;
             }
 
-            self.just_rotated = true;
             self.last_kick = kick;
             if (self.move_count < self.settings.autolock_grace) {
-                self.move_count += 1;
-                self.last_move_millis = self.time();
+                self.move_count +|= 1;
+                self.last_move_time = self.time;
             }
         }
 
         pub fn rotateDouble(self: *Self) void {
-            self.current_piece_keys += 1;
+            self.current_piece_keys +|= 1;
             const kick = self.state.rotate(.Half);
             if (kick == -1) {
                 return;
             }
 
-            self.just_rotated = true;
             self.last_kick = kick;
             if (self.move_count < self.settings.autolock_grace) {
-                self.move_count += 1;
-                self.last_move_millis = self.time();
+                self.move_count +|= 1;
+                self.last_move_time = self.time;
             }
         }
 
         pub fn rotateCcw(self: *Self) void {
-            self.current_piece_keys += 1;
+            self.current_piece_keys +|= 1;
             const kick = self.state.rotate(.QuarterCCw);
             if (kick == -1) {
                 return;
             }
 
-            self.just_rotated = true;
             self.last_kick = kick;
             if (self.move_count < self.settings.autolock_grace) {
-                self.move_count += 1;
-                self.last_move_millis = self.time();
+                self.move_count +|= 1;
+                self.last_move_time = self.time;
             }
         }
 
@@ -218,7 +222,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             const dropped = self.state.dropToGround();
             self.score += @intCast(dropped * 2);
             if (dropped > 0) {
-                self.just_rotated = false;
+                self.last_kick = -1;
             }
 
             self.place();
@@ -232,15 +236,14 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             // Only overwrite the last clear info if there's something interesting to display
             if (clear_info[0].cleared > 0 or clear_info[0].pc or clear_info[0].t_spin != .None) {
                 self.last_clear_info = clear_info[0];
-                self.last_clear_millis = self.time();
+                self.last_clear_time = self.time;
             }
 
             self.state.nextPiece();
             self.already_held = false;
-            self.just_rotated = false;
             self.last_kick = -1;
             self.move_count = 0;
-            self.last_move_millis = self.time();
+            self.last_move_time = self.time;
             self.softdropping = false;
             self.vel = 0.0;
         }
@@ -264,7 +267,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
             // Scoring values taken from Tetris.wiki
             // https://tetris.wiki/Scoring#Recent_guideline_compatible_games
-            const info = self.state.lockCurrent(self.just_rotated, self.last_kick);
+            const info = self.state.lockCurrent(self.last_kick);
             var clear_score = ([_]u64{ 0, 100, 300, 500, 800 })[info.cleared];
             clear_score += switch (info.t_spin) {
                 .Mini => 100,
@@ -307,7 +310,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         fn clearLines(self: *Self) void {
             var clears: usize = 0;
             var i: usize = @max(0, self.state.pos.y);
-            while (i + clears < ColorArray.height) {
+            while (i + clears < ColorArray.HEIGHT) {
                 self.playfield_colors.copyRow(i, i + clears);
                 if (!self.playfield_colors.isRowFull(i)) {
                     i += 1;
@@ -319,36 +322,45 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                     self.garbage_cleared += 1;
                 }
             }
-            while (i < ColorArray.height) : (i += 1) {
+            while (i < ColorArray.HEIGHT) : (i += 1) {
                 self.playfield_colors.emptyRow(i);
             }
         }
 
-        /// Holds the current piece, or does nothing if the piece has already been held.
-        pub fn hold(self: *Self) void {
-            self.current_piece_keys += 1;
-            if (self.already_held) {
-                return;
+        /// Adds garbage to the bottom of the playfield. `hole` is the x position of the
+        /// hole, and `lines` is the number of lines of garbage to add.
+        pub fn addGarbage(self: *Self, hole: u4, lines: u16) void {
+            self.lines_received += lines;
+            self.state.addGarbage(hole, lines);
+
+            var i: usize = ColorArray.HEIGHT;
+            while (i > lines) {
+                i -= 1;
+                self.playfield_colors.copyRow(i, i - lines);
             }
 
-            self.state.hold();
-            self.already_held = true;
-            self.just_rotated = false;
-            self.move_count = 0;
-            self.last_move_millis = self.time();
+            for (0..ColorArray.WIDTH) |x| {
+                self.playfield_colors.set(x, 0, if (x == hole)
+                    ColorArray.EMPTY_COLOR
+                else
+                    ColorArray.GARBAGE_COLOR);
+            }
+            for (1..lines) |y| {
+                self.playfield_colors.copyRow(y, 0);
+            }
         }
 
-        /// Advances the game by `dt` seconds.
-        pub fn tick(self: *Self, dt: f32) void {
-            const now = self.last_tick_millis + @as(u32, @intFromFloat(dt * 1000));
-            self.vel += self.settings.g * dt;
+        /// Advances the game.
+        pub fn tick(self: *Self, nanoseconds: u64) void {
+            const now = self.time + nanoseconds;
+            self.vel += self.settings.g * @as(f32, @floatFromInt(nanoseconds)) / std.time.ns_per_s;
 
             // Handle autolocking
             if (self.state.onGround()) {
                 self.vel = 0.0;
 
                 if (self.move_count > self.settings.autolock_grace or
-                    now -| self.last_move_millis > self.settings.lock_delay)
+                    now -| self.last_move_time > self.settings.lock_delay * std.time.ns_per_ms)
                 {
                     self.place();
                 }
@@ -361,11 +373,11 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 self.score += dropped;
             }
             if (dropped > 0) {
-                self.just_rotated = false;
-                self.last_move_millis = now;
+                self.last_kick = -1;
+                self.last_move_time = now;
             }
 
-            self.last_tick_millis = now;
+            self.time = now;
             self.softdropping = false;
         }
 
@@ -384,7 +396,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
         /// Returns the current Attack Per Minute (APM)
         pub fn apm(self: Self) f32 {
-            return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.time())) * std.time.ms_per_min;
+            return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.time)) * std.time.ns_per_min;
         }
 
         /// Returns the current Attack Per Piece (APP)
@@ -405,12 +417,12 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
         /// Returns the current Pieces Per Second (PPS)
         pub fn pps(self: Self) f32 {
-            return @as(f32, @floatFromInt(self.pieces_placed)) / @as(f32, @floatFromInt(self.time())) * std.time.ms_per_s;
+            return @as(f32, @floatFromInt(self.pieces_placed)) / @as(f32, @floatFromInt(self.time)) * std.time.ns_per_s;
         }
 
         /// Returns the current VS Score
         pub fn vsScore(self: Self) f32 {
-            return 100.0 * @as(f32, @floatFromInt(self.lines_sent + self.garbage_cleared)) / @as(f32, @floatFromInt(self.time())) * std.time.ms_per_s;
+            return 100.0 * @as(f32, @floatFromInt(self.lines_sent + self.garbage_cleared)) / @as(f32, @floatFromInt(self.time)) * std.time.ns_per_s;
         }
 
         /// Draws the game elements to the game's allocated view.
@@ -492,7 +504,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             const TOP = 15;
             const WIDTH = 10;
             const HEIGHT = 5;
-            if (self.time() - self.last_clear_millis >= self.settings.clear_erase_dalay) {
+            if (self.time - self.last_clear_time >= self.settings.clear_erase_dalay * std.time.ns_per_ms) {
                 return;
             }
 
@@ -614,7 +626,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 .Received => try view.printAt(0, 0, .White, .Black, "REC: {d}", .{self.lines_received}),
                 .Score => try view.printAt(0, 0, .White, .Black, "SCORE: {d}", .{self.score}),
                 .Sent => try view.printAt(0, 0, .White, .Black, "SENT: {d}", .{self.lines_sent}),
-                .Time => try view.printAt(0, 0, .White, .Black, "TIME: {}", .{std.fmt.fmtDuration(self.time() * std.time.ns_per_ms)}),
+                .Time => try view.printAt(0, 0, .White, .Black, "TIME: {}", .{std.fmt.fmtDuration(self.time)}),
                 .VsScore => try view.printAt(0, 0, .White, .Black, "VS: {d:.4}", .{self.vsScore()}),
             }
         }

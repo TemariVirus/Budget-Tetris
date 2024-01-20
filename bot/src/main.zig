@@ -29,9 +29,7 @@ pub fn main() !void {
     try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
-    const settings = engine.Settings{
-        .display_stats = &.{ .PPS, .APP, .VsScore },
-    };
+    const settings = engine.Settings{};
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
     var game = Game.init(
         allocator,
@@ -54,10 +52,11 @@ pub fn main() !void {
 
     var render_timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
     while (true) {
-        if (render_timer.trigger()) {
+        if (render_timer.trigger()) |dt| {
             try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
 
             placePcPiece(allocator, &game, &pc_queue, &placement_i);
+            game.tick(dt);
             try game.draw();
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {
@@ -103,7 +102,7 @@ fn pcThread(allocator: Allocator, state: GameState, queue: *std.ArrayList([]Plac
             }
             game.current = placement.piece;
             game.pos = placement.pos;
-            _ = game.lockCurrent(false, 0);
+            _ = game.lockCurrent(-1);
             game.nextPiece();
         }
 

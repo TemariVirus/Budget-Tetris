@@ -3,8 +3,8 @@
     .version = "0.0.0",
     .dependencies = .{
         .nterm = .{
-            .url = "https://github.com/Zemogus/nterm/archive/4db419499a866c507d2754978774bc43d20430d0.tar.gz",
-            .hash = "1220d857425b31b12c7e3b9329bab01d926d58d51e6332c60f4dc64ed6058c652c3e",
+            .url = "https://github.com/Zemogus/nterm/archive/5c1bd7382c9724a7255ce24cb7f8225cfbcb825b.tar.gz",
+            .hash = "1220ce16e7f007a64ed50d5d0801d68caa23c5456b10d3e914211068a5c925870a1e",
         },
     },
     .paths = .{

@@ -53,7 +53,7 @@ pub const Settings = struct {
     lock_delay: u32 = 500,
     clear_erase_dalay: u32 = 1000,
     show_next_count: u3 = 6,
-    display_stats: []const Stat,
+    display_stats: []const Stat = &.{ .PPS, .APP, .VsScore },
     attack_table: attack.AttackTable = .{
         .b2b = &.{ 0, 0, 1 },
         .clears = .{ 0, 0, 1, 2, 4 },

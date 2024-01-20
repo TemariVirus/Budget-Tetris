@@ -240,7 +240,7 @@ fn findPcInner(
                     continue;
                 }
 
-                const cleared = new_game.lockCurrent(false, 0).cleared;
+                const cleared = new_game.lockCurrent(-1).cleared;
                 const new_height = max_height - cleared;
                 if (!isPcPossible(new_game.playfield.rows[0..new_height])) {
                     continue;
