@@ -8,9 +8,9 @@ const sleep = std.time.sleep;
 const TETRIO_API = "https://ch.tetr.io/api/";
 // Reference: https://inoue.szy.lol/api/
 const INOUE_REPLAY_API = "https://inoue.szy.lol/api/replay/";
-const REPLAY_DIR = "replays/";
+const REPLAY_DIR = "raw_replays/";
 
-const MongoId = [24]u8;
+pub const MongoId = [24]u8;
 
 const UserData = struct {
     _id: MongoId,
@@ -239,11 +239,23 @@ fn saveReplay(allocator: Allocator, client: *HttpClient, replay_id: MongoId, pat
             continue;
         }
 
-        // Save to file for the moment
+        const res_body = try allocator.alloc(u8, res.body.?.len);
+        defer allocator.free(res_body);
+
+        @memcpy(res_body, res.body.?);
+        // Inoue api returns empty array instead of empty object
+        const original = "\"data\":[]";
+        const replacement = "\"data\":{}";
+        for (0..res_body.len - original.len + 1) |i| {
+            if (std.mem.eql(u8, res_body[i .. i + original.len], original)) {
+                @memcpy(res_body[i .. i + replacement.len], replacement);
+            }
+        }
+
         var file = try std.fs.cwd().createFile(path, .{});
         defer file.close();
 
-        try file.writeAll(res.body.?);
+        try file.writeAll(res_body);
         break;
     }
 }
