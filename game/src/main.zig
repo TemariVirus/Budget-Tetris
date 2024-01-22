@@ -95,6 +95,9 @@ pub fn main() !void {
     try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
+    try input.init(allocator);
+    defer input.deinit();
+
     const settings = root.Settings{};
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
     var player = Game.init(

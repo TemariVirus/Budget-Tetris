@@ -21,7 +21,8 @@ const View = nterm.View;
 
 const IncomingGarbage = struct {
     lines: u16,
-    time: u32,
+    hole: u4,
+    time: u64,
 };
 
 pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
@@ -41,6 +42,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         playfield_colors: ColorArray,
         garbage_queue: GarbageQueue,
         view: View,
+        // TODO: Make game manager struct and inclue settings and timer in it
         settings: *const Settings,
 
         already_held: bool,
@@ -105,6 +107,10 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             };
         }
 
+        pub fn deinit(self: Self) void {
+            self.garbage_queue.deinit();
+        }
+
         /// Holds the current piece, or does nothing if the piece has already been held.
         pub fn hold(self: *Self) void {
             self.current_piece_keys +|= 1;
@@ -133,8 +139,13 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn moveLeftAll(self: *Self) void {
-            if (self.state.slide(-10) == 0) {
+            if (self.state.slide(-1) == 0) {
                 return;
+            }
+            self.vel -= @floatFromInt(self.state.drop(@intFromFloat(self.vel)));
+
+            while (self.state.slide(-1) > 0) {
+                self.vel -= @floatFromInt(self.state.drop(@intFromFloat(self.vel)));
             }
 
             self.last_kick = -1;
@@ -157,8 +168,13 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn moveRightAll(self: *Self) void {
-            if (self.state.slide(10) == 0) {
+            if (self.state.slide(1) == 0) {
                 return;
+            }
+            self.vel -= @floatFromInt(self.state.drop(@intFromFloat(self.vel)));
+
+            while (self.state.slide(1) > 0) {
+                self.vel -= @floatFromInt(self.state.drop(@intFromFloat(self.vel)));
             }
 
             self.last_kick = -1;
@@ -359,8 +375,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             if (self.state.onGround()) {
                 self.vel = 0.0;
 
-                if (self.move_count > self.settings.autolock_grace or
-                    now -| self.last_move_time > self.settings.lock_delay * std.time.ns_per_ms)
+                if (self.move_count >= self.settings.autolock_grace or
+                    now -| self.last_move_time >= self.settings.lock_delay * std.time.ns_per_ms)
                 {
                     self.place();
                 }
