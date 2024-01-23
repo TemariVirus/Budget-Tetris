@@ -20,18 +20,21 @@ const Self = @This();
 const GarbageQueue = std.ArrayListUnmanaged(GarbageEvent);
 
 allocator: Allocator,
-subframes: u32,
+frames: u32,
 events: []const Event,
 game: Game,
 das: u8,
+arr: u8,
 garbage_queue: GarbageQueue,
 opponent: *Self = undefined,
 
 event_i: usize = 0,
-garbage_i: u12 = 0,
-left_shift_time: ?u32 = null,
-right_shift_time: ?u32 = null,
+garbage_i: u16 = 0,
+left_shift_subframe: ?u32 = null,
+right_shift_subframe: ?u32 = null,
 softdropping: bool = false,
+highest_y: i8 = 0,
+was_on_ground: bool = undefined,
 
 const GARBAGE_CAP = 8;
 const GARBAGE_SPEED = 20;
@@ -85,11 +88,17 @@ const Bag = struct {
 };
 
 const Options = struct {
+    version: i32,
     seed: i32,
+    // TODO: use username to get glicko of player. This seems to be the only
+    // reliable source of user info as the `board` field in the event jsons
+    // may be reversed.
+    username: []const u8,
     handling: struct {
         arr: f64,
         das: f64,
-        sdf: f64,
+        dcd: f64,
+        sdf: u8,
     },
 };
 
@@ -134,7 +143,7 @@ const Event = union(EventTag) {
                     null;
             },
             .keydown, .keyup => {
-                const key = Key.fromString(data.get("key").?.string);
+                const key = Key.fromString(data.get("key").?.string) orelse return null;
                 const subframe_part: u32 = switch (data.get("subframe").?) {
                     .integer => |v| @intCast(v * 10),
                     .float => |v| @intFromFloat(@round(v * 10)),
@@ -183,7 +192,7 @@ const Key = enum {
     softDrop,
     hardDrop,
 
-    pub fn fromString(str: []const u8) Key {
+    pub fn fromString(str: []const u8) ?Key {
         return if (mem.eql(u8, str, "hold"))
             .hold
         else if (mem.eql(u8, str, "moveLeft"))
@@ -201,7 +210,7 @@ const Key = enum {
         else if (mem.eql(u8, str, "hardDrop"))
             .hardDrop
         else
-            unreachable;
+            null;
     }
 };
 const KeyEvent = struct {
@@ -210,11 +219,23 @@ const KeyEvent = struct {
     hoisted: bool,
 };
 
-pub fn init(allocator: Allocator, subframes: u32, event_jsons: []const EventJson, view: View, settings: *const Settings) !Self {
-    if (event_jsons[1].type != .full) {
-        return error.invalidEvents;
+const InitError = error{
+    noFullEvent,
+    unsupportedVersion,
+    nonZeroDCD,
+    nonInstantSoftDrop,
+};
+pub fn init(allocator: Allocator, frames: u32, event_jsons: []const EventJson, view: View, settings: *const Settings) !Self {
+    var i: usize = 0;
+    while (i < event_jsons.len) : (i += 1) {
+        if (event_jsons[i].type == .full) {
+            break;
+        }
+    } else {
+        return InitError.noFullEvent;
     }
-    const options_json = event_jsons[1].data.object.get("options").?;
+
+    const options_json = event_jsons[i].data.object.get("options").?;
 
     const parsed_options = try json.parseFromValue(Options, allocator, options_json, .{
         .ignore_unknown_fields = true,
@@ -222,13 +243,18 @@ pub fn init(allocator: Allocator, subframes: u32, event_jsons: []const EventJson
     const options = parsed_options.value;
     defer parsed_options.deinit();
 
-    // Replay only works with 0 ARR and instant soft drop
-    if (options.handling.arr != 0.0) {
-        return error.nonZeroArr;
+    // Replay only works with specific settings
+    if (options.version != 16) {
+        return InitError.unsupportedVersion;
     }
-    if (options.handling.sdf < 21.0) {
-        return error.nonInstantSoftDrop;
-    }
+    // We can try anyway even if these settings are different, there's a chance
+    // the replay will still be correct
+    // if (options.handling.dcd != 0.0) {
+    //     return InitError.nonZeroDCD;
+    // }
+    // if (options.handling.sdf != 41.0) {
+    //     return InitError.nonInstantSoftDrop;
+    // }
 
     var events = std.ArrayListUnmanaged(Event){};
     for (event_jsons) |event| {
@@ -239,16 +265,18 @@ pub fn init(allocator: Allocator, subframes: u32, event_jsons: []const EventJson
 
     return Self{
         .allocator = allocator,
-        .subframes = subframes,
+        .frames = frames,
         .events = try events.toOwnedSlice(allocator),
         .game = Game.init(
             allocator,
             "",
             Bag.init(options.seed),
             view,
+            40.0 * replay.FRAMERATE,
             settings,
         ),
         .das = @intFromFloat(@round(options.handling.das * 10)),
+        .arr = @intFromFloat(@round(options.handling.arr * 10)),
         .garbage_queue = GarbageQueue{},
     };
 }
@@ -259,11 +287,10 @@ pub fn deinit(self: *Self) void {
     self.garbage_queue.deinit(self.allocator);
 }
 
-pub fn nextSubframe(self: *Self, subframe: u32) !bool {
-    const old_time = self.game.time;
-    const was_on_ground = self.game.state.onGround();
-
-    while (self.event_i < self.events.len and self.events[self.event_i].subframe() <= subframe) : (self.event_i += 1) {
+pub fn nextFrame(self: *Self, frame: u32) !bool {
+    const subframe = frame * 10;
+    while (self.event_i < self.events.len and self.events[self.event_i].subframe() < subframe) : (self.event_i += 1) {
+        try self.nextSubframes(self.events[self.event_i].subframe());
         switch (self.events[self.event_i]) {
             .garbage => |event| self.handleGarbage(event),
             .garbageConfirm => |event| self.handleGarbageConfirm(event),
@@ -274,48 +301,63 @@ pub fn nextSubframe(self: *Self, subframe: u32) !bool {
             .keyUp => |event| self.handleKeyUp(event),
         }
     }
+    // TODO: should only be needed for rendering properly, can remove when visualisations aren't needed
+    try self.nextSubframes(subframe);
+    return frame <= self.frames;
+}
 
-    if (subframe >= self.subframes) {
-        return false;
+fn nextSubframes(self: *Self, subframe: u32) !void {
+    const last_update = if (self.event_i == 0) 0 else self.events[self.event_i - 1].subframe();
+    if (subframe <= last_update) {
+        return;
     }
 
-    if (self.softdropping) {
-        self.game.softDrop();
-    }
-    if (self.left_shift_time) |t| {
-        if (subframe >= t) {
-            const old_x = self.game.state.pos.x;
-            self.game.moveLeftAll();
-            const moved = @abs(self.game.state.pos.x - old_x);
-            self.game.move_count += moved;
-        }
-    }
-    if (self.right_shift_time) |t| {
-        if (subframe >= t) {
-            const old_x = self.game.state.pos.x;
-            self.game.moveRightAll();
-            const moved = @abs(self.game.state.pos.x - old_x);
-            self.game.move_count += moved;
-        }
-    }
+    const now = gameTime(subframe);
+    self.was_on_ground = self.game.state.onGround();
 
     // Handle autolocking
-    const now = gameTime(subframe);
+    const next_y = self.game.state.pos.y - @as(i8, if (self.game.vel >= 1.0) 1 else 0);
+    if (next_y > self.highest_y) {
+        self.game.move_count = 0;
+    }
+    self.highest_y = @max(self.highest_y, next_y);
     if (self.game.state.onGround()) {
         if (self.game.move_count >= self.game.settings.autolock_grace or
             now -| self.game.last_move_time >= self.game.settings.lock_delay * std.time.ns_per_ms)
         {
             try self.place(subframe);
         }
-    } else if (was_on_ground) {
+    } else if (self.was_on_ground) {
         // 5 frames worth of gravity when moving off ground
         self.game.vel = @max(self.game.vel, 5 * self.game.settings.g / replay.FRAMERATE);
     }
 
-    self.game.time = old_time;
-    self.game.tick(now - old_time);
+    if (self.softdropping) {
+        self.game.softDrop();
+    }
+    const old_x = self.game.state.pos.x;
+    if (self.left_shift_subframe) |_| {
+        while (subframe >= self.left_shift_subframe.?) : (self.left_shift_subframe.? += self.arr) {
+            if (self.arr == 0) {
+                self.game.moveLeftAll();
+                break;
+            }
+            self.game.moveLeft(true);
+        }
+    }
+    if (self.right_shift_subframe) |_| {
+        while (subframe >= self.right_shift_subframe.?) : (self.right_shift_subframe.? += self.arr) {
+            if (self.arr == 0) {
+                self.game.moveRightAll();
+                break;
+            }
+            self.game.moveRight(true);
+        }
+    }
+    const moved = @abs(self.game.state.pos.x - old_x);
+    self.game.move_count += moved;
 
-    return true;
+    self.game.tick(now - self.game.time);
 }
 
 fn gameTime(subframe: u32) u64 {
@@ -343,6 +385,9 @@ fn handleGarbageConfirm(self: *Self, event: GarbageEvent) void {
 }
 
 fn handleKeyDown(self: *Self, event: KeyEvent) !void {
+    const force_lock = self.game.state.onGround() and
+        self.game.move_count + 1 == self.game.settings.autolock_grace;
+
     switch (event.key) {
         .hold => {
             if (self.game.already_held) {
@@ -352,24 +397,47 @@ fn handleKeyDown(self: *Self, event: KeyEvent) !void {
             self.adjustSpawn();
         },
         .moveLeft => {
-            self.right_shift_time = null;
-            self.left_shift_time = event.subframe;
+            if (force_lock) {
+                try self.place(event.subframe);
+            }
+            self.game.moveLeft(false);
+
+            self.right_shift_subframe = null;
+            self.left_shift_subframe = event.subframe;
             if (!event.hoisted) {
-                self.game.moveLeft();
-                self.left_shift_time = event.subframe + self.das;
+                self.left_shift_subframe.? += self.das;
             }
         },
         .moveRight => {
-            self.left_shift_time = null;
-            self.right_shift_time = event.subframe;
+            if (force_lock) {
+                try self.place(event.subframe);
+            }
+            self.game.moveRight(false);
+
+            self.left_shift_subframe = null;
+            self.right_shift_subframe = event.subframe;
             if (!event.hoisted) {
-                self.game.moveRight();
-                self.right_shift_time.? += self.das;
+                self.right_shift_subframe.? += self.das;
             }
         },
-        .rotateCW => self.game.rotateCw(),
-        .rotateCCW => self.game.rotateCcw(),
-        .rotate180 => self.game.rotateDouble(),
+        .rotateCW => {
+            if (force_lock) {
+                try self.place(event.subframe);
+            }
+            self.game.rotateCw();
+        },
+        .rotateCCW => {
+            if (force_lock) {
+                try self.place(event.subframe);
+            }
+            self.game.rotateCcw();
+        },
+        .rotate180 => {
+            if (force_lock) {
+                try self.place(event.subframe);
+            }
+            self.game.rotateDouble();
+        },
         .softDrop => {
             self.softdropping = true;
             self.game.softDrop();
@@ -382,6 +450,8 @@ fn adjustSpawn(self: *Self) void {
     self.game.state.pos = self.game.state.current.kind.startPos();
     self.game.state.pos.y += 1;
     self.game.vel = 1.0 - (self.game.settings.g / replay.FRAMERATE);
+    self.highest_y = self.game.state.pos.y;
+    self.was_on_ground = self.game.state.onGround();
 }
 
 fn place(self: *Self, subframe: u32) !void {
@@ -395,14 +465,48 @@ fn place(self: *Self, subframe: u32) !void {
     self.game.hardDrop();
     self.adjustSpawn();
 
-    var attack = getTetrioAttack(clear_info, self.game.state.b2b, self.game.state.combo, subframe);
-    var actual_attack = attack;
-    // TODO: remove, for debugging
-    if (clear_info.cleared > 0) {
-        self.game.lines_sent = attack;
+    // Tetr.io counts T-spin minis as difficult clears as well
+    if (clear_info.cleared > 0 and clear_info.t_spin == .Mini) {
+        self.game.state.b2b += 1;
     }
 
+    const attack = getTetrioAttack(clear_info, self.game.state.b2b, self.game.state.combo, subframe);
+    try self.blockAndAttack(attack);
+    if (clear_info.pc) {
+        try self.blockAndAttack(multiplyGarbage(10.0, subframe));
+    }
+    // TODO: remove, for debugging
+    if (clear_info.cleared > 0) {
+        self.game.lines_sent = if (clear_info.pc) attack + multiplyGarbage(10.0, subframe) else attack;
+    }
+
+    // Receive garbage
+    if (clear_info.cleared > 0) {
+        return;
+    }
+    var lines_left: u16 = GARBAGE_CAP;
+    while (self.garbage_queue.items.len > 0) {
+        const garbage = self.garbage_queue.items[0];
+        if (garbage.subframe > subframe) {
+            break;
+        }
+
+        const received = @min(garbage.lines, lines_left);
+        lines_left -= received;
+        self.game.addGarbage(garbage.hole, received);
+        if (garbage.lines == received) {
+            _ = self.garbage_queue.orderedRemove(0);
+        } else {
+            self.garbage_queue.items[0].lines -= received;
+            break;
+        }
+    }
+}
+
+fn blockAndAttack(self: *Self, original_attack: u16) !void {
     // Garbage blocking
+    var attack = original_attack;
+    var actual_attack = original_attack;
     while (actual_attack > 0 and self.garbage_queue.items.len > 0) {
         const garbage_event = self.garbage_queue.items[0];
         const blocked = @min(garbage_event.lines, actual_attack);
@@ -437,28 +541,6 @@ fn place(self: *Self, subframe: u32) !void {
             .lines = @intCast(actual_attack),
         });
     }
-
-    // Receive garbage
-    if (clear_info.cleared > 0) {
-        return;
-    }
-    var lines_left: u16 = GARBAGE_CAP;
-    while (self.garbage_queue.items.len > 0) {
-        const garbage = self.garbage_queue.items[0];
-        if (garbage.subframe > subframe) {
-            break;
-        }
-
-        const received = @min(garbage.lines, lines_left);
-        lines_left -= received;
-        self.game.addGarbage(garbage.hole, received);
-        if (garbage.lines == received) {
-            _ = self.garbage_queue.orderedRemove(0);
-        } else {
-            self.garbage_queue.items[0].lines -= received;
-            break;
-        }
-    }
 }
 
 fn getTetrioAttack(info: ClearInfo, b2b: u32, combo: u32, subframe: u32) u16 {
@@ -484,10 +566,10 @@ fn getTetrioAttack(info: ClearInfo, b2b: u32, combo: u32, subframe: u32) u16 {
         }
     }
 
-    if (info.pc) {
-        attack += 10;
-    }
+    return multiplyGarbage(attack, subframe);
+}
 
+fn multiplyGarbage(attack: f64, subframe: u32) u16 {
     const frames_after_margin: f64 = @floatFromInt(subframe / 10 -| GARBAGE_MARGIN);
     const garbage_multiplier = 1.0 + (GARBAGE_INCREASE * frames_after_margin / replay.FRAMERATE);
     return @intFromFloat(attack * garbage_multiplier);
@@ -496,20 +578,20 @@ fn getTetrioAttack(info: ClearInfo, b2b: u32, combo: u32, subframe: u32) u16 {
 fn handleKeyUp(self: *Self, event: KeyEvent) void {
     switch (event.key) {
         .moveLeft => {
-            if (self.left_shift_time) |t| {
+            if (self.left_shift_subframe) |t| {
                 if (event.subframe >= t) {
                     self.game.moveLeftAll();
                 }
             }
-            self.left_shift_time = null;
+            self.left_shift_subframe = null;
         },
         .moveRight => {
-            if (self.right_shift_time) |t| {
+            if (self.right_shift_subframe) |t| {
                 if (event.subframe >= t) {
                     self.game.moveRightAll();
                 }
             }
-            self.right_shift_time = null;
+            self.right_shift_subframe = null;
         },
         .softDrop => {
             self.game.softDrop();
