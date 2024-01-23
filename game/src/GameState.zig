@@ -267,6 +267,10 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
         /// Adds garbage to the bottom of the playfield. `hole` is the x position of the
         /// hole, and `lines` is the number of lines of garbage to add.
         pub fn addGarbage(self: *Self, hole: u4, lines: u16) void {
+            if (lines == 0) {
+                return;
+            }
+
             var i: usize = BoardMask.HEIGHT;
             while (i > lines) {
                 i -= 1;
@@ -275,7 +279,7 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
 
             self.playfield.rows[0] = BoardMask.FULL_ROW;
             self.playfield.set(hole, 0, false);
-            for (1..lines) |y| {
+            for (1..@min(BoardMask.HEIGHT, lines)) |y| {
                 self.playfield.rows[y] = self.playfield.rows[0];
             }
         }

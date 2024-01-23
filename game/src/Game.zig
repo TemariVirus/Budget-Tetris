@@ -139,13 +139,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn moveLeftAll(self: *Self) void {
-            if (self.state.slide(-1) == 0) {
+            if (self.state.slide(-10) == 0) {
                 return;
-            }
-            self.vel -= @floatFromInt(self.state.drop(@intFromFloat(self.vel)));
-
-            while (self.state.slide(-1) > 0) {
-                self.vel -= @floatFromInt(self.state.drop(@intFromFloat(self.vel)));
             }
 
             self.last_kick = -1;
@@ -168,13 +163,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn moveRightAll(self: *Self) void {
-            if (self.state.slide(1) == 0) {
+            if (self.state.slide(10) == 0) {
                 return;
-            }
-            self.vel -= @floatFromInt(self.state.drop(@intFromFloat(self.vel)));
-
-            while (self.state.slide(1) > 0) {
-                self.vel -= @floatFromInt(self.state.drop(@intFromFloat(self.vel)));
             }
 
             self.last_kick = -1;
@@ -346,6 +336,10 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         /// Adds garbage to the bottom of the playfield. `hole` is the x position of the
         /// hole, and `lines` is the number of lines of garbage to add.
         pub fn addGarbage(self: *Self, hole: u4, lines: u16) void {
+            if (lines == 0) {
+                return;
+            }
+
             self.lines_received += lines;
             self.state.addGarbage(hole, lines);
 
@@ -375,7 +369,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             if (self.state.onGround()) {
                 self.vel = 0.0;
 
-                if (self.move_count >= self.settings.autolock_grace or
+                if (self.move_count > self.settings.autolock_grace or
                     now -| self.last_move_time >= self.settings.lock_delay * std.time.ns_per_ms)
                 {
                     self.place();
@@ -412,6 +406,9 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
         /// Returns the current Attack Per Minute (APM)
         pub fn apm(self: Self) f32 {
+            if (self.lines_sent == 0.0) {
+                return 0.0;
+            }
             return @as(f32, @floatFromInt(self.lines_sent)) / @as(f32, @floatFromInt(self.time)) * std.time.ns_per_min;
         }
 
@@ -433,12 +430,19 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
         /// Returns the current Pieces Per Second (PPS)
         pub fn pps(self: Self) f32 {
+            if (self.pieces_placed == 0) {
+                return 0.0;
+            }
             return @as(f32, @floatFromInt(self.pieces_placed)) / @as(f32, @floatFromInt(self.time)) * std.time.ns_per_s;
         }
 
         /// Returns the current VS Score
         pub fn vsScore(self: Self) f32 {
-            return 100.0 * @as(f32, @floatFromInt(self.lines_sent + self.garbage_cleared)) / @as(f32, @floatFromInt(self.time)) * std.time.ns_per_s;
+            const sent_cleared: f32 = @floatFromInt(self.lines_sent + self.garbage_cleared);
+            if (sent_cleared == 0.0) {
+                return 0.0;
+            }
+            return 100.0 * sent_cleared / @as(f32, @floatFromInt(self.time)) * std.time.ns_per_s;
         }
 
         /// Draws the game elements to the game's allocated view.
