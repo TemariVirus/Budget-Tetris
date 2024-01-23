@@ -48,7 +48,6 @@ pub const Settings = struct {
     };
 
     g: f32 = 0.025 * 60, // Multiply by framerate before passing to Game
-    soft_g: f32 = 40.0,
     autolock_grace: u8 = 15,
     lock_delay: u32 = 500,
     clear_erase_dalay: u32 = 1000,

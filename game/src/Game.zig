@@ -36,74 +36,58 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
         name: []const u8,
         state: GameState,
-        last_clear_info: ClearInfo,
+        last_clear_info: ClearInfo = .{
+            .b2b = false,
+            .cleared = 0,
+            .pc = false,
+            .t_spin = .None,
+        },
         /// The number of nanoseconds since the game started when the last clear info was displayed.
-        last_clear_time: u64,
+        last_clear_time: u64 = 0,
         playfield_colors: ColorArray,
         garbage_queue: GarbageQueue,
         view: View,
         // TODO: Make game manager struct and inclue settings and timer in it
         settings: *const Settings,
 
-        already_held: bool,
-        last_kick: i8,
-        move_count: u8,
+        already_held: bool = false,
+        last_kick: i8 = -1,
+        move_count: u8 = 0,
         /// The number of nanoseconds since the game started when the last move was made.
-        last_move_time: u64,
-        softdropping: bool,
-        vel: f32,
+        last_move_time: u64 = 0,
+        soft_dropping: bool = false,
+        /// The additional rate at which the piece falls when softdropping, in cells per second.
+        soft_g: f32,
+        vel: f32 = 0.0,
 
         /// The number of nanoseconds since the game started.
-        time: u64,
-        lines_cleared: u32,
-        garbage_cleared: u32,
-        pieces_placed: u32,
-        lines_sent: u32,
-        lines_received: u32,
-        score: u64,
-        current_piece_keys: u16,
-        keys_pressed: u32,
-        finesse: u32,
+        time: u64 = 0,
+        lines_cleared: u32 = 0,
+        garbage_cleared: u32 = 0,
+        pieces_placed: u32 = 0,
+        lines_sent: u32 = 0,
+        lines_received: u32 = 0,
+        score: u64 = 0,
+        current_piece_keys: u16 = 0,
+        keys_pressed: u32 = 0,
+        finesse: u32 = 0,
 
         pub fn init(
             allocator: Allocator,
             name: []const u8,
             bag: Bag,
             view: View,
+            soft_g: f32,
             settings: *const Settings,
         ) Self {
             return Self{
                 .name = name,
                 .state = GameState.init(bag),
-                .last_clear_info = .{
-                    .b2b = false,
-                    .cleared = 0,
-                    .pc = false,
-                    .t_spin = .None,
-                },
-                .last_clear_time = 0,
                 .playfield_colors = ColorArray.init(),
                 .garbage_queue = GarbageQueue.init(allocator),
                 .view = view,
                 .settings = settings,
-
-                .already_held = false,
-                .last_kick = -1,
-                .move_count = 0,
-                .last_move_time = 0,
-                .softdropping = false,
-                .vel = 0.0,
-
-                .time = 0,
-                .lines_cleared = 0,
-                .garbage_cleared = 0,
-                .pieces_placed = 0,
-                .lines_sent = 0,
-                .lines_received = 0,
-                .score = 0,
-                .current_piece_keys = 0,
-                .keys_pressed = 0,
-                .finesse = 0,
+                .soft_g = soft_g,
             };
         }
 
@@ -125,19 +109,25 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             self.last_move_time = self.time;
         }
 
-        pub fn moveLeft(self: *Self) void {
-            self.current_piece_keys +|= 1;
+        pub fn moveLeft(self: *Self, das: bool) void {
+            if (!das) {
+                self.current_piece_keys +|= 1;
+            }
+
             if (self.state.slide(-1) == 0) {
                 return;
             }
 
             self.last_kick = -1;
             if (self.move_count < self.settings.autolock_grace) {
-                self.move_count +|= 1;
+                if (!das) {
+                    self.move_count +|= 1;
+                }
                 self.last_move_time = self.time;
             }
         }
 
+        /// Assumes that the move was caused by DAS and does not count as an extra keypress.
         pub fn moveLeftAll(self: *Self) void {
             if (self.state.slide(-10) == 0) {
                 return;
@@ -149,19 +139,25 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
         }
 
-        pub fn moveRight(self: *Self) void {
-            self.current_piece_keys +|= 1;
+        pub fn moveRight(self: *Self, das: bool) void {
+            if (!das) {
+                self.current_piece_keys +|= 1;
+            }
+
             if (self.state.slide(1) == 0) {
                 return;
             }
 
             self.last_kick = -1;
             if (self.move_count < self.settings.autolock_grace) {
-                self.move_count +|= 1;
+                if (!das) {
+                    self.move_count +|= 1;
+                }
                 self.last_move_time = self.time;
             }
         }
 
+        /// Assumes that the move was caused by DAS and does not count as an extra keypress.
         pub fn moveRightAll(self: *Self) void {
             if (self.state.slide(10) == 0) {
                 return;
@@ -216,12 +212,10 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn softDrop(self: *Self) void {
-            if (self.softdropping) {
+            if (self.soft_dropping) {
                 return;
             }
-
-            self.softdropping = true;
-            self.vel += self.settings.soft_g;
+            self.soft_dropping = true;
         }
 
         pub fn hardDrop(self: *Self) void {
@@ -250,7 +244,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             self.last_kick = -1;
             self.move_count = 0;
             self.last_move_time = self.time;
-            self.softdropping = false;
+            self.soft_dropping = false;
             self.vel = 0.0;
         }
 
@@ -363,7 +357,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         /// Advances the game.
         pub fn tick(self: *Self, nanoseconds: u64) void {
             const now = self.time + nanoseconds;
-            self.vel += self.settings.g * @as(f32, @floatFromInt(nanoseconds)) / std.time.ns_per_s;
+            const g = self.settings.g + if (self.soft_dropping) self.soft_g else 0.0;
+            self.vel += g * @as(f32, @floatFromInt(nanoseconds)) / std.time.ns_per_s;
 
             // Handle autolocking
             if (self.state.onGround()) {
@@ -379,7 +374,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             // Handle gravity
             const dropped = self.state.drop(@intFromFloat(self.vel));
             self.vel -= @floatFromInt(dropped);
-            if (self.softdropping) {
+            if (self.soft_dropping) {
                 self.score += dropped;
             }
             if (dropped > 0) {
@@ -388,7 +383,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             self.time = now;
-            self.softdropping = false;
+            self.soft_dropping = false;
         }
 
         /// Returns the current level

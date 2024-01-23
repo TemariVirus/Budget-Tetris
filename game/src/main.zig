@@ -7,6 +7,7 @@ const kicks = root.kicks;
 const nterm = @import("nterm");
 const input = nterm.input;
 
+const BoardMask = root.bit_masks.BoardMask;
 const Game = root.Game(SevenBag, kicks.srsPlus);
 const PeriodicTrigger = root.PeriodicTrigger;
 const SevenBag = root.bags.SevenBag;
@@ -32,7 +33,7 @@ const MoveFuncs = struct {
     var game: *Game = undefined;
 
     fn left() void {
-        game.moveLeft();
+        game.moveLeft(false);
     }
 
     fn leftAll() void {
@@ -40,7 +41,7 @@ const MoveFuncs = struct {
     }
 
     fn right() void {
-        game.moveRight();
+        game.moveRight(false);
     }
 
     fn rightAll() void {
@@ -105,6 +106,7 @@ pub fn main() !void {
         "You",
         SevenBag.init(std.crypto.random.int(u64)),
         player_view,
+        BoardMask.HEIGHT * FRAMERATE,
         &settings,
     );
     try setupPlayerInput(&player);

@@ -106,7 +106,7 @@ fn randomId() ![32]u8 {
     return uuid;
 }
 
-fn getLeagueTop(allocator: Allocator, client: *HttpClient, n: u32) ![]UserData {
+fn getLeagueTop(allocator: Allocator, client: *HttpClient, n: usize) ![]UserData {
     const endpoint = TETRIO_API ++ "users/lists/league";
 
     const req_id = try randomId();

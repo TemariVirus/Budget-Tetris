@@ -36,6 +36,7 @@ pub fn main() !void {
         "You",
         SevenBag.init(0),
         player_view,
+        40.0 * FRAMERATE,
         &settings,
     );
 
