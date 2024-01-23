@@ -225,7 +225,13 @@ const InitError = error{
     nonZeroDCD,
     nonInstantSoftDrop,
 };
-pub fn init(allocator: Allocator, frames: u32, event_jsons: []const EventJson, view: View, settings: *const Settings) !Self {
+pub fn init(
+    allocator: Allocator,
+    frames: u32,
+    event_jsons: []const EventJson,
+    view: View,
+    settings: *const Settings,
+) !Self {
     var i: usize = 0;
     while (i < event_jsons.len) : (i += 1) {
         if (event_jsons[i].type == .full) {
@@ -294,25 +300,19 @@ pub fn nextFrame(self: *Self, frame: u32) !bool {
         switch (self.events[self.event_i]) {
             .garbage => |event| self.handleGarbage(event),
             .garbageConfirm => |event| self.handleGarbageConfirm(event),
-            .keyDown => |event| {
-                self.game.time = gameTime(event.subframe);
-                try self.handleKeyDown(event);
-            },
+            .keyDown => |event| try self.handleKeyDown(event),
             .keyUp => |event| self.handleKeyUp(event),
         }
     }
-    // TODO: should only be needed for rendering properly, can remove when visualisations aren't needed
     try self.nextSubframes(subframe);
     return frame <= self.frames;
 }
 
 fn nextSubframes(self: *Self, subframe: u32) !void {
-    const last_update = if (self.event_i == 0) 0 else self.events[self.event_i - 1].subframe();
-    if (subframe <= last_update) {
+    const now = gameTime(subframe);
+    if (now <= self.game.time) {
         return;
     }
-
-    const now = gameTime(subframe);
     self.was_on_ground = self.game.state.onGround();
 
     // Handle autolocking

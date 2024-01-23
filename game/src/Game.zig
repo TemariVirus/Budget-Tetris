@@ -372,7 +372,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             // Handle gravity
-            const dropped = self.state.drop(@intFromFloat(self.vel));
+            const dropped = self.state.drop(@intFromFloat(@min(255, self.vel)));
             self.vel -= @floatFromInt(dropped);
             if (self.soft_dropping) {
                 self.score += dropped;
