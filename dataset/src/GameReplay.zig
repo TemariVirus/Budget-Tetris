@@ -23,8 +23,9 @@ allocator: Allocator,
 frames: u32,
 events: []const Event,
 game: Game,
-das: u8,
 arr: u8,
+das: u8,
+dcd: u8,
 garbage_queue: GarbageQueue,
 opponent: *Self = undefined,
 
@@ -222,7 +223,6 @@ const KeyEvent = struct {
 const InitError = error{
     noFullEvent,
     unsupportedVersion,
-    nonZeroDCD,
     nonInstantSoftDrop,
 };
 pub fn init(
@@ -255,9 +255,6 @@ pub fn init(
     }
     // We can try anyway even if these settings are different, there's a chance
     // the replay will still be correct
-    // if (options.handling.dcd != 0.0) {
-    //     return InitError.nonZeroDCD;
-    // }
     // if (options.handling.sdf != 41.0) {
     //     return InitError.nonInstantSoftDrop;
     // }
@@ -278,11 +275,12 @@ pub fn init(
             "",
             Bag.init(options.seed),
             view,
-            40.0 * replay.FRAMERATE,
+            400.0 * replay.FRAMERATE,
             settings,
         ),
-        .das = @intFromFloat(@round(options.handling.das * 10)),
         .arr = @intFromFloat(@round(options.handling.arr * 10)),
+        .das = @intFromFloat(@round(options.handling.das * 10)),
+        .dcd = @intFromFloat(@round(options.handling.dcd * 10)),
         .garbage_queue = GarbageQueue{},
     };
 }
@@ -316,11 +314,6 @@ fn nextSubframes(self: *Self, subframe: u32) !void {
     self.was_on_ground = self.game.state.onGround();
 
     // Handle autolocking
-    const next_y = self.game.state.pos.y - @as(i8, if (self.game.vel >= 1.0) 1 else 0);
-    if (next_y > self.highest_y) {
-        self.game.move_count = 0;
-    }
-    self.highest_y = @max(self.highest_y, next_y);
     if (self.game.state.onGround()) {
         if (self.game.move_count >= self.game.settings.autolock_grace or
             now -| self.game.last_move_time >= self.game.settings.lock_delay * std.time.ns_per_ms)
@@ -332,9 +325,6 @@ fn nextSubframes(self: *Self, subframe: u32) !void {
         self.game.vel = @max(self.game.vel, 5 * self.game.settings.g / replay.FRAMERATE);
     }
 
-    if (self.softdropping) {
-        self.game.softDrop();
-    }
     const old_x = self.game.state.pos.x;
     if (self.left_shift_subframe) |_| {
         while (subframe >= self.left_shift_subframe.?) : (self.left_shift_subframe.? += self.arr) {
@@ -357,6 +347,16 @@ fn nextSubframes(self: *Self, subframe: u32) !void {
     const moved = @abs(self.game.state.pos.x - old_x);
     self.game.move_count += moved;
 
+    // Don't add to move count if the piece is still at the top
+    const next_y = self.game.state.pos.y - @as(i8, if (self.game.vel >= 1.0) 1 else 0);
+    if (next_y >= self.highest_y) {
+        self.game.move_count = 0;
+    }
+    self.highest_y = @max(self.highest_y, next_y);
+
+    if (self.softdropping) {
+        self.game.softDrop();
+    }
     self.game.tick(now - self.game.time);
 }
 
@@ -385,9 +385,13 @@ fn handleGarbageConfirm(self: *Self, event: GarbageEvent) void {
 }
 
 fn handleKeyDown(self: *Self, event: KeyEvent) !void {
+    switch (event.key) {
+        .hold, .rotateCW, .rotateCCW, .rotate180 => self.applyDCD(event.subframe, false),
+        else => {},
+    }
+
     const force_lock = self.game.state.onGround() and
         self.game.move_count + 1 == self.game.settings.autolock_grace;
-
     switch (event.key) {
         .hold => {
             if (self.game.already_held) {
@@ -446,12 +450,31 @@ fn handleKeyDown(self: *Self, event: KeyEvent) !void {
     }
 }
 
+fn applyDCD(self: *Self, subframe: u32, force: bool) void {
+    const pos = self.game.state.pos;
+    if (self.left_shift_subframe) |_| {
+        if (force or self.game.state.collides(
+            self.game.state.current,
+            .{ .x = pos.x - 1, .y = pos.y },
+        )) {
+            self.left_shift_subframe = @max(self.left_shift_subframe.?, subframe + self.dcd);
+        }
+    }
+    if (self.right_shift_subframe) |_| {
+        if (force or self.game.state.collides(
+            self.game.state.current,
+            .{ .x = pos.x + 1, .y = pos.y },
+        )) {
+            self.right_shift_subframe = @max(self.right_shift_subframe.?, subframe + self.dcd);
+        }
+    }
+}
+
 fn adjustSpawn(self: *Self) void {
     self.game.state.pos = self.game.state.current.kind.startPos();
     self.game.state.pos.y += 1;
     self.game.vel = 1.0 - (self.game.settings.g / replay.FRAMERATE);
     self.highest_y = self.game.state.pos.y;
-    self.was_on_ground = self.game.state.onGround();
 }
 
 fn place(self: *Self, subframe: u32) !void {
@@ -464,6 +487,7 @@ fn place(self: *Self, subframe: u32) !void {
 
     self.game.hardDrop();
     self.adjustSpawn();
+    self.applyDCD(subframe, true);
 
     // Tetr.io counts T-spin minis as difficult clears as well
     if (clear_info.cleared > 0 and clear_info.t_spin == .Mini) {
@@ -579,7 +603,7 @@ fn handleKeyUp(self: *Self, event: KeyEvent) void {
     switch (event.key) {
         .moveLeft => {
             if (self.left_shift_subframe) |t| {
-                if (event.subframe >= t) {
+                if (event.subframe > t) {
                     self.game.moveLeftAll();
                 }
             }
@@ -587,7 +611,7 @@ fn handleKeyUp(self: *Self, event: KeyEvent) void {
         },
         .moveRight => {
             if (self.right_shift_subframe) |t| {
-                if (event.subframe >= t) {
+                if (event.subframe > t) {
                     self.game.moveRightAll();
                 }
             }

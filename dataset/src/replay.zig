@@ -57,7 +57,6 @@ pub fn main() !void {
     var total: u64 = 0;
     var wrong_state: u64 = 0;
     var bad_version: u64 = 0;
-    var bad_dcd: u64 = 0;
     var bad_sdf: u64 = 0;
     while (try replays.next()) |replay_file| {
         if (replay_file.kind != .file) {
@@ -83,7 +82,6 @@ pub fn main() !void {
             replayMatch(allocator, m) catch |err| switch (err) {
                 error.noFullEvent => continue,
                 error.unsupportedVersion => bad_version += 1,
-                error.nonZeroDCD => bad_dcd += 1,
                 error.nonInstantSoftDrop => bad_sdf += 1,
                 error.WrongEndState => wrong_state += 1,
                 else => return err,
@@ -94,10 +92,9 @@ pub fn main() !void {
 
     std.debug.print("Total: {}\n", .{total});
     std.debug.print("Bad version: {}\n", .{bad_version});
-    std.debug.print("Bad DCD: {}\n", .{bad_dcd});
     std.debug.print("Bad SDF: {}\n", .{bad_sdf});
     std.debug.print("Wrong state: {}\n", .{wrong_state});
-    std.debug.print("Passed: {}\n", .{total - bad_version - bad_dcd - bad_sdf - wrong_state});
+    std.debug.print("Passed: {}\n", .{total - bad_version - bad_sdf - wrong_state});
 }
 
 fn replayMatch(allocator: Allocator, match: MatchJson) !void {

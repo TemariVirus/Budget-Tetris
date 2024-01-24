@@ -12,8 +12,9 @@ const REPLAY_DIR = "raw_replays/";
 
 pub const MongoId = [24]u8;
 
-const UserData = struct {
+pub const UserData = struct {
     _id: MongoId,
+    username: []const u8,
     league: struct {
         rating: f64,
         glicko: ?f64,
@@ -41,7 +42,12 @@ fn fetchReplays(user_count: usize) !void {
     defer client.deinit();
 
     const users = try getLeagueTop(allocator, &client, user_count);
-    defer allocator.free(users);
+    defer {
+        for (users) |user| {
+            allocator.free(user.username);
+        }
+        allocator.free(users);
+    }
 
     // Save users to file
     var file = try std.fs.cwd().createFile("users.json", .{});
@@ -52,7 +58,7 @@ fn fetchReplays(user_count: usize) !void {
 
     for (users, 1..) |user, i| {
         std.debug.print("Getting replays of {s} | rating: {d:.2} ({}/{})\n", .{
-            user._id,
+            user.username,
             user.league.rating,
             i,
             users.len,
@@ -161,6 +167,7 @@ fn getLeagueTop(allocator: Allocator, client: *HttpClient, n: usize) ![]UserData
 
         for (parsed.value.data.?.users, 0..) |user, j| {
             result[i + j] = user;
+            result[i + j].username = try allocator.dupe(u8, user.username);
             min_rating = @min(min_rating, user.league.rating);
         }
         i += limit;
@@ -239,10 +246,9 @@ fn saveReplay(allocator: Allocator, client: *HttpClient, replay_id: MongoId, pat
             continue;
         }
 
-        const res_body = try allocator.alloc(u8, res.body.?.len);
+        const res_body = try allocator.dupe(u8, res.body.?);
         defer allocator.free(res_body);
 
-        @memcpy(res_body, res.body.?);
         // Inoue api returns empty array instead of empty object
         const original = "\"data\":[]";
         const replacement = "\"data\":{}";
