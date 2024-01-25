@@ -80,4 +80,23 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_lib_tests.step);
     test_step.dependOn(&run_train_exe_tests.step);
     test_step.dependOn(&run_bot_exe_tests.step);
+
+    // Add bench step
+    const bench_exe = b.addExecutable(.{
+        .name = "Budget Tetris Bot Benchmarks",
+        .root_source_file = .{ .path = "src/bench.zig" },
+        .target = target,
+        .optimize = .ReleaseFast,
+    });
+    bench_exe.root_module.addImport("engine", engine_module);
+
+    b.installArtifact(bench_exe);
+
+    const bench_cmd = b.addRunArtifact(bench_exe);
+    bench_cmd.step.dependOn(b.getInstallStep());
+    // if (b.args) |args| {
+    //     bench_cmd.addArgs(args);
+    // }
+    const bench_step = b.step("bench", "Run benchmarks");
+    bench_step.dependOn(&bench_cmd.step);
 }

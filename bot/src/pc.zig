@@ -61,7 +61,7 @@ pub const FindPcError = error{
 
 /// Finds a perfect clear with the least number of pieces possible for the given
 /// game state, and returns the sequence of placements required to achieve it.
-pub fn findPc(allocator: Allocator, game: GameState, start_height: u8, comptime max_pieces: usize) ![]Placement {
+pub fn findPc(allocator: Allocator, game: GameState, min_height: u8, comptime max_pieces: usize) ![]Placement {
     const field_height = blk: {
         var i: usize = BoardMask.HEIGHT;
         while (i >= 1) : (i -= 1) {
@@ -103,7 +103,7 @@ pub fn findPc(allocator: Allocator, game: GameState, start_height: u8, comptime 
     var pieces = getPieces(game, max_pieces);
     while (pieces_needed <= pieces.len) : (pieces_needed += 5) {
         const max_height = (4 * pieces_needed + bits_set) / BoardMask.WIDTH;
-        if (max_height < start_height) {
+        if (max_height < min_height) {
             continue;
         }
 
@@ -290,10 +290,6 @@ fn isPcPossible(rows: []const u16) bool {
     while (walls != 0) {
         const start: u4 = @intCast(@ctz(walls));
         walls &= walls - 1; // Clear lowest bit
-        if (start == end) {
-            end += 1;
-            continue;
-        }
 
         // Each "segment" separated by a wall must have a multiple of 4 empty cells,
         // as pieces can only be placed in one segment.
@@ -311,38 +307,6 @@ fn isPcPossible(rows: []const u16) bool {
     return true;
 }
 
-// There are 241,315,200 possible 4-line PCs from an empty board with a 7-bag
-// randomiser, so creating a table of all of them is actually feasible.
-// Old 4-line PC average: 20.69s
-// Current 4-line PC average: 2.80s
-pub fn pcBenchmark() !void {
-    const RUN_COUNT = 100;
-
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
-
-    const total_start = time.nanoTimestamp();
-    var max_time: u64 = 0;
-
-    for (0..RUN_COUNT) |seed| {
-        const bag = SevenBag.init(seed);
-        const gamestate = GameState.init(bag, kicks.srsPlus);
-
-        const start = time.nanoTimestamp();
-        const solution = try findPc(allocator, gamestate, 4, 11);
-        const time_taken: u64 = @intCast(time.nanoTimestamp() - start);
-        max_time = @max(max_time, time_taken);
-
-        std.debug.print("Seed: {} | Time taken: {}\n", .{ seed, std.fmt.fmtDuration(time_taken) });
-        allocator.free(solution);
-    }
-
-    const total_time: u64 = @intCast(time.nanoTimestamp() - total_start);
-    std.debug.print("Average: {}", .{std.fmt.fmtDuration(total_time / RUN_COUNT)});
-    std.debug.print("Max: {}", .{std.fmt.fmtDuration(max_time)});
-}
-
 test "4-line PC" {
     const allocator = std.testing.allocator;
 
@@ -356,10 +320,10 @@ test "4-line PC" {
     for (solution[0 .. solution.len - 1]) |placement| {
         gamestate.current = placement.piece;
         gamestate.pos = placement.pos;
-        try expect(!gamestate.lockCurrent(false, 0).pc);
+        try expect(!gamestate.lockCurrent(-1).pc);
     }
 
     gamestate.current = solution[solution.len - 1].piece;
     gamestate.pos = solution[solution.len - 1].pos;
-    try expect(gamestate.lockCurrent(false, 0).pc);
+    try expect(gamestate.lockCurrent(-1).pc);
 }
