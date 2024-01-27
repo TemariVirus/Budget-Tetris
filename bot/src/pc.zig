@@ -284,7 +284,7 @@ fn isPcPossible(rows: []const u16) bool {
         walls &= row;
     }
     walls >>= 1; // Remove padding
-    walls &= 0b0111111110; // Any walls at the edges can be skipped
+    walls &= walls ^ (walls << 1); // Reduce consecutive walls to 1 wide walls
 
     var end: u4 = 0;
     while (walls != 0) {

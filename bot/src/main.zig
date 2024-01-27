@@ -29,7 +29,9 @@ pub fn main() !void {
     try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
     defer nterm.deinit();
 
-    const settings = engine.Settings{};
+    const settings = engine.Settings{
+        .g = 0,
+    };
     const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
     var game = Game.init(
         allocator,
