@@ -1,5 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
+const fs = std.fs;
 const json = std.json;
 const mem = std.mem;
 
@@ -9,7 +10,8 @@ const View = nterm.View;
 const engine = @import("engine");
 
 const root = @import("main.zig");
-const MongoId = root.MongoId;
+const LeagueData = root.LeagueData;
+const UserData = root.UserData;
 const GameReplay = @import("GameReplay.zig");
 
 pub const FRAMERATE = 60;
@@ -20,7 +22,6 @@ const LOCKRESETS = 15;
 const LOCKTIME = 30;
 
 const MatchJson = struct {
-    board: [2]struct { id: MongoId },
     replays: [2]struct {
         frames: u32,
         events: []const EventJson,
@@ -44,20 +45,64 @@ pub const EventJson = struct {
     data: json.Value,
 };
 
+pub const DataRow = struct {
+    game_id: u32,
+    placement_index: u32,
+    playfield: [400]u8, // use piece letter for color, n = none, g = garbage
+    x: u4,
+    y: u6,
+    current: [1]u8,
+    hold: [1]u8, // n = none
+    next: [6]u8, // only 5 next pieces shown, 6th can sometimes be infered
+    attack: u16,
+    t_spin: [1]u8, // n = none, m = mini, f = full
+    btb: u16,
+    combo: u16,
+    incoming_garbage: u16,
+    rating: f32,
+    glicko: ?f32,
+    glicko_rd: ?f32,
+};
+
+const ReplayStats = struct {
+    game_id: u32 = 0,
+    total: u32 = 0,
+    bad_version: u32 = 0,
+    bad_sdf: u32 = 0,
+    no_glicko: u32 = 0,
+    wrong_state: u32 = 0,
+    passed: u32 = 0,
+    rows: u64 = 0,
+};
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    const replays_dir = try std.fs.cwd().openDir("raw_replays", .{
+    const replays_dir = try fs.cwd().openDir("raw_replays", .{
         .iterate = true,
     });
     var replays = replays_dir.iterate();
 
-    var total: u64 = 0;
-    var wrong_state: u64 = 0;
-    var bad_version: u64 = 0;
-    var bad_sdf: u64 = 0;
+    var user_data = try getUserData(allocator);
+    defer {
+        var keys = user_data.keyIterator();
+        while (keys.next()) |key| {
+            allocator.free(key.*);
+        }
+        user_data.deinit();
+    }
+
+    const data_file = try fs.cwd().createFile("data.csv", .{});
+    defer data_file.close();
+
+    var bw = std.io.bufferedWriter(data_file.writer());
+    const writer = bw.writer();
+
+    try writer.writeAll("game_id,placement_index,playfield,x,y,current,hold,next,attack,t_spin,btb,combo,incoming_garbage,rating,glicko,glicko_rd\n");
+
+    var stats = ReplayStats{};
     while (try replays.next()) |replay_file| {
         if (replay_file.kind != .file) {
             continue;
@@ -79,25 +124,48 @@ pub fn main() !void {
         defer parsed.deinit();
 
         for (matches) |m| {
-            replayMatch(allocator, m) catch |err| switch (err) {
-                error.noFullEvent => continue,
-                error.unsupportedVersion => bad_version += 1,
-                error.nonInstantSoftDrop => bad_sdf += 1,
-                error.WrongEndState => wrong_state += 1,
-                else => return err,
-            };
-            total += 1;
+            try replayMatch(allocator, m, writer, &stats, user_data);
         }
     }
+    try bw.flush();
 
-    std.debug.print("Total: {}\n", .{total});
-    std.debug.print("Bad version: {}\n", .{bad_version});
-    std.debug.print("Bad SDF: {}\n", .{bad_sdf});
-    std.debug.print("Wrong state: {}\n", .{wrong_state});
-    std.debug.print("Passed: {}\n", .{total - bad_version - bad_sdf - wrong_state});
+    std.debug.print("Total: {}\n", .{stats.total});
+    std.debug.print("Bad version: {}\n", .{stats.bad_version});
+    std.debug.print("Bad SDF: {}\n", .{stats.bad_sdf});
+    std.debug.print("No Glicko: {}\n", .{stats.no_glicko});
+    std.debug.print("Wrong state: {}\n", .{stats.wrong_state});
+    std.debug.print("Passed: {}\n", .{stats.passed});
+    std.debug.print("Rows: {}\n", .{stats.rows});
 }
 
-fn replayMatch(allocator: Allocator, match: MatchJson) !void {
+fn getUserData(allocator: Allocator) !std.StringHashMap(LeagueData) {
+    const user_data_json = try fs.cwd().readFileAlloc(allocator, "users.json", std.math.maxInt(usize));
+    defer allocator.free(user_data_json);
+
+    const parsed = try json.parseFromSlice(
+        struct { data: struct { users: []const UserData } },
+        allocator,
+        user_data_json,
+        .{
+            .ignore_unknown_fields = true,
+        },
+    );
+    defer parsed.deinit();
+
+    var user_data = std.StringHashMap(LeagueData).init(allocator);
+    for (parsed.value.data.users) |u| {
+        try user_data.put(try allocator.dupe(u8, u.username), u.league);
+    }
+    return user_data;
+}
+
+fn replayMatch(
+    allocator: Allocator,
+    match: MatchJson,
+    writer: anytype,
+    stats: *ReplayStats,
+    user_data: std.StringHashMap(LeagueData),
+) !void {
     var settings = engine.Settings{
         .g = getGravity(0),
         .autolock_grace = LOCKRESETS + 1,
@@ -105,40 +173,63 @@ fn replayMatch(allocator: Allocator, match: MatchJson) !void {
         .show_next_count = 5, // Fixed for Tetra League
         .display_stats = &.{ .PPS, .APM, .Sent },
     };
+    stats.game_id += 2;
 
-    var replay1 = try GameReplay.init(
-        allocator,
-        match.replays[0].frames,
-        match.replays[0].events,
-        View.init(0, 0, 0, 0),
-        &settings,
-    );
-    defer replay1.deinit();
+    var replays: [2]GameReplay = undefined;
+    for (0..replays.len) |i| {
+        stats.total += 1;
 
-    var replay2 = try GameReplay.init(
-        allocator,
-        match.replays[1].frames,
-        match.replays[1].events,
-        View.init(0, 0, 0, 0),
-        &settings,
-    );
-    defer replay2.deinit();
+        replays[i] = GameReplay.init(
+            allocator,
+            stats.game_id - @as(u32, @intCast(i)),
+            match.replays[i].frames,
+            match.replays[i].events,
+            &settings,
+            user_data,
+        ) catch |err| {
+            switch (err) {
+                error.noFullEvent => stats.total -= 1,
+                error.unsupportedVersion => stats.bad_version += 1,
+                error.nonInstantSoftDrop => stats.bad_sdf += 1,
+                else => return err,
+            }
+            return;
+        };
+    }
+    defer replays[0].deinit();
+    defer replays[1].deinit();
 
-    replay1.opponent = &replay2;
-    replay2.opponent = &replay1;
+    replays[0].opponent = &replays[1];
+    replays[1].opponent = &replays[0];
 
     var frame: u32 = 0;
     while (true) : (frame += 1) {
         settings.g = getGravity(frame);
-        const next1 = try replay1.nextFrame(frame);
-        const next2 = try replay2.nextFrame(frame);
+        const next1 = try replays[0].nextFrame(frame);
+        const next2 = try replays[1].nextFrame(frame);
         if (!next1 and !next2) {
             break;
         }
     }
 
-    try checkEndState(allocator, replay1, match.replays[0].events);
-    try checkEndState(allocator, replay2, match.replays[1].events);
+    for (replays, 0..) |replay, i| {
+        // This player is not one of the ones we want
+        if (replay.rating == null) {
+            continue;
+        }
+        if (replay.glicko == null or replay.glicko_rd == null) {
+            stats.no_glicko += 1;
+        }
+
+        if (try checkEndState(allocator, replay, match.replays[i].events)) {
+            // Skip last item as it contains the lose state
+            try writeData(writer, replay.data.items[0..replay.data.items.len -| 1]);
+            stats.passed += 1;
+            stats.rows += replay.data.items.len -| 1;
+        } else {
+            stats.wrong_state += 1;
+        }
+    }
 }
 
 fn getGravity(subframe: u32) f32 {
@@ -147,7 +238,7 @@ fn getGravity(subframe: u32) f32 {
     return @floatCast(g * FRAMERATE);
 }
 
-fn checkEndState(allocator: Allocator, replay: GameReplay, events: []const EventJson) !void {
+fn checkEndState(allocator: Allocator, replay: GameReplay, events: []const EventJson) !bool {
     const end_event = events[events.len - 1];
     if (end_event.type != .end) {
         return error.InvalidEndEvent;
@@ -192,8 +283,33 @@ fn checkEndState(allocator: Allocator, replay: GameReplay, events: []const Event
                     return error.UnknownColor;
             };
             if (expected_color != actual.get(x, y)) {
-                return error.WrongEndState;
+                return false;
             }
         }
+    }
+
+    return true;
+}
+
+fn writeData(writer: anytype, data: []const DataRow) !void {
+    for (data) |row| {
+        try writer.print("{},{},{s},{},{},{s},{s},{s},{},{s},{},{},{},{d},{?d},{?d}\n", .{
+            row.game_id,
+            row.placement_index,
+            row.playfield,
+            row.x,
+            row.y,
+            row.current,
+            row.hold,
+            row.next,
+            row.attack,
+            row.t_spin,
+            row.btb,
+            row.combo,
+            row.incoming_garbage,
+            row.rating,
+            row.glicko,
+            row.glicko_rd,
+        });
     }
 }

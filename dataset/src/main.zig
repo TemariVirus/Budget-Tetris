@@ -12,13 +12,16 @@ const REPLAY_DIR = "raw_replays/";
 
 pub const MongoId = [24]u8;
 
+pub const LeagueData = struct {
+    rating: f32,
+    glicko: ?f32 = null,
+    rd: ?f32 = null,
+};
+
 pub const UserData = struct {
     _id: MongoId,
     username: []const u8,
-    league: struct {
-        rating: f64,
-        glicko: ?f64,
-    },
+    league: LeagueData,
 };
 
 fn TetrioResponse(comptime T: type) type {
@@ -112,6 +115,7 @@ fn randomId() ![32]u8 {
     return uuid;
 }
 
+// TODO: Merge league top
 fn getLeagueTop(allocator: Allocator, client: *HttpClient, n: usize) ![]UserData {
     const endpoint = TETRIO_API ++ "users/lists/league";
 

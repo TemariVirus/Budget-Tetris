@@ -5,16 +5,21 @@ const json = std.json;
 const math = std.math;
 const mem = std.mem;
 
-const View = @import("nterm").View;
+const nterm = @import("nterm");
+const View = nterm.View;
+const Color = nterm.Color;
 
 const engine = @import("engine");
+const BoardMask = engine.bit_masks.BoardMask;
 const ClearInfo = engine.attack.ClearInfo;
 const Game = engine.Game(Bag, engine.kicks.srsPlus);
 const PieceKind = engine.pieces.PieceKind;
 const Settings = engine.Settings;
 
+const LeagueData = @import("main.zig").LeagueData;
 const replay = @import("replay.zig");
 const EventJson = replay.EventJson;
+const DataRow = replay.DataRow;
 
 const Self = @This();
 const GarbageQueue = std.ArrayListUnmanaged(GarbageEvent);
@@ -36,6 +41,13 @@ right_shift_subframe: ?u32 = null,
 softdropping: bool = false,
 highest_y: i8 = 0,
 was_on_ground: bool = undefined,
+
+id: u32,
+placement_index: u32 = 0,
+rating: ?f32 = null,
+glicko: ?f32 = null,
+glicko_rd: ?f32 = null,
+data: std.ArrayListUnmanaged(DataRow),
 
 const GARBAGE_CAP = 8;
 const GARBAGE_SPEED = 20;
@@ -91,9 +103,8 @@ const Bag = struct {
 const Options = struct {
     version: i32,
     seed: i32,
-    // TODO: use username to get glicko of player. This seems to be the only
-    // reliable source of user info as the `board` field in the event jsons
-    // may be reversed.
+    // This seems to be the only reliable source of user info as the `board` field
+    // in the event jsons may be reversed.
     username: []const u8,
     handling: struct {
         arr: f64,
@@ -227,10 +238,11 @@ const InitError = error{
 };
 pub fn init(
     allocator: Allocator,
+    id: u32,
     frames: u32,
     event_jsons: []const EventJson,
-    view: View,
     settings: *const Settings,
+    user_data: std.StringHashMap(LeagueData),
 ) !Self {
     var i: usize = 0;
     while (i < event_jsons.len) : (i += 1) {
@@ -259,22 +271,15 @@ pub fn init(
     //     return InitError.nonInstantSoftDrop;
     // }
 
-    var events = std.ArrayListUnmanaged(Event){};
-    for (event_jsons) |event| {
-        if (Event.fromEventJson(event)) |e| {
-            try events.append(allocator, e);
-        }
-    }
-
-    return Self{
+    var self = Self{
         .allocator = allocator,
         .frames = frames,
-        .events = try events.toOwnedSlice(allocator),
+        .events = undefined,
         .game = Game.init(
             allocator,
             "",
             Bag.init(options.seed),
-            view,
+            .{ .left = 0, .top = 0, .width = 0, .height = 0 },
             400.0 * replay.FRAMERATE,
             settings,
         ),
@@ -282,13 +287,35 @@ pub fn init(
         .das = @intFromFloat(@round(options.handling.das * 10)),
         .dcd = @intFromFloat(@round(options.handling.dcd * 10)),
         .garbage_queue = GarbageQueue{},
+
+        .id = id,
+        .data = std.ArrayListUnmanaged(DataRow){},
     };
+    errdefer self.game.deinit();
+
+    if (user_data.get(options.username)) |league_data| {
+        self.rating = league_data.rating;
+        self.glicko = league_data.glicko;
+        self.glicko_rd = league_data.rd;
+    }
+
+    var events = std.ArrayListUnmanaged(Event){};
+    errdefer events.deinit(allocator);
+    for (event_jsons) |event| {
+        if (Event.fromEventJson(event)) |e| {
+            try events.append(allocator, e);
+        }
+    }
+    self.events = try events.toOwnedSlice(allocator);
+
+    return self;
 }
 
 pub fn deinit(self: *Self) void {
     self.allocator.free(self.events);
     self.game.deinit();
     self.garbage_queue.deinit(self.allocator);
+    self.data.deinit(self.allocator);
 }
 
 pub fn nextFrame(self: *Self, frame: u32) !bool {
@@ -484,6 +511,7 @@ fn place(self: *Self, subframe: u32) !void {
 
     var state_copy = self.game.state;
     const clear_info = state_copy.lockCurrent(self.game.last_kick);
+    try self.addRow(clear_info, subframe);
 
     self.game.hardDrop();
     self.adjustSpawn();
@@ -498,10 +526,6 @@ fn place(self: *Self, subframe: u32) !void {
     try self.blockAndAttack(attack);
     if (clear_info.pc) {
         try self.blockAndAttack(multiplyGarbage(10.0, subframe));
-    }
-    // TODO: remove, for debugging
-    if (clear_info.cleared > 0) {
-        self.game.lines_sent = if (clear_info.pc) attack + multiplyGarbage(10.0, subframe) else attack;
     }
 
     // Receive garbage
@@ -623,4 +647,76 @@ fn handleKeyUp(self: *Self, event: KeyEvent) void {
         },
         else => {},
     }
+}
+
+fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
+    if (self.rating == null) {
+        return;
+    }
+
+    var playfield: [400]u8 = undefined;
+    for (0..BoardMask.HEIGHT) |y| {
+        for (0..BoardMask.WIDTH) |x| {
+            playfield[y * BoardMask.WIDTH + x] = colorToString(self.game.playfield_colors.get(x, y));
+        }
+    }
+
+    const pos = self.game.state.current.canonicalPosition(self.game.state.pos);
+    var next: [6]u8 = undefined;
+    for (0..next.len) |i| {
+        next[i] = colorToString(self.game.state.next_pieces[i].color());
+    }
+    var incoming: u16 = 0;
+    for (self.garbage_queue.items) |garbage| {
+        if (garbage.subframe == math.maxInt(u32)) {
+            break;
+        }
+        incoming += garbage.lines;
+    }
+
+    try self.data.append(self.allocator, .{
+        .game_id = self.id,
+        .placement_index = self.placement_index,
+        .playfield = playfield,
+        .x = pos.x,
+        .y = pos.y,
+        .current = [_]u8{colorToString(self.game.state.current.kind.color())},
+        .hold = [_]u8{colorToString(if (self.game.state.hold_kind) |h| h.color() else null)},
+        .next = next,
+        .attack = getTetrioAttack(info, self.game.state.b2b, self.game.state.combo, subframe),
+        .t_spin = [_]u8{tSpinToString(info.t_spin)},
+        .btb = @intCast(self.game.state.b2b),
+        .combo = @intCast(self.game.state.combo),
+        .incoming_garbage = incoming,
+        .rating = self.rating.?,
+        .glicko = self.glicko,
+        .glicko_rd = self.glicko_rd,
+    });
+    self.placement_index += 1;
+}
+
+fn colorToString(color: ?Color) u8 {
+    if (color == null) {
+        return 'N';
+    }
+    return switch (color.?) {
+        .Black => 'N',
+        .BrightCyan => 'I',
+        .BrightYellow => 'O',
+        .BrightMagenta => 'T',
+        .BrightGreen => 'S',
+        .Red => 'Z',
+        .Yellow => 'J',
+        .Blue => 'L',
+        .White => 'G',
+        else => unreachable,
+    };
+}
+
+fn tSpinToString(kind: engine.attack.TSpin) u8 {
+    return switch (kind) {
+        .None => 'N',
+        .Mini => 'M',
+        .Full => 'F',
+    };
 }
