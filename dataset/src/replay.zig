@@ -14,6 +14,8 @@ const LeagueData = root.LeagueData;
 const UserData = root.UserData;
 const GameReplay = @import("GameReplay.zig");
 
+const EXPORT_FILE = "data.csv";
+
 pub const FRAMERATE = 60;
 const G = 0.02;
 const G_MARGIN = 7200;
@@ -75,12 +77,13 @@ const ReplayStats = struct {
     rows: u64 = 0,
 };
 
+// Constructs a dataset from the replays and exports to csv format
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
-    const replays_dir = try fs.cwd().openDir("raw_replays", .{
+    const replays_dir = try fs.cwd().openDir(root.REPLAY_DIR, .{
         .iterate = true,
     });
     var replays = replays_dir.iterate();
@@ -94,7 +97,7 @@ pub fn main() !void {
         user_data.deinit();
     }
 
-    const data_file = try fs.cwd().createFile("data.csv", .{});
+    const data_file = try fs.cwd().createFile(EXPORT_FILE, .{});
     defer data_file.close();
 
     var bw = std.io.bufferedWriter(data_file.writer());
@@ -116,9 +119,7 @@ pub fn main() !void {
             struct { data: []const MatchJson },
             allocator,
             replay_json,
-            .{
-                .ignore_unknown_fields = true,
-            },
+            .{ .ignore_unknown_fields = true },
         );
         const matches = parsed.value.data;
         defer parsed.deinit();
@@ -139,11 +140,11 @@ pub fn main() !void {
 }
 
 fn getUserData(allocator: Allocator) !std.StringHashMap(LeagueData) {
-    const user_data_json = try fs.cwd().readFileAlloc(allocator, "users.json", std.math.maxInt(usize));
+    const user_data_json = try fs.cwd().readFileAlloc(allocator, root.USERS_FILE, std.math.maxInt(usize));
     defer allocator.free(user_data_json);
 
     const parsed = try json.parseFromSlice(
-        struct { data: struct { users: []const UserData } },
+        []const UserData,
         allocator,
         user_data_json,
         .{
@@ -153,7 +154,10 @@ fn getUserData(allocator: Allocator) !std.StringHashMap(LeagueData) {
     defer parsed.deinit();
 
     var user_data = std.StringHashMap(LeagueData).init(allocator);
-    for (parsed.value.data.users) |u| {
+    for (parsed.value) |u| {
+        if (user_data.contains(u.username)) {
+            continue;
+        }
         try user_data.put(try allocator.dupe(u8, u.username), u.league);
     }
     return user_data;
@@ -187,6 +191,9 @@ fn replayMatch(
             &settings,
             user_data,
         ) catch |err| {
+            if (i == 1) {
+                replays[0].deinit();
+            }
             switch (err) {
                 error.noFullEvent => stats.total -= 1,
                 error.unsupportedVersion => stats.bad_version += 1,

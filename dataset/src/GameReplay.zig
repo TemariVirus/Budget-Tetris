@@ -291,7 +291,6 @@ pub fn init(
         .id = id,
         .data = std.ArrayListUnmanaged(DataRow){},
     };
-    errdefer self.game.deinit();
 
     if (user_data.get(options.username)) |league_data| {
         self.rating = league_data.rating;
@@ -300,7 +299,6 @@ pub fn init(
     }
 
     var events = std.ArrayListUnmanaged(Event){};
-    errdefer events.deinit(allocator);
     for (event_jsons) |event| {
         if (Event.fromEventJson(event)) |e| {
             try events.append(allocator, e);

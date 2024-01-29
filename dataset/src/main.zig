@@ -4,11 +4,14 @@ const HttpClient = std.http.Client;
 const json = std.json;
 const sleep = std.time.sleep;
 
+const replay = @import("replay.zig");
+
 // Reference: https://tetr.io/about/api/#endpoints
 const TETRIO_API = "https://ch.tetr.io/api/";
 // Reference: https://inoue.szy.lol/api/
 const INOUE_REPLAY_API = "https://inoue.szy.lol/api/replay/";
-const REPLAY_DIR = "raw_replays/";
+pub const REPLAY_DIR = "replays/";
+pub const USERS_FILE = "users.json";
 
 pub const MongoId = [24]u8;
 
@@ -33,14 +36,16 @@ fn TetrioResponse(comptime T: type) type {
 }
 
 pub fn main() !void {
-    try fetchReplays(500);
-}
-
-fn fetchReplays(user_count: usize) !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
-    defer _ = gpa.deinit();
+    errdefer _ = gpa.deinit();
+    try fetchReplays(allocator, 500);
 
+    _ = gpa.deinit();
+    try replay.main();
+}
+
+fn fetchReplays(allocator: Allocator, user_count: usize) !void {
     var client = HttpClient{ .allocator = allocator };
     defer client.deinit();
 
@@ -53,11 +58,9 @@ fn fetchReplays(user_count: usize) !void {
     }
 
     // Save users to file
-    var file = try std.fs.cwd().createFile("users.json", .{});
+    var file = try std.fs.cwd().createFile(USERS_FILE, .{});
     defer file.close();
-    try json.stringify(users, .{
-        .whitespace = .indent_4,
-    }, file.writer());
+    try json.stringify(users, .{}, file.writer());
 
     for (users, 1..) |user, i| {
         std.debug.print("Getting replays of {s} | rating: {d:.2} ({}/{})\n", .{
@@ -115,7 +118,6 @@ fn randomId() ![32]u8 {
     return uuid;
 }
 
-// TODO: Merge league top
 fn getLeagueTop(allocator: Allocator, client: *HttpClient, n: usize) ![]UserData {
     const endpoint = TETRIO_API ++ "users/lists/league";
 
@@ -139,7 +141,7 @@ fn getLeagueTop(allocator: Allocator, client: *HttpClient, n: usize) ![]UserData
         defer url_builder.deinit();
 
         try url_builder.appendSlice(endpoint ++ "?after=");
-        try url_builder.writer().print("{d:.0}", .{min_rating});
+        try url_builder.writer().print("{d}", .{min_rating});
         try url_builder.appendSlice("&limit=");
         try url_builder.writer().print("{}", .{limit});
 
@@ -224,7 +226,6 @@ fn getUserReplays(allocator: Allocator, client: *HttpClient, user_id: MongoId) !
     }
 }
 
-// TODO: Convert replays to more consumable format
 fn saveReplay(allocator: Allocator, client: *HttpClient, replay_id: MongoId, path: []const u8) !void {
     const endpoint_base = INOUE_REPLAY_API;
     var endpoint = [_]u8{undefined} ** (endpoint_base.len + replay_id.len);

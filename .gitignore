@@ -1,4 +1,2 @@
 .vscode/
 zig-*/
-dataset/raw_replays/
-dataset/users.json
