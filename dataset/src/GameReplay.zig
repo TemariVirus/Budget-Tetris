@@ -43,7 +43,6 @@ highest_y: i8 = 0,
 was_on_ground: bool = undefined,
 
 id: u32,
-placement_index: u32 = 0,
 rating: ?f32 = null,
 glicko: ?f32 = null,
 glicko_rd: ?f32 = null,
@@ -674,7 +673,7 @@ fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
 
     try self.data.append(self.allocator, .{
         .game_id = self.id,
-        .placement_index = self.placement_index,
+        .subframe = subframe,
         .playfield = playfield,
         .x = pos.x,
         .y = pos.y,
@@ -683,14 +682,13 @@ fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
         .next = next,
         .attack = getTetrioAttack(info, self.game.state.b2b, self.game.state.combo, subframe),
         .t_spin = [_]u8{tSpinToString(info.t_spin)},
-        .btb = @intCast(self.game.state.b2b),
-        .combo = @intCast(self.game.state.combo),
+        .btb = self.game.state.b2b,
+        .combo = self.game.state.combo,
         .incoming_garbage = incoming,
         .rating = self.rating.?,
         .glicko = self.glicko,
         .glicko_rd = self.glicko_rd,
     });
-    self.placement_index += 1;
 }
 
 fn colorToString(color: ?Color) u8 {

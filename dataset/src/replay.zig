@@ -49,7 +49,7 @@ pub const EventJson = struct {
 
 pub const DataRow = struct {
     game_id: u32,
-    placement_index: u32,
+    subframe: u32,
     playfield: [400]u8, // use piece letter for color, n = none, g = garbage
     x: u4,
     y: u6,
@@ -58,8 +58,8 @@ pub const DataRow = struct {
     next: [6]u8, // only 5 next pieces shown, 6th can sometimes be infered
     attack: u16,
     t_spin: [1]u8, // n = none, m = mini, f = full
-    btb: u16,
-    combo: u16,
+    btb: u32,
+    combo: u32,
     incoming_garbage: u16,
     rating: f32,
     glicko: ?f32,
@@ -103,7 +103,7 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(data_file.writer());
     const writer = bw.writer();
 
-    try writer.writeAll("game_id,placement_index,playfield,x,y,current,hold,next,attack,t_spin,btb,combo,incoming_garbage,rating,glicko,glicko_rd\n");
+    try writer.writeAll("game_id,subframe,playfield,x,y,current,hold,next,attack,t_spin,btb,combo,incoming_garbage,rating,glicko,glicko_rd\n");
 
     var stats = ReplayStats{};
     while (try replays.next()) |replay_file| {
@@ -219,20 +219,22 @@ fn replayMatch(
         }
     }
 
-    for (replays, 0..) |replay, i| {
+    var i: usize = 2;
+    while (i > 0) {
+        i -= 1;
         // This player is not one of the ones we want
-        if (replay.rating == null) {
+        if (replays[i].rating == null) {
             continue;
         }
-        if (replay.glicko == null or replay.glicko_rd == null) {
+        if (replays[i].glicko == null or replays[i].glicko_rd == null) {
             stats.no_glicko += 1;
         }
 
-        if (try checkEndState(allocator, replay, match.replays[i].events)) {
+        if (try checkEndState(allocator, replays[i], match.replays[i].events)) {
             // Skip last item as it contains the lose state
-            try writeData(writer, replay.data.items[0..replay.data.items.len -| 1]);
+            try writeData(writer, replays[i].data.items[0..replays[i].data.items.len -| 1]);
             stats.passed += 1;
-            stats.rows += replay.data.items.len -| 1;
+            stats.rows += replays[i].data.items.len -| 1;
         } else {
             stats.wrong_state += 1;
         }
@@ -300,10 +302,23 @@ fn checkEndState(allocator: Allocator, replay: GameReplay, events: []const Event
 
 fn writeData(writer: anytype, data: []const DataRow) !void {
     for (data) |row| {
-        try writer.print("{},{},{s},{},{},{s},{s},{s},{},{s},{},{},{},{d},{?d},{?d}\n", .{
+        try writer.print("{},{},", .{
             row.game_id,
-            row.placement_index,
-            row.playfield,
+            row.subframe,
+        });
+
+        // Truncate playfield to remove trailing empty cells
+        var field_end = row.playfield.len;
+        while (field_end > 0) : (field_end -= 1) {
+            if (row.playfield[field_end - 1] != 'N') {
+                break;
+            }
+        }
+        try writer.print("{s},", .{
+            row.playfield[0..field_end],
+        });
+
+        try writer.print("{},{},{s},{s},{s},{},{s},{},{},{},{d},{?d},{?d}\n", .{
             row.x,
             row.y,
             row.current,
