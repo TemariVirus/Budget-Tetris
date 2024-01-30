@@ -231,10 +231,9 @@ fn replayMatch(
         }
 
         if (try checkEndState(allocator, replays[i], match.replays[i].events)) {
-            // Skip last item as it contains the lose state
-            try writeData(writer, replays[i].data.items[0..replays[i].data.items.len -| 1]);
+            try writeData(writer, replays[i].data.items);
             stats.passed += 1;
-            stats.rows += replays[i].data.items.len -| 1;
+            stats.rows += replays[i].data.items.len;
         } else {
             stats.wrong_state += 1;
         }
