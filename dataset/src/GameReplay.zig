@@ -659,10 +659,15 @@ fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
     }
 
     const pos = self.game.state.current.canonicalPosition(self.game.state.pos);
-    var next: [6]u8 = undefined;
-    for (0..next.len) |i| {
+    var next: [20]u8 = undefined;
+    var bag = self.game.state.bag;
+    for (0..self.game.state.next_pieces.len) |i| {
         next[i] = colorToString(self.game.state.next_pieces[i].color());
     }
+    for (self.game.state.next_pieces.len..next.len) |i| {
+        next[i] = colorToString(bag.next().color());
+    }
+
     var incoming: u16 = 0;
     for (self.garbage_queue.items) |garbage| {
         if (garbage.subframe == math.maxInt(u32)) {
@@ -677,6 +682,7 @@ fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
         .playfield = playfield,
         .x = pos.x,
         .y = pos.y,
+        .r = [_]u8{facingToString(self.game.state.current.facing)},
         .current = [_]u8{colorToString(self.game.state.current.kind.color())},
         .hold = [_]u8{colorToString(if (self.game.state.hold_kind) |h| h.color() else null)},
         .next = next,
@@ -714,5 +720,14 @@ fn tSpinToString(kind: engine.attack.TSpin) u8 {
         .None => 'N',
         .Mini => 'M',
         .Full => 'F',
+    };
+}
+
+fn facingToString(facing: engine.pieces.Facing) u8 {
+    return switch (facing) {
+        .Up => 'N',
+        .Right => 'E',
+        .Down => 'S',
+        .Left => 'W',
     };
 }

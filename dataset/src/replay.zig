@@ -53,9 +53,10 @@ pub const DataRow = struct {
     playfield: [400]u8, // use piece letter for color, n = none, g = garbage
     x: u4,
     y: u6,
+    r: [1]u8, // N = north, E = east, S = south, W = west
     current: [1]u8,
     hold: [1]u8, // n = none
-    next: [6]u8, // only 5 next pieces shown, 6th can sometimes be infered
+    next: [20]u8,
     attack: u16,
     t_spin: [1]u8, // n = none, m = mini, f = full
     btb: u32,
