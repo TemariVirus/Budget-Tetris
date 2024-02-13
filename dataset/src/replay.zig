@@ -48,22 +48,45 @@ pub const EventJson = struct {
 };
 
 pub const DataRow = struct {
+    /// The game ID (players in the same match get different IDs)
     game_id: u32,
+    /// The subframe where the placement occurred
     subframe: u32,
-    playfield: [400]u8, // use piece letter for color, n = none, g = garbage
+    /// The pieces in the playfied; N = none, G = garbage
+    playfield: [400]u8,
+    /// The x coordinate of the piece
     x: u4,
+    /// The y coordinate of the piece
     y: u6,
-    r: [1]u8, // N = north, E = east, S = south, W = west
-    current: [1]u8,
-    hold: [1]u8, // n = none
-    next: [20]u8,
+    /// The orientation of the placed piece; N = north, E = east, S = south, W = west
+    r: [1]u8,
+    /// The placed piece
+    placed: [1]u8,
+    /// The held piece; N = none
+    hold: [1]u8,
+    /// The next pieces
+    next: [14]u8,
+    /// The number of lines cleared
+    cleared: u3,
+    /// The number of lins with garbage cleared
+    garbage_cleared: u3,
+    /// The amount of garbage sent before garbage blocking
     attack: u16,
-    t_spin: [1]u8, // n = none, m = mini, f = full
+    /// The kind of T-spin performed; N = none, M = mini, F = full
+    t_spin: [1]u8,
+    /// The length of the back-to-back chain
     btb: u32,
+    /// The length of the combo chain
     combo: u32,
+    /// The amount of garbage that would be received without garbage blocking
+    immediate_garbage: u16,
+    /// The total amount of incoming garbage
     incoming_garbage: u16,
+    /// The player's Tetra League rating
     rating: f32,
+    /// The player's Glicko-2 rating
     glicko: ?f32,
+    /// The player's Glicko-2 rating deviation
     glicko_rd: ?f32,
 };
 
@@ -104,7 +127,7 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(data_file.writer());
     const writer = bw.writer();
 
-    try writer.writeAll("game_id,subframe,playfield,x,y,current,hold,next,attack,t_spin,btb,combo,incoming_garbage,rating,glicko,glicko_rd\n");
+    try writer.writeAll("game_id,subframe,playfield,x,y,r,placed,hold,next,cleared,garbage_cleared,attack,t_spin,btb,combo,immediate_garbage,incoming_garbage,rating,glicko,glicko_rd\n");
 
     var stats = ReplayStats{};
     while (try replays.next()) |replay_file| {
@@ -318,19 +341,25 @@ fn writeData(writer: anytype, data: []const DataRow) !void {
             row.playfield[0..field_end],
         });
 
-        try writer.print("{},{},{s},{s},{s},{},{s},{},{},{},{d},{?d},{?d}\n", .{
+        try writer.print("{},{},{s},{s},{s},{s},{},{},{},{s},{},{},{},{},{d},{?d},", .{
             row.x,
             row.y,
-            row.current,
+            row.r,
+            row.placed,
             row.hold,
             row.next,
+            row.cleared,
+            row.garbage_cleared,
             row.attack,
             row.t_spin,
             row.btb,
             row.combo,
+            row.immediate_garbage,
             row.incoming_garbage,
             row.rating,
             row.glicko,
+        });
+        try writer.print("{?d}\n", .{
             row.glicko_rd,
         });
     }

@@ -659,7 +659,7 @@ fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
     }
 
     const pos = self.game.state.current.canonicalPosition(self.game.state.pos);
-    var next: [20]u8 = undefined;
+    var next: [14]u8 = undefined;
     var bag = self.game.state.bag;
     for (0..self.game.state.next_pieces.len) |i| {
         next[i] = colorToString(self.game.state.next_pieces[i].color());
@@ -668,6 +668,21 @@ fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
         next[i] = colorToString(bag.next().color());
     }
 
+    var garbage_cleared: u3 = 0;
+    for (@max(0, self.game.state.pos.y)..@intCast(self.game.state.pos.y + 4)) |y| {
+        const colors = self.game.playfield_colors;
+        if (colors.isRowFull(y) and colors.isRowGarbage(y)) {
+            garbage_cleared += 1;
+        }
+    }
+
+    var immediate: u16 = 0;
+    for (self.garbage_queue.items) |garbage| {
+        if (garbage.subframe > subframe) {
+            break;
+        }
+        immediate += garbage.lines;
+    }
     var incoming: u16 = 0;
     for (self.garbage_queue.items) |garbage| {
         if (garbage.subframe == math.maxInt(u32)) {
@@ -683,13 +698,16 @@ fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
         .x = pos.x,
         .y = pos.y,
         .r = [_]u8{facingToString(self.game.state.current.facing)},
-        .current = [_]u8{colorToString(self.game.state.current.kind.color())},
+        .placed = [_]u8{colorToString(self.game.state.current.kind.color())},
         .hold = [_]u8{colorToString(if (self.game.state.hold_kind) |h| h.color() else null)},
         .next = next,
+        .cleared = info.cleared,
+        .garbage_cleared = garbage_cleared,
         .attack = getTetrioAttack(info, self.game.state.b2b, self.game.state.combo, subframe),
         .t_spin = [_]u8{tSpinToString(info.t_spin)},
         .btb = self.game.state.b2b,
         .combo = self.game.state.combo,
+        .immediate_garbage = immediate,
         .incoming_garbage = incoming,
         .rating = self.rating.?,
         .glicko = self.glicko,
