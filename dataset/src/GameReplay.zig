@@ -43,6 +43,7 @@ highest_y: i8 = 0,
 was_on_ground: bool = undefined,
 
 id: u32,
+won: bool,
 rating: ?f32 = null,
 glicko: ?f32 = null,
 glicko_rd: ?f32 = null,
@@ -232,6 +233,7 @@ const KeyEvent = struct {
 
 const InitError = error{
     noFullEvent,
+    invalidEndEvent,
     unsupportedVersion,
     nonInstantSoftDrop,
 };
@@ -251,6 +253,11 @@ pub fn init(
     } else {
         return InitError.noFullEvent;
     }
+
+    if (event_jsons[event_jsons.len - 1].type != .end) {
+        return InitError.invalidEndEvent;
+    }
+    const end_reason = event_jsons[event_jsons.len - 1].data.object.get("reason").?.string;
 
     const options_json = event_jsons[i].data.object.get("options").?;
 
@@ -288,6 +295,7 @@ pub fn init(
         .garbage_queue = GarbageQueue{},
 
         .id = id,
+        .won = mem.eql(u8, end_reason, "winner"),
         .data = std.ArrayListUnmanaged(DataRow){},
     };
 
@@ -694,6 +702,7 @@ fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
     try self.data.append(self.allocator, .{
         .game_id = self.id,
         .subframe = subframe,
+        .won = self.won,
         .playfield = playfield,
         .x = pos.x,
         .y = pos.y,

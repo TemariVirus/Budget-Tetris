@@ -48,45 +48,47 @@ pub const EventJson = struct {
 };
 
 pub const DataRow = struct {
-    /// The game ID (players in the same match get different IDs)
+    /// The game ID (players in the same match get different IDs).
     game_id: u32,
-    /// The subframe where the placement occurred
+    /// The subframe where the placement occurred.
     subframe: u32,
-    /// The pieces in the playfied; N = none, G = garbage
+    /// Whether this player won the match.
+    won: bool,
+    /// The pieces in the playfied; N = none, G = garbage.
     playfield: [400]u8,
-    /// The x coordinate of the piece
+    /// The x coordinate of the piece.
     x: u4,
-    /// The y coordinate of the piece
+    /// The y coordinate of the piece.
     y: u6,
-    /// The orientation of the placed piece; N = north, E = east, S = south, W = west
+    /// The orientation of the placed piece; N = north, E = east, S = south, W = west.
     r: [1]u8,
     /// The placed piece
     placed: [1]u8,
-    /// The held piece; N = none
+    /// The held piece; N = none.
     hold: [1]u8,
     /// The next pieces
     next: [14]u8,
-    /// The number of lines cleared
+    /// The number of lines cleared.
     cleared: u3,
-    /// The number of lins with garbage cleared
+    /// The number of lins with garbage cleared.
     garbage_cleared: u3,
-    /// The amount of garbage sent before garbage blocking
+    /// The amount of garbage sent before garbage blocking.
     attack: u16,
-    /// The kind of T-spin performed; N = none, M = mini, F = full
+    /// The kind of T-spin performed; N = none, M = mini, F = full.
     t_spin: [1]u8,
-    /// The length of the back-to-back chain
+    /// The length of the back-to-back chain.
     btb: u32,
-    /// The length of the combo chain
+    /// The length of the combo chain.
     combo: u32,
-    /// The amount of garbage that would be received without garbage blocking
+    /// The amount of garbage in queue ready to be sent. The actual amount sent is capped at 8.
     immediate_garbage: u16,
-    /// The total amount of incoming garbage
+    /// The total amount of garbage in queue.
     incoming_garbage: u16,
-    /// The player's Tetra League rating
+    /// The player's Tetra League rating.
     rating: f32,
-    /// The player's Glicko-2 rating
+    /// The player's Glicko-2 rating.
     glicko: ?f32,
-    /// The player's Glicko-2 rating deviation
+    /// The player's Glicko-2 rating deviation.
     glicko_rd: ?f32,
 };
 
@@ -127,7 +129,7 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(data_file.writer());
     const writer = bw.writer();
 
-    try writer.writeAll("game_id,subframe,playfield,x,y,r,placed,hold,next,cleared,garbage_cleared,attack,t_spin,btb,combo,immediate_garbage,incoming_garbage,rating,glicko,glicko_rd\n");
+    try writer.writeAll("game_id,subframe,won,playfield,x,y,r,placed,hold,next,cleared,garbage_cleared,attack,t_spin,btb,combo,immediate_garbage,incoming_garbage,rating,glicko,glicko_rd\n");
 
     var stats = ReplayStats{};
     while (try replays.next()) |replay_file| {
@@ -325,11 +327,6 @@ fn checkEndState(allocator: Allocator, replay: GameReplay, events: []const Event
 
 fn writeData(writer: anytype, data: []const DataRow) !void {
     for (data) |row| {
-        try writer.print("{},{},", .{
-            row.game_id,
-            row.subframe,
-        });
-
         // Truncate playfield to remove trailing empty cells
         var field_end = row.playfield.len;
         while (field_end > 0) : (field_end -= 1) {
@@ -337,11 +334,12 @@ fn writeData(writer: anytype, data: []const DataRow) !void {
                 break;
             }
         }
-        try writer.print("{s},", .{
-            row.playfield[0..field_end],
-        });
 
-        try writer.print("{},{},{s},{s},{s},{s},{},{},{},{s},{},{},{},{},{d},{?d},", .{
+        try writer.print("{},{},{},{s},{},{},{s},{s},{s},{s},{},{},{},{s},{},{},{},{},{d},{?d},{?d}\n", .{
+            row.game_id,
+            row.subframe,
+            @intFromBool(row.won),
+            row.playfield[0..field_end],
             row.x,
             row.y,
             row.r,
@@ -358,8 +356,6 @@ fn writeData(writer: anytype, data: []const DataRow) !void {
             row.incoming_garbage,
             row.rating,
             row.glicko,
-        });
-        try writer.print("{?d}\n", .{
             row.glicko_rd,
         });
     }

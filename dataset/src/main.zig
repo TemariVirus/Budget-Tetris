@@ -36,12 +36,12 @@ fn TetrioResponse(comptime T: type) type {
 }
 
 pub fn main() !void {
-    // var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    // const allocator = gpa.allocator();
-    // errdefer _ = gpa.deinit();
-    // try fetchReplays(allocator, 500);
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    errdefer _ = gpa.deinit();
+    try fetchReplays(allocator, 500);
 
-    // _ = gpa.deinit();
+    _ = gpa.deinit();
     try replay.main();
 }
 
