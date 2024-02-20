@@ -1,4 +1,6 @@
 const std = @import("std");
+const zwin32 = @import("zwin32");
+const zxaudio2 = @import("zxaudio2");
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
@@ -18,6 +20,16 @@ pub fn build(b: *std.Build) void {
     }).module("nterm");
     exe.root_module.addImport("nterm", nterm_module);
 
+    // Add zwin32 dependency
+    const zwin32_pkg = zwin32.package(b, target, optimize, .{});
+    zwin32_pkg.link(exe, .{ .xaudio2 = true });
+
+    // Add zxaudio2 dependency
+    const zxaudio2_pkg = zxaudio2.package(b, target, optimize, .{
+        .deps = .{ .zwin32 = zwin32_pkg.zwin32 },
+    });
+    zxaudio2_pkg.link(exe);
+
     // Expose the library root
     _ = b.addModule("engine", .{
         .root_source_file = .{ .path = "src/root.zig" },
@@ -25,6 +37,18 @@ pub fn build(b: *std.Build) void {
             .{ .name = "nterm", .module = nterm_module },
         },
     });
+
+    if (exe.root_module.optimize == .ReleaseFast) {
+        exe.root_module.strip = true;
+    }
+
+    // Install sound assets
+    const install_sounds = b.addInstallDirectory(.{
+        .source_dir = .{ .path = "./assets/sound" },
+        .install_dir = .bin,
+        .install_subdir = "sound",
+    });
+    exe.step.dependOn(&install_sounds.step);
 
     b.installArtifact(exe);
 

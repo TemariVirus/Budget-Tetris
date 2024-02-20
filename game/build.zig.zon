@@ -6,6 +6,10 @@
             .url = "https://github.com/Zemogus/nterm/archive/9bfc0d3c4c9cd6e61c8b7985504b0dedfa37417d.tar.gz",
             .hash = "1220c39fd0f1140d9b32fdc3ab6bb5a6d9035661ca6530fa7f5d113b34333364abdb",
         },
+        // Courtesy of https://github.com/zig-gamedev/zig-gamedev
+        .zwin32 = .{ .path = "libs/zwin32" },
+        // Courtesy of https://github.com/zig-gamedev/zig-gamedev
+        .zxaudio2 = .{ .path = "libs/zxaudio2" },
     },
     .paths = .{
         "build.zig",

@@ -15,6 +15,7 @@ const KickFn = root.kicks.KickFn;
 const PieceKind = root.pieces.PieceKind;
 const Piece = root.pieces.Piece;
 const Settings = root.Settings;
+const sound = root.sound;
 
 const Color = nterm.Color;
 const View = nterm.View;
@@ -107,6 +108,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             self.last_kick = -1;
             self.move_count = 0;
             self.last_move_time = self.time;
+            sound.playSfx(.hold) catch {};
         }
 
         pub fn moveLeft(self: *Self, das: bool) void {
@@ -125,6 +127,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 }
                 self.last_move_time = self.time;
             }
+
+            sound.playSfx(.move) catch {};
         }
 
         /// Assumes that the move was caused by DAS and does not count as an extra keypress.
@@ -137,6 +141,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             if (self.move_count < self.settings.autolock_grace) {
                 self.last_move_time = self.time;
             }
+
+            sound.playSfx(.move) catch {};
         }
 
         pub fn moveRight(self: *Self, das: bool) void {
@@ -155,6 +161,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 }
                 self.last_move_time = self.time;
             }
+
+            sound.playSfx(.move) catch {};
         }
 
         /// Assumes that the move was caused by DAS and does not count as an extra keypress.
@@ -167,6 +175,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             if (self.move_count < self.settings.autolock_grace) {
                 self.last_move_time = self.time;
             }
+
+            sound.playSfx(.move) catch {};
         }
 
         pub fn rotateCw(self: *Self) void {
@@ -181,6 +191,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 self.move_count +|= 1;
                 self.last_move_time = self.time;
             }
+
+            sound.playSfx(.rotate) catch {};
         }
 
         pub fn rotateDouble(self: *Self) void {
@@ -195,6 +207,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 self.move_count +|= 1;
                 self.last_move_time = self.time;
             }
+
+            sound.playSfx(.rotate) catch {};
         }
 
         pub fn rotateCcw(self: *Self) void {
@@ -209,6 +223,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 self.move_count +|= 1;
                 self.last_move_time = self.time;
             }
+
+            sound.playSfx(.rotate) catch {};
         }
 
         pub fn softDrop(self: *Self) void {
@@ -225,17 +241,19 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                 self.last_kick = -1;
             }
 
+            // TODO: check if this should always play
+            sound.playSfx(.hard_drop) catch {};
             self.place();
         }
 
         fn place(self: *Self) void {
             const clear_info = self.lockCurrent();
-            self.updateStats(clear_info[0], clear_info[1], clear_info[2]);
+            self.updateStats(clear_info.info, clear_info.score, clear_info.attack);
             self.clearLines();
 
             // Only overwrite the last clear info if there's something interesting to display
-            if (clear_info[0].cleared > 0 or clear_info[0].pc or clear_info[0].t_spin != .None) {
-                self.last_clear_info = clear_info[0];
+            if (clear_info.info.cleared > 0 or clear_info.info.pc or clear_info.info.t_spin != .None) {
+                self.last_clear_info = clear_info.info;
                 self.last_clear_time = self.time;
             }
 
@@ -246,9 +264,23 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             self.last_move_time = self.time;
             self.soft_dropping = false;
             self.vel = 0.0;
+
+            if (clear_info.info.pc) {
+                sound.playSfx(.perfect_clear) catch {};
+            } else if (clear_info.info.t_spin != .None) {
+                sound.playSfx(.t_spin) catch {};
+            } else if (clear_info.info.cleared > 0) {
+                sound.playSfx(switch (clear_info.info.cleared) {
+                    1 => .single_clear,
+                    2 => .double_clear,
+                    3 => .triple_clear,
+                    4 => .tetris_clear,
+                    else => unreachable,
+                }) catch {};
+            }
         }
 
-        fn lockCurrent(self: *Self) struct { ClearInfo, u64, u16 } {
+        fn lockCurrent(self: *Self) struct { info: ClearInfo, score: u64, attack: u16 } {
             // Place piece in playfield colors
             const start: u8 = @max(0, self.state.pos.y);
             for (start..@intCast(self.state.pos.y + 4)) |y| {
@@ -290,9 +322,9 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             const attack = self.settings.attack_table.getAttack(info, self.state.b2b, self.state.combo);
 
             return .{
-                info,
-                clear_score,
-                attack,
+                .info = info,
+                .score = clear_score,
+                .attack = attack,
             };
         }
 
@@ -301,7 +333,6 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             self.lines_cleared += info.cleared;
             self.pieces_placed += 1;
             self.lines_sent += attack;
-
             // TODO: Calculate finesse
             self.keys_pressed += self.current_piece_keys;
             self.current_piece_keys = 0;

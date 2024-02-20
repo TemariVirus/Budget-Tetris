@@ -4,6 +4,7 @@ const windows = std.os.windows;
 
 const root = @import("root.zig");
 const kicks = root.kicks;
+const sound = root.sound;
 const nterm = @import("nterm");
 const input = nterm.input;
 
@@ -85,6 +86,9 @@ pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
+
+    try sound.init(allocator);
+    defer sound.deinit();
 
     // https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
     if (timeBeginPeriod(WIN_TIMER_PERIOD) != .TIMERR_NOERROR) {
