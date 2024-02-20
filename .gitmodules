@@ -1,0 +1,3 @@
+[submodule "game/assets"]
+	path = game/assets
+	url = https://github.com/TemariVirus/Budget-Tetris-Assets.git
