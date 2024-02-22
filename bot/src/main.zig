@@ -3,7 +3,7 @@ const Allocator = std.mem.Allocator;
 const time = std.time;
 
 const engine = @import("engine");
-const Game = engine.Game(SevenBag, kicks.srsPlus);
+const Player = engine.Player(SevenBag, kicks.srsPlus);
 const GameState = engine.GameState(SevenBag, kicks.srsPlus);
 const kicks = engine.kicks;
 const PeriodicTrigger = engine.PeriodicTrigger;
@@ -26,14 +26,14 @@ pub fn main() !void {
     defer _ = gpa.deinit();
 
     // Add 2 to create a 1-wide empty boarder on the left and right.
-    try nterm.init(allocator, FPS_TIMING_WINDOW, Game.DISPLAY_W + 2, Game.DISPLAY_H);
+    try nterm.init(allocator, FPS_TIMING_WINDOW, Player.DISPLAY_W + 2, Player.DISPLAY_H);
     defer nterm.deinit();
 
     const settings = engine.Settings{
         .g = 0,
     };
-    const player_view = View.init(1, 0, Game.DISPLAY_W, Game.DISPLAY_H);
-    var game = Game.init(
+    const player_view = View.init(1, 0, Player.DISPLAY_W, Player.DISPLAY_H);
+    var player = Player.init(
         allocator,
         "You",
         SevenBag.init(0),
@@ -48,7 +48,7 @@ pub fn main() !void {
 
     const pc_thread = try std.Thread.spawn(.{
         .allocator = allocator,
-    }, pcThread, .{ allocator, game.state, &pc_queue });
+    }, pcThread, .{ allocator, player.state, &pc_queue });
     defer pc_thread.join();
 
     const fps_view = View.init(1, 0, 15, 1);
@@ -58,9 +58,9 @@ pub fn main() !void {
         if (render_timer.trigger()) |dt| {
             try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
 
-            placePcPiece(allocator, &game, &pc_queue, &placement_i);
-            game.tick(dt);
-            try game.draw();
+            placePcPiece(allocator, &player, &pc_queue, &placement_i);
+            player.tick(dt);
+            try player.draw();
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {
                     return;
@@ -73,7 +73,7 @@ pub fn main() !void {
     }
 }
 
-fn placePcPiece(allocator: Allocator, game: *Game, queue: *std.ArrayList([]Placement), placement_i: *usize) void {
+fn placePcPiece(allocator: Allocator, game: *Player, queue: *std.ArrayList([]Placement), placement_i: *usize) void {
     if (queue.items.len == 0) {
         return;
     }

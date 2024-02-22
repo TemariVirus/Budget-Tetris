@@ -11,7 +11,8 @@ pub const pieces = @import("pieces.zig");
 pub const sound = @import("sound.zig");
 pub const tbp = @import("tbp.zig");
 
-pub const Game = @import("Game.zig").Game;
+pub const Match = @import("Match.zig").Match;
+pub const Player = @import("Player.zig").Player;
 pub const GameState = @import("GameState.zig").GameState;
 pub const PeriodicTrigger = @import("PeriodicTrigger.zig");
 
@@ -48,10 +49,17 @@ pub const Settings = struct {
         VsScore,
     };
 
+    // TODO: enforce
+    name: []const u8 = "You",
     g: f32 = 0.025 * 60, // Multiply by framerate before passing to Game
+    soft_g: f32 = 40 * 60,
+    // TODO: enforce
+    use_lockout: bool = false,
     autolock_grace: u8 = 15,
     lock_delay: u32 = 500,
     clear_erase_dalay: u32 = 1000,
+    garbage_delay: u32 = 500,
+    garbage_cap: u16 = 8,
     show_next_count: u3 = 6,
     display_stats: []const Stat = &.{ .PPS, .APP, .VsScore },
     attack_table: attack.AttackTable = .{

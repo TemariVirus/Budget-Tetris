@@ -35,6 +35,8 @@ pub fn build(b: *std.Build) void {
         .root_source_file = .{ .path = "src/root.zig" },
         .imports = &.{
             .{ .name = "nterm", .module = nterm_module },
+            .{ .name = "zwin32", .module = zwin32_pkg.zwin32 },
+            .{ .name = "zxaudio2", .module = zxaudio2_pkg.zxaudio2 },
         },
     });
 

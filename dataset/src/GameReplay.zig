@@ -12,7 +12,7 @@ const Color = nterm.Color;
 const engine = @import("engine");
 const BoardMask = engine.bit_masks.BoardMask;
 const ClearInfo = engine.attack.ClearInfo;
-const Game = engine.Game(Bag, engine.kicks.srsPlus);
+const Player = engine.Player(Bag, engine.kicks.srsPlus);
 const PieceKind = engine.pieces.PieceKind;
 const Settings = engine.Settings;
 
@@ -27,7 +27,7 @@ const GarbageQueue = std.ArrayListUnmanaged(GarbageEvent);
 allocator: Allocator,
 frames: u32,
 events: []const Event,
-game: Game,
+player: Player,
 arr: u8,
 das: u8,
 dcd: u8,
@@ -281,7 +281,7 @@ pub fn init(
         .allocator = allocator,
         .frames = frames,
         .events = undefined,
-        .game = Game.init(
+        .player = Player.init(
             allocator,
             "",
             Bag.init(options.seed),
@@ -318,7 +318,7 @@ pub fn init(
 
 pub fn deinit(self: *Self) void {
     self.allocator.free(self.events);
-    self.game.deinit();
+    self.player.deinit();
     self.garbage_queue.deinit(self.allocator);
     self.data.deinit(self.allocator);
 }
@@ -340,56 +340,56 @@ pub fn nextFrame(self: *Self, frame: u32) !bool {
 
 fn nextSubframes(self: *Self, subframe: u32) !void {
     const now = gameTime(subframe);
-    if (now <= self.game.time) {
+    if (now <= self.player.time) {
         return;
     }
-    self.was_on_ground = self.game.state.onGround();
+    self.was_on_ground = self.player.state.onGround();
 
     // Handle autolocking
-    if (self.game.state.onGround()) {
-        if (self.game.move_count >= self.game.settings.autolock_grace or
-            now -| self.game.last_move_time >= self.game.settings.lock_delay * std.time.ns_per_ms)
+    if (self.player.state.onGround()) {
+        if (self.player.move_count >= self.player.settings.autolock_grace or
+            now -| self.player.last_move_time >= self.player.settings.lock_delay * std.time.ns_per_ms)
         {
             try self.place(subframe);
         }
     } else if (self.was_on_ground) {
         // 5 frames worth of gravity when moving off ground
-        self.game.vel = @max(self.game.vel, 5 * self.game.settings.g / replay.FRAMERATE);
+        self.player.vel = @max(self.player.vel, 5 * self.player.settings.g / replay.FRAMERATE);
     }
 
-    const old_x = self.game.state.pos.x;
+    const old_x = self.player.state.pos.x;
     if (self.left_shift_subframe) |_| {
         while (subframe >= self.left_shift_subframe.?) : (self.left_shift_subframe.? += self.arr) {
             if (self.arr == 0) {
-                self.game.moveLeftAll();
+                self.player.moveLeftAll();
                 break;
             }
-            self.game.moveLeft(true);
+            self.player.moveLeft(true);
         }
     }
     if (self.right_shift_subframe) |_| {
         while (subframe >= self.right_shift_subframe.?) : (self.right_shift_subframe.? += self.arr) {
             if (self.arr == 0) {
-                self.game.moveRightAll();
+                self.player.moveRightAll();
                 break;
             }
-            self.game.moveRight(true);
+            self.player.moveRight(true);
         }
     }
-    const moved = @abs(self.game.state.pos.x - old_x);
-    self.game.move_count += moved;
+    const moved = @abs(self.player.state.pos.x - old_x);
+    self.player.move_count += moved;
 
     // Don't add to move count if the piece is still at the top
-    const next_y = self.game.state.pos.y - @as(i8, if (self.game.vel >= 1.0) 1 else 0);
+    const next_y = self.player.state.pos.y - @as(i8, if (self.player.vel >= 1.0) 1 else 0);
     if (next_y >= self.highest_y) {
-        self.game.move_count = 0;
+        self.player.move_count = 0;
     }
     self.highest_y = @max(self.highest_y, next_y);
 
     if (self.softdropping) {
-        self.game.softDrop();
+        self.player.softDrop();
     }
-    self.game.tick(now - self.game.time);
+    self.player.tick(now - self.player.time);
 }
 
 fn gameTime(subframe: u32) u64 {
@@ -422,21 +422,21 @@ fn handleKeyDown(self: *Self, event: KeyEvent) !void {
         else => {},
     }
 
-    const force_lock = self.game.state.onGround() and
-        self.game.move_count + 1 == self.game.settings.autolock_grace;
+    const force_lock = self.player.state.onGround() and
+        self.player.move_count + 1 == self.player.settings.autolock_grace;
     switch (event.key) {
         .hold => {
-            if (self.game.already_held) {
+            if (self.player.already_held) {
                 return;
             }
-            self.game.hold();
+            self.player.hold();
             self.adjustSpawn();
         },
         .moveLeft => {
             if (force_lock) {
                 try self.place(event.subframe);
             }
-            self.game.moveLeft(false);
+            self.player.moveLeft(false);
 
             self.right_shift_subframe = null;
             self.left_shift_subframe = event.subframe;
@@ -448,7 +448,7 @@ fn handleKeyDown(self: *Self, event: KeyEvent) !void {
             if (force_lock) {
                 try self.place(event.subframe);
             }
-            self.game.moveRight(false);
+            self.player.moveRight(false);
 
             self.left_shift_subframe = null;
             self.right_shift_subframe = event.subframe;
@@ -460,41 +460,41 @@ fn handleKeyDown(self: *Self, event: KeyEvent) !void {
             if (force_lock) {
                 try self.place(event.subframe);
             }
-            self.game.rotateCw();
+            self.player.rotateCw();
         },
         .rotateCCW => {
             if (force_lock) {
                 try self.place(event.subframe);
             }
-            self.game.rotateCcw();
+            self.player.rotateCcw();
         },
         .rotate180 => {
             if (force_lock) {
                 try self.place(event.subframe);
             }
-            self.game.rotateDouble();
+            self.player.rotateDouble();
         },
         .softDrop => {
             self.softdropping = true;
-            self.game.softDrop();
+            self.player.softDrop();
         },
         .hardDrop => try self.place(event.subframe),
     }
 }
 
 fn applyDCD(self: *Self, subframe: u32, force: bool) void {
-    const pos = self.game.state.pos;
+    const pos = self.player.state.pos;
     if (self.left_shift_subframe) |_| {
-        if (force or self.game.state.collides(
-            self.game.state.current,
+        if (force or self.player.state.collides(
+            self.player.state.current,
             .{ .x = pos.x - 1, .y = pos.y },
         )) {
             self.left_shift_subframe = @max(self.left_shift_subframe.?, subframe + self.dcd);
         }
     }
     if (self.right_shift_subframe) |_| {
-        if (force or self.game.state.collides(
-            self.game.state.current,
+        if (force or self.player.state.collides(
+            self.player.state.current,
             .{ .x = pos.x + 1, .y = pos.y },
         )) {
             self.right_shift_subframe = @max(self.right_shift_subframe.?, subframe + self.dcd);
@@ -503,31 +503,31 @@ fn applyDCD(self: *Self, subframe: u32, force: bool) void {
 }
 
 fn adjustSpawn(self: *Self) void {
-    self.game.state.pos = self.game.state.current.kind.startPos();
-    self.game.state.pos.y += 1;
-    self.game.vel = 1.0 - (self.game.settings.g / replay.FRAMERATE);
-    self.highest_y = self.game.state.pos.y;
+    self.player.state.pos = self.player.state.current.kind.startPos();
+    self.player.state.pos.y += 1;
+    self.player.vel = 1.0 - (self.player.settings.g / replay.FRAMERATE);
+    self.highest_y = self.player.state.pos.y;
 }
 
 fn place(self: *Self, subframe: u32) !void {
-    if (self.game.state.dropToGround() > 0) {
-        self.game.last_kick = -1;
+    if (self.player.state.dropToGround() > 0) {
+        self.player.last_kick = -1;
     }
 
-    var state_copy = self.game.state;
-    const clear_info = state_copy.lockCurrent(self.game.last_kick);
+    var state_copy = self.player.state;
+    const clear_info = state_copy.lockCurrent(self.player.last_kick);
     try self.addRow(clear_info, subframe);
 
-    self.game.hardDrop();
+    self.player.hardDrop();
     self.adjustSpawn();
     self.applyDCD(subframe, true);
 
     // Tetr.io counts T-spin minis as difficult clears as well
     if (clear_info.cleared > 0 and clear_info.t_spin == .Mini) {
-        self.game.state.b2b += 1;
+        self.player.state.b2b += 1;
     }
 
-    const attack = getTetrioAttack(clear_info, self.game.state.b2b, self.game.state.combo, subframe);
+    const attack = getTetrioAttack(clear_info, self.player.state.b2b, self.player.state.combo, subframe);
     try self.blockAndAttack(attack);
     if (clear_info.pc) {
         try self.blockAndAttack(multiplyGarbage(10.0, subframe));
@@ -546,7 +546,7 @@ fn place(self: *Self, subframe: u32) !void {
 
         const received = @min(garbage.lines, lines_left);
         lines_left -= received;
-        self.game.addGarbage(garbage.hole, received);
+        self.player.addGarbage(garbage.hole, received);
         if (garbage.lines == received) {
             _ = self.garbage_queue.orderedRemove(0);
         } else {
@@ -633,7 +633,7 @@ fn handleKeyUp(self: *Self, event: KeyEvent) void {
         .moveLeft => {
             if (self.left_shift_subframe) |t| {
                 if (event.subframe > t) {
-                    self.game.moveLeftAll();
+                    self.player.moveLeftAll();
                 }
             }
             self.left_shift_subframe = null;
@@ -641,13 +641,13 @@ fn handleKeyUp(self: *Self, event: KeyEvent) void {
         .moveRight => {
             if (self.right_shift_subframe) |t| {
                 if (event.subframe > t) {
-                    self.game.moveRightAll();
+                    self.player.moveRightAll();
                 }
             }
             self.right_shift_subframe = null;
         },
         .softDrop => {
-            self.game.softDrop();
+            self.player.softDrop();
             self.softdropping = false;
         },
         else => {},
@@ -662,23 +662,23 @@ fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
     var playfield: [400]u8 = undefined;
     for (0..BoardMask.HEIGHT) |y| {
         for (0..BoardMask.WIDTH) |x| {
-            playfield[y * BoardMask.WIDTH + x] = colorToString(self.game.playfield_colors.get(x, y));
+            playfield[y * BoardMask.WIDTH + x] = colorToString(self.player.playfield_colors.get(x, y));
         }
     }
 
-    const pos = self.game.state.current.canonicalPosition(self.game.state.pos);
+    const pos = self.player.state.current.canonicalPosition(self.player.state.pos);
     var next: [14]u8 = undefined;
-    var bag = self.game.state.bag;
-    for (0..self.game.state.next_pieces.len) |i| {
-        next[i] = colorToString(self.game.state.next_pieces[i].color());
+    var bag = self.player.state.bag;
+    for (0..self.player.state.next_pieces.len) |i| {
+        next[i] = colorToString(self.player.state.next_pieces[i].color());
     }
-    for (self.game.state.next_pieces.len..next.len) |i| {
+    for (self.player.state.next_pieces.len..next.len) |i| {
         next[i] = colorToString(bag.next().color());
     }
 
     var garbage_cleared: u3 = 0;
-    for (@max(0, self.game.state.pos.y)..@intCast(self.game.state.pos.y + 4)) |y| {
-        const colors = self.game.playfield_colors;
+    for (@max(0, self.player.state.pos.y)..@intCast(self.player.state.pos.y + 4)) |y| {
+        const colors = self.player.playfield_colors;
         if (colors.isRowFull(y) and colors.isRowGarbage(y)) {
             garbage_cleared += 1;
         }
@@ -706,16 +706,16 @@ fn addRow(self: *Self, info: ClearInfo, subframe: u32) !void {
         .playfield = playfield,
         .x = pos.x,
         .y = pos.y,
-        .r = [_]u8{facingToString(self.game.state.current.facing)},
-        .placed = [_]u8{colorToString(self.game.state.current.kind.color())},
-        .hold = [_]u8{colorToString(if (self.game.state.hold_kind) |h| h.color() else null)},
+        .r = [_]u8{facingToString(self.player.state.current.facing)},
+        .placed = [_]u8{colorToString(self.player.state.current.kind.color())},
+        .hold = [_]u8{colorToString(if (self.player.state.hold_kind) |h| h.color() else null)},
         .next = next,
         .cleared = info.cleared,
         .garbage_cleared = garbage_cleared,
-        .attack = getTetrioAttack(info, self.game.state.b2b, self.game.state.combo, subframe),
+        .attack = getTetrioAttack(info, self.player.state.b2b, self.player.state.combo, subframe),
         .t_spin = [_]u8{tSpinToString(info.t_spin)},
-        .btb = self.game.state.b2b,
-        .combo = self.game.state.combo,
+        .btb = self.player.state.b2b,
+        .combo = self.player.state.combo,
         .immediate_garbage = immediate,
         .incoming_garbage = incoming,
         .rating = self.rating.?,

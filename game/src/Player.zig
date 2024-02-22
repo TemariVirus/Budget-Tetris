@@ -1,13 +1,14 @@
 // TODO: Add sound
 // TODO: Handle lose condition and animation
-// TODO: Store incoming garbage
 const std = @import("std");
-const root = @import("root.zig");
-const nterm = @import("nterm");
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
-const GarbageQueue = std.ArrayList(IncomingGarbage);
 
+const nterm = @import("nterm");
+const Color = nterm.Color;
+const View = nterm.View;
+
+const root = @import("root.zig");
 const AttackTable = root.attack.AttackTable;
 const ClearInfo = root.attack.ClearInfo;
 const ColorArray = @import("ColorArray.zig");
@@ -16,17 +17,19 @@ const PieceKind = root.pieces.PieceKind;
 const Piece = root.pieces.Piece;
 const Settings = root.Settings;
 const sound = root.sound;
+const Stat = root.Settings.Stat;
 
-const Color = nterm.Color;
-const View = nterm.View;
-
-const IncomingGarbage = struct {
-    lines: u16,
+const IncomingGarbage = packed struct {
+    /// The x position of the hole in the garbage.
     hole: u4,
-    time: u64,
+    /// The number of lines of garbage.
+    lines: u16,
+    /// The time in miliseconds at which the garbage should be added.
+    time: u44,
 };
+const GarbageQueue = std.BoundedArray(IncomingGarbage, 25);
 
-pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
+pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
     const GameState = root.GameState(Bag, kicks);
 
     return struct {
@@ -48,8 +51,8 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         playfield_colors: ColorArray,
         garbage_queue: GarbageQueue,
         view: View,
-        // TODO: Make game manager struct and inclue settings and timer in it
-        settings: *const Settings,
+        players: []Self,
+        settings: Settings,
 
         already_held: bool = false,
         last_kick: i8 = -1,
@@ -58,9 +61,9 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         last_move_time: u64 = 0,
         soft_dropping: bool = false,
         /// The additional rate at which the piece falls when softdropping, in cells per second.
-        soft_g: f32,
         vel: f32 = 0.0,
 
+        // TODO: Group into stats struct
         /// The number of nanoseconds since the game started.
         time: u64 = 0,
         lines_cleared: u32 = 0,
@@ -74,26 +77,21 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         finesse: u32 = 0,
 
         pub fn init(
-            allocator: Allocator,
             name: []const u8,
             bag: Bag,
             view: View,
-            soft_g: f32,
-            settings: *const Settings,
+            players: []Self,
+            settings: Settings,
         ) Self {
             return Self{
                 .name = name,
                 .state = GameState.init(bag),
                 .playfield_colors = ColorArray.init(),
-                .garbage_queue = GarbageQueue.init(allocator),
+                .garbage_queue = GarbageQueue{},
                 .view = view,
+                .players = players,
                 .settings = settings,
-                .soft_g = soft_g,
             };
-        }
-
-        pub fn deinit(self: Self) void {
-            self.garbage_queue.deinit();
         }
 
         /// Holds the current piece, or does nothing if the piece has already been held.
@@ -248,6 +246,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
         fn place(self: *Self) void {
             const clear_info = self.lockCurrent();
+            self.handleGarbage(clear_info.attack);
             self.updateStats(clear_info.info, clear_info.score, clear_info.attack);
             self.clearLines();
 
@@ -278,6 +277,47 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                     else => unreachable,
                 }) catch {};
             }
+        }
+
+        fn handleGarbage(self: *Self, attack: u16) void {
+            // Counter garbage
+            var i: usize = 0;
+            var remaining_attack = attack;
+            while (remaining_attack > 0 and i < self.garbage_queue.len) : (i += 1) {
+                const garbage = &self.garbage_queue.buffer[i];
+                const countered = @min(remaining_attack, garbage.lines);
+                remaining_attack -= countered;
+                garbage.lines -= countered;
+                if (garbage.lines > 0) {
+                    break;
+                }
+            }
+
+            // Send remaining attack
+            // TODO: targetting modes
+            self.players[1].queueGarbage(
+                null,
+                remaining_attack,
+                self.time + self.settings.garbage_delay * std.time.ns_per_ms,
+            );
+
+            // Receive garbage
+            var remaining_garbage = self.settings.garbage_cap;
+            while (remaining_garbage > 0 and i < self.garbage_queue.len) : (i += 1) {
+                const garbage = &self.garbage_queue.buffer[i];
+                const received = @min(remaining_garbage, garbage.lines);
+                self.addGarbage(garbage.hole, received);
+                remaining_garbage -= received;
+                garbage.lines -= received;
+                if (garbage.lines > 0) {
+                    break;
+                }
+            }
+
+            for (0..self.garbage_queue.len - i) |j| {
+                self.garbage_queue.buffer[j] = self.garbage_queue.buffer[i + j];
+            }
+            self.garbage_queue.len -= @intCast(i);
         }
 
         fn lockCurrent(self: *Self) struct { info: ClearInfo, score: u64, attack: u16 } {
@@ -315,7 +355,6 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                     clear_score += 1200;
                 }
             }
-            // TODO: Are B2B bonuses applied to combos?
             if (self.state.combo > 1) {
                 clear_score += 50 * (self.state.combo - 1);
             }
@@ -358,6 +397,21 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
         }
 
+        /// Queues garbage to be added to the playfield.
+        pub fn queueGarbage(self: *Self, hole: ?u4, lines: u16, time: u64) void {
+            const resolved_hole = hole orelse std.crypto.random.intRangeLessThan(u4, 0, 10);
+            if (self.garbage_queue.len < self.garbage_queue.capacity()) {
+                self.garbage_queue.appendAssumeCapacity(.{
+                    .hole = resolved_hole,
+                    .lines = lines,
+                    .time = @intCast(time / std.time.ns_per_ms),
+                });
+            } else {
+                // Add extra garbage to last item if we run out of space
+                self.garbage_queue.buffer[self.garbage_queue.len - 1].lines +|= lines;
+            }
+        }
+
         /// Adds garbage to the bottom of the playfield. `hole` is the x position of the
         /// hole, and `lines` is the number of lines of garbage to add.
         pub fn addGarbage(self: *Self, hole: u4, lines: u16) void {
@@ -388,7 +442,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         /// Advances the game.
         pub fn tick(self: *Self, nanoseconds: u64) void {
             const now = self.time + nanoseconds;
-            const g = self.settings.g + if (self.soft_dropping) self.soft_g else 0.0;
+            const g = self.settings.g + if (self.soft_dropping) self.settings.soft_g else 0.0;
             self.vel += g * @as(f32, @floatFromInt(nanoseconds)) / std.time.ns_per_s;
 
             // Handle autolocking
@@ -475,12 +529,13 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
         pub fn draw(self: Self) !void {
             try self.drawNameLines();
             self.drawHold();
-            try self.drawScoreLevel();
+            self.drawScoreLevel();
             try self.drawClearInfo();
             self.drawMatrix();
+            self.drawGarbageMeter();
             self.drawNext();
             for (self.settings.display_stats, 0..) |stat, i| {
-                try self.drawStat(stat, @intCast(i));
+                self.drawStat(stat, @intCast(i));
             }
         }
 
@@ -504,9 +559,9 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                     }
 
                     if (solid) {
-                        view.writeText(@intCast(x2), @intCast(y2), .Black, color, "  ");
+                        _ = view.writeText(@intCast(x2), @intCast(y2), .Black, color, "  ");
                     } else {
-                        view.writeText(@intCast(x2), @intCast(y2), color, .Black, "▒▒");
+                        _ = view.writeText(@intCast(x2), @intCast(y2), color, .Black, "▒▒");
                     }
                 }
             }
@@ -520,7 +575,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
             const hold_box = self.view.sub(LEFT, TOP, WIDTH, HEIGHT);
             hold_box.drawBox(0, 0, WIDTH, HEIGHT);
-            hold_box.writeText(3, 0, .White, .Black, "HOLD");
+            _ = hold_box.writeText(3, 0, .White, .Black, "HOLD");
             if (self.state.hold_kind) |hold_kind| {
                 const hold_piece = Piece{
                     .facing = .Up,
@@ -531,7 +586,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
         }
 
-        fn drawScoreLevel(self: Self) !void {
+        fn drawScoreLevel(self: Self) void {
             const LEFT = 0;
             const TOP = 8;
             const WIDTH = 10;
@@ -539,10 +594,10 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
             const score_level_box = self.view.sub(LEFT, TOP, WIDTH, HEIGHT);
             score_level_box.drawBox(0, 0, WIDTH, HEIGHT);
-            score_level_box.writeText(1, 1, .White, .Black, "SCORE");
-            try printGlitchyU64(score_level_box, 1, 2, self.score);
-            score_level_box.writeText(1, 3, .White, .Black, "LEVEL");
-            try printGlitchyU64(score_level_box, 1, 4, self.level());
+            _ = score_level_box.writeText(1, 1, .White, .Black, "SCORE");
+            printGlitchyU64(score_level_box, 1, 2, self.score);
+            _ = score_level_box.writeText(1, 3, .White, .Black, "LEVEL");
+            printGlitchyU64(score_level_box, 1, 4, self.level());
         }
 
         fn drawClearInfo(self: Self) !void {
@@ -578,12 +633,12 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
         }
 
-        fn printGlitchyU64(view: View, x: u8, y: u8, value: u64) !void {
+        fn printGlitchyU64(view: View, x: u8, y: u8, value: u64) void {
             if (value < 100_000_000) {
-                try view.printAt(x, y, .White, .Black, "{d}", .{value});
+                view.printAt(x, y, .White, .Black, "{d}", .{value});
             } else if (value < 0x1_0000_0000) {
                 // Print in hexadecimal if the score is too large
-                try view.printAt(x, y, .White, .Black, "{x}", .{value});
+                view.printAt(x, y, .White, .Black, "{x}", .{value});
             } else {
                 // Map bytes directly to characters if the score is still too large,
                 // because glitched text is cool
@@ -597,7 +652,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
                         @as(u16, byte) + 66;
                 }
                 const start = @clz(value) / 8;
-                try view.printAt(x, y, .White, .Black, "{s}", .{std.unicode.fmtUtf16le(bytes[start..8])});
+                view.printAt(x, y, .White, .Black, "{s}", .{std.unicode.fmtUtf16le(bytes[start..8])});
             }
         }
 
@@ -613,7 +668,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             for (0..20) |y| {
                 for (0..10) |x| {
                     const color = self.playfield_colors.get(x, y);
-                    matrix_box_inner.writeText(@intCast(x * 2), @intCast(19 - y), .Black, color, "  ");
+                    _ = matrix_box_inner.writeText(@intCast(x * 2), @intCast(19 - y), .Black, color, "  ");
                 }
             }
 
@@ -625,6 +680,33 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             // Current piece
             state.pos.y += @intCast(dropped);
             drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, true);
+        }
+
+        fn drawGarbageMeter(self: Self) void {
+            const LEFT = 33;
+            const TOP = 3;
+            const WIDTH = 1;
+            const HEIGHT = 20;
+
+            const view = self.view.sub(LEFT, TOP, WIDTH, HEIGHT);
+
+            var y: u16 = HEIGHT - 1;
+            for (self.garbage_queue.slice()) |garbage| outer: {
+                for (0..garbage.lines) |_| {
+                    _ = view.writeText(
+                        0,
+                        y,
+                        .Black,
+                        if (@as(u64, garbage.time) * std.time.ns_per_ms <= self.time) .Red else .White,
+                        "  ",
+                    );
+
+                    if (y == 0) {
+                        break :outer;
+                    }
+                    y -= 1;
+                }
+            }
         }
 
         fn drawNext(self: Self) void {
@@ -639,7 +721,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             const height = @as(u16, @intCast(self.settings.show_next_count)) * 3 + 1;
             const next_box = self.view.sub(LEFT, TOP, WIDTH, height);
             next_box.drawBox(0, 0, WIDTH, height);
-            next_box.writeText(3, 0, .White, .Black, "NEXT");
+            _ = next_box.writeText(3, 0, .White, .Black, "NEXT");
 
             for (0..self.settings.show_next_count) |i| {
                 const piece = Piece{
@@ -651,7 +733,7 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
             }
         }
 
-        fn drawStat(self: Self, stat: Settings.Stat, slot: u16) !void {
+        fn drawStat(self: Self, stat: Stat, slot: u16) void {
             const top = 21 + slot;
             // Don't draw if stat slot is outside of view
             if (top >= self.view.height) {
@@ -660,20 +742,20 @@ pub fn Game(comptime Bag: type, comptime kicks: KickFn) type {
 
             const view = self.view.sub(0, top, 10, 1);
             switch (stat) {
-                .APL => try view.printAt(0, 0, .White, .Black, "APL: {d:.3}", .{self.apl()}),
-                .APM => try view.printAt(0, 0, .White, .Black, "APM: {d:.3}", .{self.apm()}),
-                .APP => try view.printAt(0, 0, .White, .Black, "APP: {d:.3}", .{self.app()}),
-                .Finesse => try view.printAt(0, 0, .White, .Black, "FIN: {d}", .{self.finesse}),
-                .Keys => try view.printAt(0, 0, .White, .Black, "KEYS: {d}", .{self.keys_pressed + self.current_piece_keys}),
-                .KPP => try view.printAt(0, 0, .White, .Black, "KPP: {d:.3}", .{self.kpp()}),
-                .Level => try view.printAt(0, 0, .White, .Black, "LEVEL: {d}", .{self.level()}),
-                .Lines => try view.printAt(0, 0, .White, .Black, "LINES: {d}", .{self.lines_cleared}),
-                .PPS => try view.printAt(0, 0, .White, .Black, "PPS: {d:.3}", .{self.pps()}),
-                .Received => try view.printAt(0, 0, .White, .Black, "REC: {d}", .{self.lines_received}),
-                .Score => try view.printAt(0, 0, .White, .Black, "SCORE: {d}", .{self.score}),
-                .Sent => try view.printAt(0, 0, .White, .Black, "SENT: {d}", .{self.lines_sent}),
-                .Time => try view.printAt(0, 0, .White, .Black, "TIME: {}", .{std.fmt.fmtDuration(self.time)}),
-                .VsScore => try view.printAt(0, 0, .White, .Black, "VS: {d:.4}", .{self.vsScore()}),
+                .APL => view.printAt(0, 0, .White, .Black, "APL: {d:.3}", .{self.apl()}),
+                .APM => view.printAt(0, 0, .White, .Black, "APM: {d:.3}", .{self.apm()}),
+                .APP => view.printAt(0, 0, .White, .Black, "APP: {d:.3}", .{self.app()}),
+                .Finesse => view.printAt(0, 0, .White, .Black, "FIN: {d}", .{self.finesse}),
+                .Keys => view.printAt(0, 0, .White, .Black, "KEYS: {d}", .{self.keys_pressed + self.current_piece_keys}),
+                .KPP => view.printAt(0, 0, .White, .Black, "KPP: {d:.3}", .{self.kpp()}),
+                .Level => view.printAt(0, 0, .White, .Black, "LEVEL: {d}", .{self.level()}),
+                .Lines => view.printAt(0, 0, .White, .Black, "LINES: {d}", .{self.lines_cleared}),
+                .PPS => view.printAt(0, 0, .White, .Black, "PPS: {d:.3}", .{self.pps()}),
+                .Received => view.printAt(0, 0, .White, .Black, "REC: {d}", .{self.lines_received}),
+                .Score => view.printAt(0, 0, .White, .Black, "SCORE: {d}", .{self.score}),
+                .Sent => view.printAt(0, 0, .White, .Black, "SENT: {d}", .{self.lines_sent}),
+                .Time => view.printAt(0, 0, .White, .Black, "TIME: {}", .{std.fmt.fmtDuration(self.time)}),
+                .VsScore => view.printAt(0, 0, .White, .Black, "VS: {d:.4}", .{self.vsScore()}),
             }
         }
     };

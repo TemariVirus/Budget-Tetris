@@ -290,7 +290,7 @@ fn checkEndState(allocator: Allocator, replay: GameReplay, events: []const Event
     defer parsed_expected.deinit();
 
     const expected = parsed_expected.value.@"export".game.board;
-    const actual = replay.game.playfield_colors;
+    const actual = replay.player.playfield_colors;
 
     for (0..40) |y| {
         const expected_y = 39 - y;

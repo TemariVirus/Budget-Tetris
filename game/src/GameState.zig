@@ -2,7 +2,6 @@
 //! pieces and clearing lines, but not for handling game overs (i.e., block out
 //! or top out), player input, or rendering.
 
-// TODO: Receive incoming garbage
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const assert = std.debug.assert;
@@ -257,7 +256,7 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
             const corners = bottom | (top << 1);
 
             // Special case for SRS (1, -2) kick
-            if (last_kick == 4 and @popCount(@as(u4, @intCast(corners))) == 3) {
+            if (last_kick == 4 and @popCount(corners) == 3) {
                 return .Full;
             }
 
