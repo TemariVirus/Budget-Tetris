@@ -6,20 +6,17 @@ const View = @import("nterm").View;
 
 const root = @import("root.zig");
 const KickFn = root.kicks.KickFn;
-const Settings = root.Settings;
+const Settings = root.GameSettings;
 
 pub fn Match(comptime Bag: type, comptime kicks: KickFn) type {
     const Player = root.Player(Bag, kicks);
 
     return struct {
-        width: u16,
-        height: u16,
         players: []Player,
-        settings: Settings,
 
         const Self = @This();
 
-        pub fn init(allocator: Allocator, player_count: usize, bag: Bag, settings: Settings) !Self {
+        pub fn init(allocator: Allocator, player_count: usize, bag: Bag, default_settings: Settings) !Self {
             assert(player_count > 0);
             const size = optimalSize(player_count);
 
@@ -37,15 +34,12 @@ pub fn Match(comptime Bag: type, comptime kicks: KickFn) type {
                         .height = Player.DISPLAY_H,
                     },
                     players,
-                    settings,
+                    default_settings,
                 );
             }
 
             return Self{
-                .width = size.width,
-                .height = size.height,
                 .players = players,
-                .settings = settings,
             };
         }
 
@@ -70,9 +64,6 @@ pub fn Match(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn deinit(self: Self, allocator: Allocator) void {
-            for (self.players) |player| {
-                player.deinit();
-            }
             allocator.free(self.players);
         }
 

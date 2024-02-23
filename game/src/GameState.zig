@@ -145,6 +145,7 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
             // TODO: Add setting to disable half rotations
             const old_piece = self.current;
 
+            // Implicit (0, 0) kick
             self.current.facing = self.current.facing.rotate(rotation);
             if (!self.collides(self.current, self.pos)) {
                 return 0;

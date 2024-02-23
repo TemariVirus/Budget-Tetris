@@ -25,6 +25,9 @@ const INPUT_RATE = 120;
 const FRAMERATE = 60;
 const FPS_TIMING_WINDOW = 60;
 
+var paused = false;
+
+// https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
 const MMRESULT = enum(windows.UINT) {
     TIMERR_NOERROR = 0,
     TIMERR_NOCANDO = 97,
@@ -36,46 +39,90 @@ const MoveFuncs = struct {
     var player: *Player = undefined;
 
     fn left() void {
+        if (paused) {
+            return;
+        }
+
         player.moveLeft(false);
     }
 
     fn leftAll() void {
+        if (paused) {
+            return;
+        }
+
         player.moveLeftAll();
     }
 
     fn right() void {
+        if (paused) {
+            return;
+        }
+
         player.moveRight(false);
     }
 
     fn rightAll() void {
+        if (paused) {
+            return;
+        }
+
         player.moveRightAll();
     }
 
     fn rotateCw() void {
+        if (paused) {
+            return;
+        }
+
         player.rotateCw();
     }
 
     fn rotateDouble() void {
+        if (paused) {
+            return;
+        }
+
         player.rotateDouble();
     }
 
     fn rotateCCw() void {
+        if (paused) {
+            return;
+        }
+
         player.rotateCcw();
     }
 
     fn softDrop() void {
+        if (paused) {
+            return;
+        }
+
         player.softDrop();
     }
 
     fn hardDrop() void {
+        if (paused) {
+            return;
+        }
+
         player.hardDrop();
     }
 
     fn hold() void {
+        if (paused) {
+            return;
+        }
+
         player.hold();
     }
 
     fn softDropStart() void {
+        if (paused) {
+            return;
+        }
+
         player.current_piece_keys += 1;
         if (!player.state.onGround()) {
             player.move_count += 1;
@@ -89,10 +136,11 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
+    sound.volume = 0.3;
+
     try sound.init(allocator);
     defer sound.deinit();
 
-    // https://learn.microsoft.com/en-us/windows/win32/api/timeapi/nf-timeapi-timebeginperiod
     if (timeBeginPeriod(WIN_TIMER_PERIOD) != .TIMERR_NOERROR) {
         return error.PeriodOutOfRange;
     }
@@ -105,7 +153,10 @@ pub fn main() !void {
     try input.init(allocator);
     defer input.deinit();
 
-    const settings = root.Settings{};
+    _ = try input.addKeyTrigger(.M, 0, null, toggleMute);
+    _ = try input.addKeyTrigger(.Escape, 0, null, togglePause);
+
+    const settings = root.GameSettings{};
     var match = try Match.init(allocator, 2, SevenBag.init(std.crypto.random.int(u64)), settings);
     try setupPlayerInput(&match.players[0]);
 
@@ -120,10 +171,15 @@ pub fn main() !void {
             triggered = true;
         }
         if (render_timer.trigger()) |dt| {
-            fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
+            if (!paused) {
+                match.tick(dt);
+            }
 
-            match.tick(dt);
             try match.draw();
+            fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
+            if (paused) {
+                nterm.view().writeAligned(.Center, nterm.canvasSize().height / 2, .White, .Black, "Paused");
+            }
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {
                     return;
@@ -139,8 +195,17 @@ pub fn main() !void {
     }
 }
 
+fn toggleMute() void {
+    sound.setMuted(!sound.muted) catch {};
+}
+
+fn togglePause() void {
+    paused = !paused;
+}
+
 fn setupPlayerInput(player: *Player) !void {
     MoveFuncs.player = player;
+    player.name = "You";
 
     _ = try input.addKeyTrigger(.C, 0, null, MoveFuncs.hold);
 
@@ -166,6 +231,6 @@ fn setupPlayerInput(player: *Player) !void {
     );
 
     _ = try input.addKeyTrigger(.Down, 0, null, MoveFuncs.softDropStart);
-    _ = try input.addKeyTrigger(.Down, 0, time.ns_per_s / FRAMERATE / 2, MoveFuncs.softDrop);
+    _ = try input.addKeyTrigger(.Down, 0, time.ns_per_s / INPUT_RATE, MoveFuncs.softDrop);
     _ = try input.addKeyTrigger(.Space, 0, null, MoveFuncs.hardDrop);
 }

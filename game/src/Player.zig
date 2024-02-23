@@ -1,4 +1,3 @@
-// TODO: Add sound
 // TODO: Handle lose condition and animation
 const std = @import("std");
 const assert = std.debug.assert;
@@ -15,9 +14,9 @@ const ColorArray = @import("ColorArray.zig");
 const KickFn = root.kicks.KickFn;
 const PieceKind = root.pieces.PieceKind;
 const Piece = root.pieces.Piece;
-const Settings = root.Settings;
+const Settings = root.GameSettings;
 const sound = root.sound;
-const Stat = root.Settings.Stat;
+const Stat = root.GameSettings.Stat;
 
 const IncomingGarbage = packed struct {
     /// The x position of the hole in the garbage.
@@ -60,7 +59,6 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         /// The number of nanoseconds since the game started when the last move was made.
         last_move_time: u64 = 0,
         soft_dropping: bool = false,
-        /// The additional rate at which the piece falls when softdropping, in cells per second.
         vel: f32 = 0.0,
 
         // TODO: Group into stats struct
@@ -72,7 +70,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         lines_sent: u32 = 0,
         lines_received: u32 = 0,
         score: u64 = 0,
-        current_piece_keys: u16 = 0,
+        current_piece_keys: u32 = 0,
         keys_pressed: u32 = 0,
         finesse: u32 = 0,
 
@@ -239,14 +237,13 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
                 self.last_kick = -1;
             }
 
-            // TODO: check if this should always play
             sound.playSfx(.hard_drop) catch {};
             self.place();
         }
 
         fn place(self: *Self) void {
             const clear_info = self.lockCurrent();
-            self.handleGarbage(clear_info.attack);
+            self.handleGarbage(clear_info.info.cleared > 0, clear_info.attack);
             self.updateStats(clear_info.info, clear_info.score, clear_info.attack);
             self.clearLines();
 
@@ -279,7 +276,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             }
         }
 
-        fn handleGarbage(self: *Self, attack: u16) void {
+        fn handleGarbage(self: *Self, cleared: bool, attack: u16) void {
             // Counter garbage
             var i: usize = 0;
             var remaining_attack = attack;
@@ -302,15 +299,17 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             );
 
             // Receive garbage
-            var remaining_garbage = self.settings.garbage_cap;
-            while (remaining_garbage > 0 and i < self.garbage_queue.len) : (i += 1) {
-                const garbage = &self.garbage_queue.buffer[i];
-                const received = @min(remaining_garbage, garbage.lines);
-                self.addGarbage(garbage.hole, received);
-                remaining_garbage -= received;
-                garbage.lines -= received;
-                if (garbage.lines > 0) {
-                    break;
+            if (!cleared) {
+                var remaining_garbage = self.settings.garbage_cap;
+                while (remaining_garbage > 0 and i < self.garbage_queue.len) : (i += 1) {
+                    const garbage = &self.garbage_queue.buffer[i];
+                    const received = @min(remaining_garbage, garbage.lines);
+                    self.addGarbage(garbage.hole, received);
+                    remaining_garbage -= received;
+                    garbage.lines -= received;
+                    if (garbage.lines > 0) {
+                        break;
+                    }
                 }
             }
 
@@ -453,6 +452,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
                     now -| self.last_move_time >= self.settings.lock_delay * std.time.ns_per_ms)
                 {
                     self.place();
+                    sound.playSfx(.landing) catch {};
                 }
             }
 

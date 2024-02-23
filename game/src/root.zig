@@ -17,7 +17,7 @@ pub const GameState = @import("GameState.zig").GameState;
 pub const PeriodicTrigger = @import("PeriodicTrigger.zig");
 
 // TODO: Load settings to config file
-pub const Settings = struct {
+pub const GameSettings = struct {
     pub const Stat = enum {
         /// Attack Per Line.
         APL,
@@ -49,10 +49,9 @@ pub const Settings = struct {
         VsScore,
     };
 
-    // TODO: enforce
-    name: []const u8 = "You",
-    g: f32 = 0.025 * 60, // Multiply by framerate before passing to Game
-    soft_g: f32 = 40 * 60,
+    // Gravity assumes 60 FPS
+    g: f32 = 0.025 * 60,
+    soft_g: f32 = 400 * 60,
     // TODO: enforce
     use_lockout: bool = false,
     autolock_grace: u8 = 15,
@@ -61,7 +60,7 @@ pub const Settings = struct {
     garbage_delay: u32 = 500,
     garbage_cap: u16 = 8,
     show_next_count: u3 = 6,
-    display_stats: []const Stat = &.{ .PPS, .APP, .VsScore },
+    display_stats: [3]Stat = .{ .PPS, .APP, .VsScore },
     attack_table: attack.AttackTable = .{
         .b2b = &.{ 0, 0, 1 },
         .clears = .{ 0, 0, 1, 2, 4 },
