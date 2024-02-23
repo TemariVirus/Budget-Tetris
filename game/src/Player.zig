@@ -1,4 +1,4 @@
-// TODO: Handle lose condition and animation
+// TODO: Add death animation
 const std = @import("std");
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
@@ -10,6 +10,7 @@ const View = nterm.View;
 const root = @import("root.zig");
 const AttackTable = root.attack.AttackTable;
 const ClearInfo = root.attack.ClearInfo;
+const TargetMode = root.attack.TargetMode;
 const ColorArray = @import("ColorArray.zig");
 const KickFn = root.kicks.KickFn;
 const PieceKind = root.pieces.PieceKind;
@@ -47,12 +48,12 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         },
         /// The number of nanoseconds since the game started when the last clear info was displayed.
         last_clear_time: u64 = 0,
-        playfield_colors: ColorArray,
-        garbage_queue: GarbageQueue,
+        playfield_colors: ColorArray = ColorArray{},
+        garbage_queue: GarbageQueue = GarbageQueue{},
         view: View,
-        players: []Self,
         settings: Settings,
 
+        alive: bool = true,
         already_held: bool = false,
         last_kick: i8 = -1,
         move_count: u8 = 0,
@@ -78,22 +79,22 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             name: []const u8,
             bag: Bag,
             view: View,
-            players: []Self,
             settings: Settings,
         ) Self {
             return Self{
                 .name = name,
                 .state = GameState.init(bag),
-                .playfield_colors = ColorArray.init(),
-                .garbage_queue = GarbageQueue{},
                 .view = view,
-                .players = players,
                 .settings = settings,
             };
         }
 
         /// Holds the current piece, or does nothing if the piece has already been held.
         pub fn hold(self: *Self) void {
+            if (!self.alive) {
+                return;
+            }
+
             self.current_piece_keys +|= 1;
             if (self.already_held) {
                 return;
@@ -108,6 +109,10 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn moveLeft(self: *Self, das: bool) void {
+            if (!self.alive) {
+                return;
+            }
+
             if (!das) {
                 self.current_piece_keys +|= 1;
             }
@@ -129,6 +134,10 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
         /// Assumes that the move was caused by DAS and does not count as an extra keypress.
         pub fn moveLeftAll(self: *Self) void {
+            if (!self.alive) {
+                return;
+            }
+
             if (self.state.slide(-10) == 0) {
                 return;
             }
@@ -142,6 +151,10 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn moveRight(self: *Self, das: bool) void {
+            if (!self.alive) {
+                return;
+            }
+
             if (!das) {
                 self.current_piece_keys +|= 1;
             }
@@ -163,6 +176,10 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
         /// Assumes that the move was caused by DAS and does not count as an extra keypress.
         pub fn moveRightAll(self: *Self) void {
+            if (!self.alive) {
+                return;
+            }
+
             if (self.state.slide(10) == 0) {
                 return;
             }
@@ -176,6 +193,10 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn rotateCw(self: *Self) void {
+            if (!self.alive) {
+                return;
+            }
+
             self.current_piece_keys +|= 1;
             const kick = self.state.rotate(.quarter_cw);
             if (kick == -1) {
@@ -192,6 +213,10 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn rotateDouble(self: *Self) void {
+            if (!self.alive) {
+                return;
+            }
+
             self.current_piece_keys +|= 1;
             const kick = self.state.rotate(.half);
             if (kick == -1) {
@@ -208,6 +233,10 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn rotateCcw(self: *Self) void {
+            if (!self.alive) {
+                return;
+            }
+
             self.current_piece_keys +|= 1;
             const kick = self.state.rotate(.quarter_ccw);
             if (kick == -1) {
@@ -224,13 +253,17 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn softDrop(self: *Self) void {
-            if (self.soft_dropping) {
+            if (!self.alive or self.soft_dropping) {
                 return;
             }
             self.soft_dropping = true;
         }
 
-        pub fn hardDrop(self: *Self) void {
+        pub fn hardDrop(self: *Self, self_index: usize, alive_indices: []usize, players: []Self) void {
+            if (!self.alive) {
+                return;
+            }
+
             const dropped = self.state.dropToGround();
             self.score += @intCast(dropped * 2);
             if (dropped > 0) {
@@ -238,12 +271,12 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             sound.playSfx(.hard_drop) catch {};
-            self.place();
+            self.placeCurrent(self_index, alive_indices, players);
         }
 
-        fn place(self: *Self) void {
+        fn placeCurrent(self: *Self, self_index: usize, alive_indices: []usize, players: []Self) void {
             const clear_info = self.lockCurrent();
-            self.handleGarbage(clear_info.info.cleared > 0, clear_info.attack);
+            self.handleGarbage(clear_info.info.cleared > 0, clear_info.attack, self_index, alive_indices, players);
             self.updateStats(clear_info.info, clear_info.score, clear_info.attack);
             self.clearLines();
 
@@ -274,9 +307,22 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
                     else => unreachable,
                 }) catch {};
             }
+
+            if (self.state.playfield.collides(self.state.current.mask(), self.state.pos) or // Block out
+                (self.settings.use_lockout and self.state.pos.y - self.state.current.bottom() >= 20)) // Lock out
+            {
+                self.alive = false;
+            }
         }
 
-        fn handleGarbage(self: *Self, cleared: bool, attack: u16) void {
+        fn handleGarbage(
+            self: *Self,
+            cleared: bool,
+            attack: u16,
+            self_index: usize,
+            alive_indices: []usize,
+            players: []Self,
+        ) void {
             // Counter garbage
             var i: usize = 0;
             var remaining_attack = attack;
@@ -291,12 +337,21 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             // Send remaining attack
-            // TODO: targetting modes
-            // self.players[0].queueGarbage(
-            //     null,
-            //     remaining_attack,
-            //     self.time + self.settings.garbage_delay * std.time.ns_per_ms,
-            // );
+            const targets = self.selectTargets(self_index, alive_indices);
+            for (targets.first) |j| {
+                players[j].queueGarbage(
+                    null,
+                    remaining_attack,
+                    self.time + self.settings.garbage_delay * std.time.ns_per_ms,
+                );
+            }
+            for (targets.second) |j| {
+                players[j].queueGarbage(
+                    null,
+                    remaining_attack,
+                    self.time + self.settings.garbage_delay * std.time.ns_per_ms,
+                );
+            }
 
             // Receive garbage
             if (!cleared) {
@@ -321,6 +376,33 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
                 self.garbage_queue.buffer[j] = self.garbage_queue.buffer[i + j];
             }
             self.garbage_queue.len -= @intCast(i);
+        }
+
+        fn selectTargets(self: Self, self_index: usize, alive_indices: []usize) struct {
+            first: []usize = &.{},
+            second: []usize = &.{},
+        } {
+            return switch (self.settings.target_mode) {
+                .none => .{},
+                .random => .{ .first = alive_indices[std.crypto.random.uintLessThan(usize, alive_indices.len)..][0..1] },
+                .random_but_self => blk: {
+                    if (alive_indices.len == 1) {
+                        break :blk .{};
+                    }
+
+                    var index = std.crypto.random.uintLessThan(usize, alive_indices.len - 1);
+                    if (index >= self_index) {
+                        index += 1;
+                    }
+                    break :blk .{ .first = alive_indices[index .. index + 1] };
+                },
+                .all => .{ .first = alive_indices },
+                .all_but_self => .{
+                    .first = alive_indices[0..self_index],
+                    .second = alive_indices[self_index + 1 .. alive_indices.len],
+                },
+                .self => .{ .first = alive_indices[self_index .. self_index + 1] },
+            };
         }
 
         fn lockCurrent(self: *Self) struct { info: ClearInfo, score: u64, attack: u16 } {
@@ -402,7 +484,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
         /// Queues garbage to be added to the playfield.
         pub fn queueGarbage(self: *Self, hole: ?u4, lines: u16, time: u64) void {
-            const resolved_hole = hole orelse std.crypto.random.intRangeLessThan(u4, 0, 10);
+            const resolved_hole = hole orelse std.crypto.random.uintLessThan(u4, 10);
             if (self.garbage_queue.len < self.garbage_queue.capacity()) {
                 self.garbage_queue.appendAssumeCapacity(.{
                     .hole = resolved_hole,
@@ -443,7 +525,11 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         /// Advances the game.
-        pub fn tick(self: *Self, nanoseconds: u64) void {
+        pub fn tick(self: *Self, nanoseconds: u64, self_index: usize, alive_indices: []usize, players: []Self) void {
+            if (!self.alive) {
+                return;
+            }
+
             const now = self.time + nanoseconds;
             const g = self.settings.g + if (self.soft_dropping) self.settings.soft_g else 0.0;
             self.vel += g * @as(f32, @floatFromInt(nanoseconds)) / std.time.ns_per_s;
@@ -455,7 +541,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
                 if (self.move_count > self.settings.autolock_grace or
                     now -| self.last_move_time >= self.settings.lock_delay * std.time.ns_per_ms)
                 {
-                    self.place();
+                    self.placeCurrent(self_index, alive_indices, players);
                     sound.playSfx(.landing) catch {};
                 }
             }

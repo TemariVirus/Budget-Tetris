@@ -52,3 +52,18 @@ pub const AttackTable = struct {
         return attack;
     }
 };
+
+pub const TargetMode = enum {
+    /// Attacks are sent to no one.
+    none,
+    /// A random player is targeted.
+    random,
+    /// A random player is targeted, excluding the sender.
+    random_but_self,
+    /// All players are targeted.
+    all,
+    /// All players are targeted, excluding the sender.
+    all_but_self,
+    /// The sender is targeted.
+    self,
+};

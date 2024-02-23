@@ -28,12 +28,7 @@ const PackedColor = enum(u8) {
     bright_white,
 };
 
-data: [WIDTH * HEIGHT / 2]u8,
-
-pub fn init() Self {
-    const data = [_]u8{EMPTY_BYTE} ** (WIDTH * HEIGHT / 2);
-    return Self{ .data = data };
-}
+data: [WIDTH * HEIGHT / 2]u8 = [_]u8{EMPTY_BYTE} ** (WIDTH * HEIGHT / 2),
 
 fn pack(color: Color) PackedColor {
     return switch (color) {

@@ -36,14 +36,14 @@ extern "winmm" fn timeBeginPeriod(uPeriod: windows.UINT) callconv(windows.WINAPI
 extern "winmm" fn timeEndPeriod(uPeriod: windows.UINT) callconv(windows.WINAPI) MMRESULT;
 
 const MoveFuncs = struct {
-    var player: *Player = undefined;
+    var match: *Match = undefined;
 
     fn left() void {
         if (paused) {
             return;
         }
 
-        player.moveLeft(false);
+        match.players[0].moveLeft(false);
     }
 
     fn leftAll() void {
@@ -51,7 +51,7 @@ const MoveFuncs = struct {
             return;
         }
 
-        player.moveLeftAll();
+        match.players[0].moveLeftAll();
     }
 
     fn right() void {
@@ -59,7 +59,7 @@ const MoveFuncs = struct {
             return;
         }
 
-        player.moveRight(false);
+        match.players[0].moveRight(false);
     }
 
     fn rightAll() void {
@@ -67,7 +67,7 @@ const MoveFuncs = struct {
             return;
         }
 
-        player.moveRightAll();
+        match.players[0].moveRightAll();
     }
 
     fn rotateCw() void {
@@ -75,7 +75,7 @@ const MoveFuncs = struct {
             return;
         }
 
-        player.rotateCw();
+        match.players[0].rotateCw();
     }
 
     fn rotateDouble() void {
@@ -83,7 +83,7 @@ const MoveFuncs = struct {
             return;
         }
 
-        player.rotateDouble();
+        match.players[0].rotateDouble();
     }
 
     fn rotateCCw() void {
@@ -91,7 +91,7 @@ const MoveFuncs = struct {
             return;
         }
 
-        player.rotateCcw();
+        match.players[0].rotateCcw();
     }
 
     fn softDrop() void {
@@ -99,7 +99,7 @@ const MoveFuncs = struct {
             return;
         }
 
-        player.softDrop();
+        match.players[0].softDrop();
     }
 
     fn hardDrop() void {
@@ -107,7 +107,7 @@ const MoveFuncs = struct {
             return;
         }
 
-        player.hardDrop();
+        match.players[0].hardDrop(0, match.alive_indices.slice(), match.players);
     }
 
     fn hold() void {
@@ -115,7 +115,7 @@ const MoveFuncs = struct {
             return;
         }
 
-        player.hold();
+        match.players[0].hold();
     }
 
     fn softDropStart() void {
@@ -123,6 +123,7 @@ const MoveFuncs = struct {
             return;
         }
 
+        const player = &match.players[0];
         player.current_piece_keys += 1;
         if (!player.state.onGround()) {
             player.move_count += 1;
@@ -147,7 +148,7 @@ pub fn main() !void {
     defer _ = timeEndPeriod(WIN_TIMER_PERIOD);
 
     // Add 2 to create a 1-wide empty boarder on the left and right.
-    try nterm.init(allocator, FPS_TIMING_WINDOW, Player.DISPLAY_W * 2 + 2, Player.DISPLAY_H);
+    try nterm.init(allocator, FPS_TIMING_WINDOW, Player.DISPLAY_W * 2 + 3, Player.DISPLAY_H * 2 + 1);
     defer nterm.deinit();
 
     try input.init(allocator);
@@ -159,8 +160,8 @@ pub fn main() !void {
     _ = try input.addKeyTrigger(.Escape, 0, null, togglePause);
 
     const settings = root.GameSettings{};
-    var match = try Match.init(allocator, 2, SevenBag.init(std.crypto.random.int(u64)), settings);
-    try setupPlayerInput(&match.players[0]);
+    var match = try Match.init(allocator, 4, SevenBag.init(std.crypto.random.int(u64)), settings);
+    try setupPlayerInput(&match);
 
     const fps_view = View{ .left = 1, .top = 0, .width = 15, .height = 1 };
     var input_timer = PeriodicTrigger.init(time.ns_per_s / INPUT_RATE);
@@ -168,15 +169,14 @@ pub fn main() !void {
     while (true) {
         var triggered = false;
 
-        if (input_timer.trigger()) |_| {
+        if (input_timer.trigger()) |dt| {
             input.tick();
-            triggered = true;
-        }
-        if (render_timer.trigger()) |dt| {
             if (!paused) {
                 match.tick(dt);
             }
-
+            triggered = true;
+        }
+        if (render_timer.trigger()) |_| {
             try match.draw();
             fps_view.printAt(0, 0, .white, .black, "{d:.2}FPS", .{nterm.fps()});
             if (paused) {
@@ -213,9 +213,9 @@ fn togglePause() void {
     paused = !paused;
 }
 
-fn setupPlayerInput(player: *Player) !void {
-    MoveFuncs.player = player;
-    player.name = "You";
+fn setupPlayerInput(match: *Match) !void {
+    MoveFuncs.match = match;
+    match.players[0].name = "You";
 
     _ = try input.addKeyTrigger(.C, 0, null, MoveFuncs.hold);
 

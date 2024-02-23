@@ -52,7 +52,6 @@ pub const GameSettings = struct {
     // Gravity assumes 60 FPS
     g: f32 = 0.025 * 60,
     soft_g: f32 = 400 * 60,
-    // TODO: enforce
     use_lockout: bool = false,
     autolock_grace: u8 = 15,
     lock_delay: u32 = 500,
@@ -68,6 +67,7 @@ pub const GameSettings = struct {
         .perfect_clear = .{ 10, 10, 10, 10 },
         .t_spin = .{ 0, 2, 4, 6 },
     },
+    target_mode: attack.TargetMode = .random_but_self,
 };
 
 test {

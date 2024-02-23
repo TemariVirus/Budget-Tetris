@@ -31,6 +31,7 @@ pub fn main() !void {
 
     const settings = engine.GameSettings{
         .g = 0,
+        .target_mode = .none,
     };
     const player_view = View{
         .left = 1,
@@ -38,7 +39,7 @@ pub fn main() !void {
         .width = Player.DISPLAY_W,
         .height = Player.DISPLAY_H,
     };
-    var player = Player.init("You", SevenBag.init(0), player_view, &.{}, settings);
+    var player = Player.init("You", SevenBag.init(0), player_view, settings);
 
     var placement_i: usize = 0;
     var pc_queue = std.ArrayList([]Placement).init(allocator);
@@ -62,7 +63,7 @@ pub fn main() !void {
             fps_view.printAt(0, 0, .white, .black, "{d:.2}FPS", .{nterm.fps()});
 
             placePcPiece(allocator, &player, &pc_queue, &placement_i);
-            player.tick(dt);
+            player.tick(dt, 0, &.{}, &.{});
             try player.draw();
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {
@@ -88,7 +89,7 @@ fn placePcPiece(allocator: Allocator, game: *Player, queue: *std.ArrayList([]Pla
     }
     game.state.pos = placement.pos;
     game.state.current = placement.piece;
-    game.hardDrop();
+    game.hardDrop(0, &.{}, &.{});
     placement_i.* += 1;
 
     if (placement_i.* == placements.len) {
