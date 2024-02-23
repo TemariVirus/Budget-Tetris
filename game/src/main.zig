@@ -154,6 +154,8 @@ pub fn main() !void {
     defer input.deinit();
 
     _ = try input.addKeyTrigger(.M, 0, null, toggleMute);
+    _ = try input.addKeyTrigger(.OemPlus, 0, null, volumeUp);
+    _ = try input.addKeyTrigger(.OemMinus, 0, null, volumeDown);
     _ = try input.addKeyTrigger(.Escape, 0, null, togglePause);
 
     const settings = root.GameSettings{};
@@ -176,9 +178,9 @@ pub fn main() !void {
             }
 
             try match.draw();
-            fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
+            fps_view.printAt(0, 0, .white, .black, "{d:.2}FPS", .{nterm.fps()});
             if (paused) {
-                nterm.view().writeAligned(.Center, nterm.canvasSize().height / 2, .White, .Black, "Paused");
+                nterm.view().writeAligned(.center, nterm.canvasSize().height / 2, .white, .black, "Paused");
             }
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {
@@ -197,6 +199,14 @@ pub fn main() !void {
 
 fn toggleMute() void {
     sound.setMuted(!sound.muted) catch {};
+}
+
+fn volumeUp() void {
+    sound.setVolume(sound.volume + 0.05) catch {};
+}
+
+fn volumeDown() void {
+    sound.setVolume(sound.volume - 0.05) catch {};
 }
 
 fn togglePause() void {

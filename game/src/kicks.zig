@@ -21,11 +21,11 @@ pub const srsPlus = @import("kicks/srs_plus.zig").srsPlus;
 /// Represents a piece rotation.
 pub const Rotation = enum {
     /// A 90 degree clockwise rotation.
-    QuarterCw,
+    quarter_cw,
     /// A 180 degree rotation.
-    Half,
+    half,
     /// A 90 degree counter-clockwise rotation.
-    QuarterCCw,
+    quarter_ccw,
 };
 
 test {

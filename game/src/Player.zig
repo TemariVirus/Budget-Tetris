@@ -43,7 +43,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             .b2b = false,
             .cleared = 0,
             .pc = false,
-            .t_spin = .None,
+            .t_spin = .none,
         },
         /// The number of nanoseconds since the game started when the last clear info was displayed.
         last_clear_time: u64 = 0,
@@ -177,7 +177,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
         pub fn rotateCw(self: *Self) void {
             self.current_piece_keys +|= 1;
-            const kick = self.state.rotate(.QuarterCw);
+            const kick = self.state.rotate(.quarter_cw);
             if (kick == -1) {
                 return;
             }
@@ -193,7 +193,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
         pub fn rotateDouble(self: *Self) void {
             self.current_piece_keys +|= 1;
-            const kick = self.state.rotate(.Half);
+            const kick = self.state.rotate(.half);
             if (kick == -1) {
                 return;
             }
@@ -209,7 +209,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
         pub fn rotateCcw(self: *Self) void {
             self.current_piece_keys +|= 1;
-            const kick = self.state.rotate(.QuarterCCw);
+            const kick = self.state.rotate(.quarter_ccw);
             if (kick == -1) {
                 return;
             }
@@ -248,7 +248,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             self.clearLines();
 
             // Only overwrite the last clear info if there's something interesting to display
-            if (clear_info.info.cleared > 0 or clear_info.info.pc or clear_info.info.t_spin != .None) {
+            if (clear_info.info.cleared > 0 or clear_info.info.pc or clear_info.info.t_spin != .none) {
                 self.last_clear_info = clear_info.info;
                 self.last_clear_time = self.time;
             }
@@ -263,7 +263,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
             if (clear_info.info.pc) {
                 sound.playSfx(.perfect_clear) catch {};
-            } else if (clear_info.info.t_spin != .None) {
+            } else if (clear_info.info.t_spin != .none) {
                 sound.playSfx(.t_spin) catch {};
             } else if (clear_info.info.cleared > 0) {
                 sound.playSfx(switch (clear_info.info.cleared) {
@@ -292,17 +292,21 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
             // Send remaining attack
             // TODO: targetting modes
-            self.players[1].queueGarbage(
-                null,
-                remaining_attack,
-                self.time + self.settings.garbage_delay * std.time.ns_per_ms,
-            );
+            // self.players[0].queueGarbage(
+            //     null,
+            //     remaining_attack,
+            //     self.time + self.settings.garbage_delay * std.time.ns_per_ms,
+            // );
 
             // Receive garbage
             if (!cleared) {
                 var remaining_garbage = self.settings.garbage_cap;
                 while (remaining_garbage > 0 and i < self.garbage_queue.len) : (i += 1) {
                     const garbage = &self.garbage_queue.buffer[i];
+                    if (self.time < @as(u64, garbage.time) * std.time.ns_per_ms) {
+                        break;
+                    }
+
                     const received = @min(remaining_garbage, garbage.lines);
                     self.addGarbage(garbage.hole, received);
                     remaining_garbage -= received;
@@ -341,9 +345,9 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             const info = self.state.lockCurrent(self.last_kick);
             var clear_score = ([_]u64{ 0, 100, 300, 500, 800 })[info.cleared];
             clear_score += switch (info.t_spin) {
-                .Mini => 100,
-                .Full => ([_]u64{ 400, 700, 900, 1100 })[info.cleared],
-                .None => 0,
+                .mini => 100,
+                .full => ([_]u64{ 400, 700, 900, 1100 })[info.cleared],
+                .none => 0,
             };
             if (info.b2b) {
                 clear_score += clear_score / 2;
@@ -540,8 +544,8 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         fn drawNameLines(self: Self) !void {
-            try self.view.printAligned(.Center, 0, .White, .Black, "{s}", .{self.name});
-            try self.view.printAligned(.Center, 1, .White, .Black, "LINES - {d}", .{self.lines_cleared});
+            try self.view.printAligned(.center, 0, .white, .black, "{s}", .{self.name});
+            try self.view.printAligned(.center, 1, .white, .black, "LINES - {d}", .{self.lines_cleared});
         }
 
         fn drawPiece(view: View, x: i8, y: i8, piece: Piece, solid: bool) void {
@@ -559,9 +563,9 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
                     }
 
                     if (solid) {
-                        _ = view.writeText(@intCast(x2), @intCast(y2), .Black, color, "  ");
+                        _ = view.writeText(@intCast(x2), @intCast(y2), .black, color, "  ");
                     } else {
-                        _ = view.writeText(@intCast(x2), @intCast(y2), color, .Black, "▒▒");
+                        _ = view.writeText(@intCast(x2), @intCast(y2), color, .black, "▒▒");
                     }
                 }
             }
@@ -575,13 +579,13 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
             const hold_box = self.view.sub(LEFT, TOP, WIDTH, HEIGHT);
             hold_box.drawBox(0, 0, WIDTH, HEIGHT);
-            _ = hold_box.writeText(3, 0, .White, .Black, "HOLD");
+            _ = hold_box.writeText(3, 0, .white, .black, "HOLD");
             if (self.state.hold_kind) |hold_kind| {
                 const hold_piece = Piece{
-                    .facing = .Up,
+                    .facing = .up,
                     .kind = hold_kind,
                 };
-                const y: i8 = if (hold_kind == .I) 4 else 3;
+                const y: i8 = if (hold_kind == .i) 4 else 3;
                 drawPiece(hold_box, 1, y, hold_piece, true);
             }
         }
@@ -594,9 +598,9 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
             const score_level_box = self.view.sub(LEFT, TOP, WIDTH, HEIGHT);
             score_level_box.drawBox(0, 0, WIDTH, HEIGHT);
-            _ = score_level_box.writeText(1, 1, .White, .Black, "SCORE");
+            _ = score_level_box.writeText(1, 1, .white, .black, "SCORE");
             printGlitchyU64(score_level_box, 1, 2, self.score);
-            _ = score_level_box.writeText(1, 3, .White, .Black, "LEVEL");
+            _ = score_level_box.writeText(1, 3, .white, .black, "LEVEL");
             printGlitchyU64(score_level_box, 1, 4, self.level());
         }
 
@@ -611,34 +615,34 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
             const clear_info_box = self.view.sub(LEFT, TOP, WIDTH, HEIGHT);
             if (self.last_clear_info.b2b) {
-                clear_info_box.writeAligned(.Center, 0, .White, .Black, "B2B");
+                clear_info_box.writeAligned(.center, 0, .white, .black, "B2B");
             }
             switch (self.last_clear_info.t_spin) {
-                .None => {},
-                .Mini => clear_info_box.writeAligned(.Center, 1, .White, .Black, "T-SPIN MINI"),
-                .Full => clear_info_box.writeAligned(.Center, 1, .White, .Black, "T-SPIN"),
+                .none => {},
+                .mini => clear_info_box.writeAligned(.center, 1, .white, .black, "T-SPIN MINI"),
+                .full => clear_info_box.writeAligned(.center, 1, .white, .black, "T-SPIN"),
             }
             switch (self.last_clear_info.cleared) {
-                1 => clear_info_box.writeAligned(.Center, 2, .White, .Black, "SINGLE"),
-                2 => clear_info_box.writeAligned(.Center, 2, .White, .Black, "DOUBLE"),
-                3 => clear_info_box.writeAligned(.Center, 2, .White, .Black, "TRIPLE"),
-                4 => clear_info_box.writeAligned(.Center, 2, .White, .Black, "TETRIS"),
+                1 => clear_info_box.writeAligned(.center, 2, .white, .black, "SINGLE"),
+                2 => clear_info_box.writeAligned(.center, 2, .white, .black, "DOUBLE"),
+                3 => clear_info_box.writeAligned(.center, 2, .white, .black, "TRIPLE"),
+                4 => clear_info_box.writeAligned(.center, 2, .white, .black, "TETRIS"),
                 else => {},
             }
             if (self.state.combo > 1) {
-                try clear_info_box.printAligned(.Center, 3, .White, .Black, "{d} COMBO!", .{self.state.combo - 1});
+                try clear_info_box.printAligned(.center, 3, .white, .black, "{d} COMBO!", .{self.state.combo - 1});
             }
             if (self.last_clear_info.pc) {
-                clear_info_box.writeAligned(.Center, 4, .White, .Black, "ALL CLEAR!");
+                clear_info_box.writeAligned(.center, 4, .white, .black, "ALL CLEAR!");
             }
         }
 
         fn printGlitchyU64(view: View, x: u8, y: u8, value: u64) void {
             if (value < 100_000_000) {
-                view.printAt(x, y, .White, .Black, "{d}", .{value});
+                view.printAt(x, y, .white, .black, "{d}", .{value});
             } else if (value < 0x1_0000_0000) {
                 // Print in hexadecimal if the score is too large
-                view.printAt(x, y, .White, .Black, "{x}", .{value});
+                view.printAt(x, y, .white, .black, "{x}", .{value});
             } else {
                 // Map bytes directly to characters if the score is still too large,
                 // because glitched text is cool
@@ -652,7 +656,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
                         @as(u16, byte) + 66;
                 }
                 const start = @clz(value) / 8;
-                view.printAt(x, y, .White, .Black, "{s}", .{std.unicode.fmtUtf16le(bytes[start..8])});
+                view.printAt(x, y, .white, .black, "{s}", .{std.unicode.fmtUtf16le(bytes[start..8])});
             }
         }
 
@@ -668,7 +672,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             for (0..20) |y| {
                 for (0..10) |x| {
                     const color = self.playfield_colors.get(x, y);
-                    _ = matrix_box_inner.writeText(@intCast(x * 2), @intCast(19 - y), .Black, color, "  ");
+                    _ = matrix_box_inner.writeText(@intCast(x * 2), @intCast(19 - y), .black, color, "  ");
                 }
             }
 
@@ -696,8 +700,8 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
                     _ = view.writeText(
                         0,
                         y,
-                        .Black,
-                        if (@as(u64, garbage.time) * std.time.ns_per_ms <= self.time) .Red else .White,
+                        .black,
+                        if (@as(u64, garbage.time) * std.time.ns_per_ms <= self.time) .red else .white,
                         "  ",
                     );
 
@@ -721,14 +725,14 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             const height = @as(u16, @intCast(self.settings.show_next_count)) * 3 + 1;
             const next_box = self.view.sub(LEFT, TOP, WIDTH, height);
             next_box.drawBox(0, 0, WIDTH, height);
-            _ = next_box.writeText(3, 0, .White, .Black, "NEXT");
+            _ = next_box.writeText(3, 0, .white, .black, "NEXT");
 
             for (0..self.settings.show_next_count) |i| {
                 const piece = Piece{
-                    .facing = .Up,
+                    .facing = .up,
                     .kind = self.state.next_pieces[i],
                 };
-                const y: i8 = if (piece.kind == .I) 4 else 3;
+                const y: i8 = if (piece.kind == .i) 4 else 3;
                 drawPiece(next_box, 1, y + @as(i8, @intCast(i * 3)), piece, true);
             }
         }
@@ -742,20 +746,20 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
             const view = self.view.sub(0, top, 10, 1);
             switch (stat) {
-                .APL => view.printAt(0, 0, .White, .Black, "APL: {d:.3}", .{self.apl()}),
-                .APM => view.printAt(0, 0, .White, .Black, "APM: {d:.3}", .{self.apm()}),
-                .APP => view.printAt(0, 0, .White, .Black, "APP: {d:.3}", .{self.app()}),
-                .Finesse => view.printAt(0, 0, .White, .Black, "FIN: {d}", .{self.finesse}),
-                .Keys => view.printAt(0, 0, .White, .Black, "KEYS: {d}", .{self.keys_pressed + self.current_piece_keys}),
-                .KPP => view.printAt(0, 0, .White, .Black, "KPP: {d:.3}", .{self.kpp()}),
-                .Level => view.printAt(0, 0, .White, .Black, "LEVEL: {d}", .{self.level()}),
-                .Lines => view.printAt(0, 0, .White, .Black, "LINES: {d}", .{self.lines_cleared}),
-                .PPS => view.printAt(0, 0, .White, .Black, "PPS: {d:.3}", .{self.pps()}),
-                .Received => view.printAt(0, 0, .White, .Black, "REC: {d}", .{self.lines_received}),
-                .Score => view.printAt(0, 0, .White, .Black, "SCORE: {d}", .{self.score}),
-                .Sent => view.printAt(0, 0, .White, .Black, "SENT: {d}", .{self.lines_sent}),
-                .Time => view.printAt(0, 0, .White, .Black, "TIME: {}", .{std.fmt.fmtDuration(self.time)}),
-                .VsScore => view.printAt(0, 0, .White, .Black, "VS: {d:.4}", .{self.vsScore()}),
+                .apl => view.printAt(0, 0, .white, .black, "APL: {d:.3}", .{self.apl()}),
+                .apm => view.printAt(0, 0, .white, .black, "APM: {d:.3}", .{self.apm()}),
+                .app => view.printAt(0, 0, .white, .black, "APP: {d:.3}", .{self.app()}),
+                .finesse => view.printAt(0, 0, .white, .black, "FIN: {d}", .{self.finesse}),
+                .keys => view.printAt(0, 0, .white, .black, "KEYS: {d}", .{self.keys_pressed + self.current_piece_keys}),
+                .kpp => view.printAt(0, 0, .white, .black, "KPP: {d:.3}", .{self.kpp()}),
+                .level => view.printAt(0, 0, .white, .black, "LEVEL: {d}", .{self.level()}),
+                .lines => view.printAt(0, 0, .white, .black, "LINES: {d}", .{self.lines_cleared}),
+                .pps => view.printAt(0, 0, .white, .black, "PPS: {d:.3}", .{self.pps()}),
+                .received => view.printAt(0, 0, .white, .black, "REC: {d}", .{self.lines_received}),
+                .score => view.printAt(0, 0, .white, .black, "SCORE: {d}", .{self.score}),
+                .sent => view.printAt(0, 0, .white, .black, "SENT: {d}", .{self.lines_sent}),
+                .time => view.printAt(0, 0, .white, .black, "TIME: {}", .{std.fmt.fmtDuration(self.time)}),
+                .vs_score => view.printAt(0, 0, .white, .black, "VS: {d:.4}", .{self.vsScore()}),
             }
         }
     };

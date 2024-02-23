@@ -27,10 +27,7 @@ pub fn build(b: *std.Build) void {
     bot_exe.root_module.addImport("engine", engine_module);
 
     // Add nterm dependency
-    const nterm_module = b.dependency("nterm", .{
-        .target = target,
-        .optimize = optimize,
-    }).module("nterm");
+    const nterm_module = engine_module.import_table.get("nterm").?;
     train_exe.root_module.addImport("nterm", nterm_module);
 
     // Expose the library root

@@ -21,7 +21,7 @@ pub fn NBag(comptime N: usize) type {
         }
 
         fn refill(self: *Self) void {
-            var pieces: [7]PieceKind = .{ .I, .O, .T, .S, .Z, .J, .L };
+            var pieces: [7]PieceKind = .{ .i, .o, .t, .s, .z, .j, .l };
             const random = self.random.random();
 
             random.shuffle(PieceKind, &pieces);
@@ -66,7 +66,7 @@ test "N-bag (100) randomizer" {
     }
 
     // Should have 14 or 15 of each piece
-    const expected = [_]PieceKind{ .I, .O, .T, .S, .Z, .J, .L };
+    const expected = [_]PieceKind{ .i, .o, .t, .s, .z, .j, .l };
     for (expected) |piece| {
         const count = actual.get(piece) orelse 0;
         try expect(count == 14 or count == 15);

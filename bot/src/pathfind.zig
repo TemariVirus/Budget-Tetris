@@ -10,24 +10,24 @@ const Position = engine.pieces.Position;
 const PiecePosSet = @import("root.zig").PiecePosSet(.{ 10, 24, 4 });
 
 pub const Move = enum(u3) {
-    Left = 0,
-    AllLeft = 1,
-    Right = 2,
-    AllRight = 3,
-    RotateCw = 4,
-    RotateCCw = 5,
-    RotateDouble = 6,
-    Drop = 7,
+    left = 0,
+    all_left = 1,
+    right = 2,
+    all_right = 3,
+    rotate_cw = 4,
+    rotate_ccw = 5,
+    rotate_double = 6,
+    drop = 7,
 
     const moves = [_]Move{
-        .Left,
-        .AllLeft,
-        .Right,
-        .AllRight,
-        .RotateCw,
-        .RotateCCw,
-        .RotateDouble,
-        .Drop,
+        .left,
+        .all_left,
+        .right,
+        .all_right,
+        .rotate_cw,
+        .rotate_ccw,
+        .rotate_double,
+        .drop,
     };
 };
 

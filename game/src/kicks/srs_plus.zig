@@ -77,11 +77,11 @@ const CCw_i_kicks = [4][4]Position{
 
 /// Tetr.io's SRS+ kicks.
 pub fn srsPlus(piece: Piece, rotation: Rotation) []const Position {
-    if (piece.kind == .I) {
+    if (piece.kind == .i) {
         return &switch (rotation) {
-            .QuarterCw => cw_i_kicks[@intFromEnum(piece.facing)],
-            .Half => double_i_kicks[@intFromEnum(piece.facing)],
-            .QuarterCCw => CCw_i_kicks[@intFromEnum(piece.facing)],
+            .quarter_cw => cw_i_kicks[@intFromEnum(piece.facing)],
+            .half => double_i_kicks[@intFromEnum(piece.facing)],
+            .quarter_ccw => CCw_i_kicks[@intFromEnum(piece.facing)],
         };
     }
 

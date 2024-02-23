@@ -18,18 +18,18 @@ const Piece = engine.pieces.Piece;
 const Position = engine.pieces.Position;
 
 const Move = enum {
-    Left,
-    Right,
-    RotateCw,
-    RotateCcw,
-    Drop,
+    left,
+    right,
+    rotate_cw,
+    rotate_ccw,
+    drop,
 
     const moves = [_]Move{
-        .Left,
-        .Right,
-        .RotateCw,
-        .RotateCcw,
-        .Drop,
+        .left,
+        .right,
+        .rotate_cw,
+        .rotate_ccw,
+        .drop,
     };
 };
 
@@ -90,7 +90,7 @@ pub fn main() !void {
                     }, .{
                         .x = piece_pos.getX(),
                         .y = piece_pos.y,
-                    }, .None);
+                    }, .none);
                     const suggestion = tbp.BotSuggestion{
                         .moves = &[1]tbp.BotMove{move},
                         .move_info = null,
@@ -148,7 +148,7 @@ fn nextMove(allocator: Allocator, game: GameState, depth: u8) !PiecePosition {
 
     // Starting position
     {
-        const piece = Piece{ .facing = .Up, .kind = game.current.kind };
+        const piece = Piece{ .facing = .up, .kind = game.current.kind };
         const pos = game.current.kind.startPos();
         stack.append(PiecePosition.pack(piece, pos)) catch unreachable;
     }
@@ -172,19 +172,19 @@ fn nextMove(allocator: Allocator, game: GameState, depth: u8) !PiecePosition {
             new_game.pos = pos;
 
             switch (move) {
-                .Left => if (new_game.slide(-1) == 0) {
+                .left => if (new_game.slide(-1) == 0) {
                     continue;
                 },
-                .Right => if (new_game.slide(1) == 0) {
+                .right => if (new_game.slide(1) == 0) {
                     continue;
                 },
-                .RotateCw => if (new_game.rotate(.QuarterCw) == -1) {
+                .rotate_cw => if (new_game.rotate(.quarter_cw) == -1) {
                     continue;
                 },
-                .RotateCcw => if (new_game.rotate(.QuarterCCw) == -1) {
+                .rotate_ccw => if (new_game.rotate(.quarter_ccw) == -1) {
                     continue;
                 },
-                .Drop => if (new_game.drop(1) == 0) {
+                .drop => if (new_game.drop(1) == 0) {
                     continue;
                 },
             }
@@ -228,7 +228,7 @@ fn nextMoveInner(game: GameState, cache: *NodeSet, depth: u8) !u64 {
 
     // Starting position
     {
-        const piece = Piece{ .facing = .Up, .kind = game.current.kind };
+        const piece = Piece{ .facing = .up, .kind = game.current.kind };
         const pos = game.current.kind.startPos();
         stack.append(PiecePosition.pack(piece, pos)) catch unreachable;
     }
@@ -253,19 +253,19 @@ fn nextMoveInner(game: GameState, cache: *NodeSet, depth: u8) !u64 {
             new_game.pos = pos;
 
             switch (move) {
-                .Left => if (new_game.slide(-1) == 0) {
+                .left => if (new_game.slide(-1) == 0) {
                     continue;
                 },
-                .Right => if (new_game.slide(1) == 0) {
+                .right => if (new_game.slide(1) == 0) {
                     continue;
                 },
-                .RotateCw => if (new_game.rotate(.QuarterCw) == -1) {
+                .rotate_cw => if (new_game.rotate(.quarter_cw) == -1) {
                     continue;
                 },
-                .RotateCcw => if (new_game.rotate(.QuarterCCw) == -1) {
+                .rotate_ccw => if (new_game.rotate(.quarter_ccw) == -1) {
                     continue;
                 },
-                .Drop => if (new_game.drop(1) == 0) {
+                .drop => if (new_game.drop(1) == 0) {
                     continue;
                 },
             }

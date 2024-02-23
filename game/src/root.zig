@@ -20,33 +20,33 @@ pub const PeriodicTrigger = @import("PeriodicTrigger.zig");
 pub const GameSettings = struct {
     pub const Stat = enum {
         /// Attack Per Line.
-        APL,
+        apl,
         /// Attack Per Minute.
-        APM,
+        apm,
         /// Attack Per Piece.
-        APP,
+        app,
         /// Finesse.
-        Finesse,
+        finesse,
         /// Keys Pressed.
-        Keys,
+        keys,
         /// Keys Per Piece.
-        KPP,
-        /// Level. Calculated as `(Lines / 10) + 1`.
-        Level,
+        kpp,
+        /// Level. Calculated as `(lines / 10) + 1`.
+        level,
         /// Lines cleared.
-        Lines,
+        lines,
         /// Pieces Per Second.
-        PPS,
+        pps,
         /// Lines of garbage received.
-        Received,
+        received,
         /// Score.
-        Score,
+        score,
         /// Lines of garbage sent; Attack.
-        Sent,
+        sent,
         /// Time elaspsed since start.
-        Time,
-        /// VS Score. Calculated as `100 * (Attack + Garbage cleared) / Seconds`.
-        VsScore,
+        time,
+        /// VS Score. Calculated as `100 * (sent + garbage cleared) / seconds`.
+        vs_score,
     };
 
     // Gravity assumes 60 FPS
@@ -60,7 +60,7 @@ pub const GameSettings = struct {
     garbage_delay: u32 = 500,
     garbage_cap: u16 = 8,
     show_next_count: u3 = 6,
-    display_stats: [3]Stat = .{ .PPS, .APP, .VsScore },
+    display_stats: [3]Stat = .{ .pps, .app, .vs_score },
     attack_table: attack.AttackTable = .{
         .b2b = &.{ 0, 0, 1 },
         .clears = .{ 0, 0, 1, 2, 4 },

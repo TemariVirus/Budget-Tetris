@@ -46,7 +46,7 @@ pub const BotInfo = struct {
 
     pub fn post(self: BotInfo, writer: anytype) !void {
         for (self.features) |feature| {
-            assert(feature != .NeededForSerializationAndShouldNotBeUsed);
+            assert(feature != .needed_for_serialization_and_should_not_be_used);
         }
 
         try json.stringify(.{
@@ -61,7 +61,7 @@ pub const BotInfo = struct {
 };
 
 pub const BotFeature = enum {
-    NeededForSerializationAndShouldNotBeUsed,
+    needed_for_serialization_and_should_not_be_used,
 };
 
 pub const BotReady = struct {
@@ -155,19 +155,19 @@ pub const BotMoveOrientation = enum {
 
     pub fn fromEngine(facing: Facing) BotMoveOrientation {
         return switch (facing) {
-            .Up => .north,
-            .Right => .east,
-            .Down => .south,
-            .Left => .west,
+            .up => .north,
+            .right => .east,
+            .down => .south,
+            .left => .west,
         };
     }
 
     pub fn toEngine(self: BotMoveOrientation) Facing {
         return switch (self) {
-            .north => .Up,
-            .east => .Right,
-            .south => .Down,
-            .west => .Left,
+            .north => .up,
+            .east => .right,
+            .south => .down,
+            .west => .left,
         };
     }
 };
@@ -179,17 +179,17 @@ pub const BotMoveSpin = enum {
 
     pub fn fromEngine(tspin: TSpin) BotMoveSpin {
         return switch (tspin) {
-            .None => .none,
-            .Mini => .mini,
-            .Full => .full,
+            .none => .none,
+            .mini => .mini,
+            .full => .full,
         };
     }
 
     pub fn toEngine(self: BotMoveSpin) TSpin {
         return switch (self) {
-            .none => .None,
-            .mini => .Mini,
-            .full => .Full,
+            .none => .none,
+            .mini => .mini,
+            .full => .full,
         };
     }
 };
@@ -257,7 +257,7 @@ pub const GameStart = struct {
             .playfield = playfield,
             .pos = self.queue[0].startPos(),
             .current = .{
-                .facing = .Up,
+                .facing = .up,
                 .kind = self.queue[0],
             },
             .hold_kind = self.hold,
@@ -278,14 +278,14 @@ pub const GameStart = struct {
 };
 
 pub const BoardCell = enum {
-    I,
-    O,
-    T,
-    S,
-    Z,
-    L,
-    J,
-    G,
+    i,
+    o,
+    t,
+    s,
+    z,
+    l,
+    j,
+    g,
 };
 
 pub const GameSuggest = struct {

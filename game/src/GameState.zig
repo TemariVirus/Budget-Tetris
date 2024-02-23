@@ -72,7 +72,7 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
         /// Replaces the current piece with one of the specified piece kind and places
         /// it at the top of the playfield.
         pub fn spawn(self: *Self, piece: PieceKind) void {
-            self.current = Piece{ .facing = .Up, .kind = piece };
+            self.current = Piece{ .facing = .up, .kind = piece };
 
             // Try to drop immediately if possible
             self.pos = piece.startPos();
@@ -138,7 +138,7 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
         /// indicates that the rotation failed.
         pub fn rotate(self: *Self, rotation: Rotation) i8 {
             // O piece cannot rotate
-            if (self.current.kind == .O) {
+            if (self.current.kind == .o) {
                 return -1;
             }
 
@@ -172,11 +172,11 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
             const cleared = self.clearLines();
 
             const is_clear = cleared > 0;
-            const is_hard_clear = (cleared == 4 or t_spin == .Full) and is_clear;
+            const is_hard_clear = (cleared == 4 or t_spin == .full) and is_clear;
 
             if (is_hard_clear) {
                 self.b2b += 1;
-            } else if (is_clear and t_spin == .None) {
+            } else if (is_clear and t_spin == .none) {
                 self.b2b = 0;
             }
 
@@ -215,22 +215,22 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         const tspin_table = [16][4]TSpin{
-            [_]TSpin{.None} ** 4, // 0000
-            [_]TSpin{.None} ** 4, // 0001
-            [_]TSpin{.None} ** 4, // 0010
-            [_]TSpin{.None} ** 4, // 0011
-            [_]TSpin{.None} ** 4, // 0100
-            [_]TSpin{.None} ** 4, // 0101
-            [_]TSpin{.None} ** 4, // 0110
-            [_]TSpin{ .Mini, .Full, .Full, .Mini }, // 0111; No top left corner
-            [_]TSpin{.None} ** 4, // 1000
-            [_]TSpin{.None} ** 4, // 1001
-            [_]TSpin{.None} ** 4, // 1010
-            [_]TSpin{ .Full, .Full, .Mini, .Mini }, // 1011; No bottom left corner
-            [_]TSpin{.None} ** 4, // 1100
-            [_]TSpin{ .Mini, .Mini, .Full, .Full }, // 1101; No top right corner
-            [_]TSpin{ .Full, .Mini, .Mini, .Full }, // 1110; No bottom right corner
-            [_]TSpin{.Full} ** 4, // 1111; All corners
+            [_]TSpin{.none} ** 4, // 0000
+            [_]TSpin{.none} ** 4, // 0001
+            [_]TSpin{.none} ** 4, // 0010
+            [_]TSpin{.none} ** 4, // 0011
+            [_]TSpin{.none} ** 4, // 0100
+            [_]TSpin{.none} ** 4, // 0101
+            [_]TSpin{.none} ** 4, // 0110
+            [_]TSpin{ .mini, .full, .full, .mini }, // 0111; No top left corner
+            [_]TSpin{.none} ** 4, // 1000
+            [_]TSpin{.none} ** 4, // 1001
+            [_]TSpin{.none} ** 4, // 1010
+            [_]TSpin{ .full, .full, .mini, .mini }, // 1011; No bottom left corner
+            [_]TSpin{.none} ** 4, // 1100
+            [_]TSpin{ .mini, .mini, .full, .full }, // 1101; No top right corner
+            [_]TSpin{ .full, .mini, .mini, .full }, // 1110; No bottom right corner
+            [_]TSpin{.full} ** 4, // 1111; All corners
         };
         /// Uses the 3 corner rule to detect T-spins. At least 3 of the 4 corners
         /// immediately adjacent to the T piece's center must be filled for a placement
@@ -242,8 +242,8 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
         /// T-spin. If only 1 corner is filled, it is a T-spin mini, unless the last
         /// kick used was the SRS (1, -2) kick (the one used for TSTs).
         pub fn tSpinType(self: *Self, last_kick: i8) TSpin {
-            if (self.current.kind != .T or last_kick < 0) {
-                return .None;
+            if (self.current.kind != .t or last_kick < 0) {
+                return .none;
             }
 
             const x = self.pos.x;
@@ -258,7 +258,7 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
 
             // Special case for SRS (1, -2) kick
             if (last_kick == 4 and @popCount(corners) == 3) {
-                return .Full;
+                return .full;
             }
 
             return tspin_table[corners][@intFromEnum(self.current.facing)];
@@ -371,7 +371,7 @@ test "DT cannon" {
 
     // J piece
     game.hold();
-    var kick = game.rotate(.QuarterCCw);
+    var kick = game.rotate(.quarter_ccw);
     try expect(kick != -1);
     try expect(game.slide(1) == 1);
     try expect(game.dropToGround() == 18);
@@ -379,12 +379,12 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
     // L piece
-    kick = game.rotate(.QuarterCw);
+    kick = game.rotate(.quarter_cw);
     try expect(kick != -1);
     try expect(game.slide(3) == 3);
     try expect(game.dropToGround() == 18);
@@ -392,7 +392,7 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
@@ -403,12 +403,12 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
     // S piece
-    kick = game.rotate(.QuarterCw);
+    kick = game.rotate(.quarter_cw);
     try expect(kick != -1);
     try expect(game.slide(10) == 4);
     try expect(game.dropToGround() == 18);
@@ -416,7 +416,7 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
@@ -428,12 +428,12 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
     // I piece
-    kick = game.rotate(.QuarterCw);
+    kick = game.rotate(.quarter_cw);
     try expect(kick != -1);
     try expect(game.slide(1) == 1);
     try expect(game.dropToGround() == 17);
@@ -441,19 +441,19 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
     // S piece
-    kick = game.rotate(.QuarterCw);
+    kick = game.rotate(.quarter_cw);
     try expect(kick != -1);
     try expect(game.dropToGround() == 14);
     try expect(std.meta.eql(game.lockCurrent(kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
@@ -465,12 +465,12 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
     // J piece
-    kick = game.rotate(.QuarterCw);
+    kick = game.rotate(.quarter_cw);
     try expect(kick != -1);
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 16);
@@ -478,33 +478,33 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
     // Z piece
     game.hold();
-    try expect(game.rotate(.QuarterCCw) != -1);
+    try expect(game.rotate(.quarter_ccw) != -1);
     try expect(game.slide(-1) == 1);
     try expect(game.dropToGround() == 15);
-    try expect(game.rotate(.QuarterCCw) != -1);
-    try expect(game.rotate(.Half) != -1);
-    try expect(game.rotate(.QuarterCCw) == -1);
+    try expect(game.rotate(.quarter_ccw) != -1);
+    try expect(game.rotate(.half) != -1);
+    try expect(game.rotate(.quarter_ccw) == -1);
     try expect(game.dropToGround() == 1);
-    kick = game.rotate(.QuarterCCw);
+    kick = game.rotate(.quarter_ccw);
     try expect(kick != -1);
     try expect(game.slide(10) == 1);
     try expect(std.meta.eql(game.lockCurrent(kick), ClearInfo{
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
     // Z piece
     game.hold();
-    kick = game.rotate(.QuarterCw);
+    kick = game.rotate(.quarter_cw);
     try expect(kick != -1);
     try expect(game.slide(2) == 2);
     try expect(game.dropToGround() == 14);
@@ -512,12 +512,12 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
     // L piece
-    kick = game.rotate(.QuarterCCw);
+    kick = game.rotate(.quarter_ccw);
     try expect(kick != -1);
     try expect(game.slide(-1) == 1);
     try expect(game.dropToGround() == 14);
@@ -525,12 +525,12 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
     // I piece
-    kick = game.rotate(.QuarterCw);
+    kick = game.rotate(.quarter_cw);
     try expect(kick != -1);
     try expect(game.slide(10) == 4);
     try expect(game.dropToGround() == 15);
@@ -538,44 +538,44 @@ test "DT cannon" {
         .b2b = false,
         .cleared = 0,
         .pc = false,
-        .t_spin = .None,
+        .t_spin = .none,
     }));
     game.nextPiece();
 
     // T piece
     game.hold();
-    try expect(game.rotate(.QuarterCw) != -1);
+    try expect(game.rotate(.quarter_cw) != -1);
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 13);
-    try expect(game.rotate(.QuarterCCw) != -1);
-    try expect(game.rotate(.QuarterCCw) != -1);
-    try expect(game.rotate(.QuarterCCw) == -1);
+    try expect(game.rotate(.quarter_ccw) != -1);
+    try expect(game.rotate(.quarter_ccw) != -1);
+    try expect(game.rotate(.quarter_ccw) == -1);
     try expect(game.dropToGround() == 1);
-    kick = game.rotate(.QuarterCCw);
+    kick = game.rotate(.quarter_ccw);
     try expect(kick != -1);
     try expect(game.dropToGround() == 0);
     try expect(std.meta.eql(game.lockCurrent(kick), ClearInfo{
         .b2b = false,
         .cleared = 2,
         .pc = false,
-        .t_spin = .Full,
+        .t_spin = .full,
     }));
     game.nextPiece();
 
     // T piece
     game.hold();
-    try expect(game.rotate(.QuarterCw) != -1);
+    try expect(game.rotate(.quarter_cw) != -1);
     try expect(game.slide(-10) == 4);
     try expect(game.dropToGround() == 15);
-    try expect(game.rotate(.QuarterCCw) != -1);
-    kick = game.rotate(.QuarterCCw);
+    try expect(game.rotate(.quarter_ccw) != -1);
+    kick = game.rotate(.quarter_ccw);
     try expect(kick != -1);
-    try expect(game.rotate(.QuarterCCw) == -1);
+    try expect(game.rotate(.quarter_ccw) == -1);
     try expect(std.meta.eql(game.lockCurrent(kick), ClearInfo{
         .b2b = true,
         .cleared = 3,
         .pc = false,
-        .t_spin = .Full,
+        .t_spin = .full,
     }));
     game.nextPiece();
 

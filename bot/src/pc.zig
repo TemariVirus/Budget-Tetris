@@ -28,20 +28,20 @@ pub const Placement = struct {
 };
 
 const Move = enum {
-    Left,
-    Right,
-    RotateCw,
-    RotateDouble,
-    RotateCcw,
-    Drop,
+    left,
+    right,
+    rotate_cw,
+    rotate_double,
+    rotate_ccw,
+    drop,
 
     const moves = [_]Move{
-        .Left,
-        .Right,
-        .RotateCw,
-        .RotateDouble,
-        .RotateCcw,
-        .Drop,
+        .left,
+        .right,
+        .rotate_cw,
+        .rotate_double,
+        .rotate_ccw,
+        .drop,
     };
 };
 
@@ -183,7 +183,7 @@ fn findPcInner(
 
         // Start at lowest possible position
         {
-            const piece = Piece{ .facing = .Up, .kind = pieces[0] };
+            const piece = Piece{ .facing = .up, .kind = pieces[0] };
             const pos = Position{
                 .x = 0,
                 .y = @as(i8, @intCast(max_height)) + piece.minY(),
@@ -212,22 +212,22 @@ fn findPcInner(
                 new_game.pos = pos;
 
                 switch (move) {
-                    .Left => if (new_game.slide(-1) == 0) {
+                    .left => if (new_game.slide(-1) == 0) {
                         continue;
                     },
-                    .Right => if (new_game.slide(1) == 0) {
+                    .right => if (new_game.slide(1) == 0) {
                         continue;
                     },
-                    .RotateCw => if (new_game.rotate(.QuarterCw) == -1) {
+                    .rotate_cw => if (new_game.rotate(.quarter_cw) == -1) {
                         continue;
                     },
-                    .RotateDouble => if (new_game.rotate(.Half) == -1) {
+                    .rotate_double => if (new_game.rotate(.half) == -1) {
                         continue;
                     },
-                    .RotateCcw => if (new_game.rotate(.QuarterCCw) == -1) {
+                    .rotate_ccw => if (new_game.rotate(.quarter_ccw) == -1) {
                         continue;
                     },
-                    .Drop => if (new_game.drop(1) == 0) {
+                    .drop => if (new_game.drop(1) == 0) {
                         continue;
                     },
                 }

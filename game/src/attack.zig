@@ -1,11 +1,11 @@
 /// Denotes the type of a T-Spin.
 pub const TSpin = enum {
     // No T-Spin.
-    None,
+    none,
     // T-Spin Mini.
-    Mini,
+    mini,
     // T-Spin.
-    Full,
+    full,
 };
 
 /// Stores information about a clear.
@@ -39,7 +39,7 @@ pub const AttackTable = struct {
     pub fn getAttack(self: AttackTable, info: ClearInfo, b2b: u32, combo: u32) u16 {
         var attack: u16 = if (info.pc)
             self.perfect_clear[info.cleared - 1]
-        else if (info.t_spin == .Full)
+        else if (info.t_spin == .full)
             self.t_spin[info.cleared]
         else
             self.clears[info.cleared];

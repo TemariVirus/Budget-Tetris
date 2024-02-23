@@ -11,19 +11,16 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    // nterm dependency
-    const nterm_module = b.dependency("nterm", .{
-        .target = target,
-        .optimize = optimize,
-    }).module("nterm");
-    exe.root_module.addImport("nterm", nterm_module);
-
     // Engine dependency
     const engine_module = b.dependency("engine", .{
         .target = target,
         .optimize = optimize,
     }).module("engine");
     exe.root_module.addImport("engine", engine_module);
+
+    // nterm dependency
+    const nterm_module = engine_module.import_table.get("nterm").?;
+    exe.root_module.addImport("nterm", nterm_module);
 
     b.installArtifact(exe);
 

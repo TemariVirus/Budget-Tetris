@@ -3,8 +3,8 @@
     .version = "0.0.0",
     .dependencies = .{
         .nterm = .{
-            .url = "https://github.com/Zemogus/nterm/archive/aea2242bd551d8aaa2243358b9da510a81c03c91.tar.gz",
-            .hash = "12200ed13aa17220d6f10cf320f0368312cf5a629e98dba804b0ccdd89c8ed07d07f",
+            .url = "https://github.com/Zemogus/nterm/archive/56430a7a7a3a560e32451d2877960b9a8962ff47.tar.gz",
+            .hash = "12204446700d1837954a104cf7148c5914d37737803bbb1adf3e45ff2c6549e5f2bd",
         },
         // Courtesy of https://github.com/zig-gamedev/zig-gamedev
         .zwin32 = .{ .path = "libs/zwin32" },

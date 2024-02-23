@@ -196,12 +196,12 @@ fn replayMatch(
     stats: *ReplayStats,
     user_data: std.StringHashMap(LeagueData),
 ) !void {
-    var settings = engine.Settings{
+    var settings = engine.GameSettings{
         .g = getGravity(0),
         .autolock_grace = LOCKRESETS + 1,
         .lock_delay = (LOCKTIME * 1000 / FRAMERATE) + 1,
         .show_next_count = 5, // Fixed for Tetra League
-        .display_stats = &.{ .PPS, .APM, .Sent },
+        .display_stats = .{ .pps, .apm, .sent },
     };
     stats.game_id += 2;
 
@@ -214,7 +214,7 @@ fn replayMatch(
             stats.game_id - @as(u32, @intCast(i)),
             match.replays[i].frames,
             match.replays[i].events,
-            &settings,
+            settings,
             user_data,
         ) catch |err| {
             if (i == 1) {
@@ -296,23 +296,23 @@ fn checkEndState(allocator: Allocator, replay: GameReplay, events: []const Event
         const expected_y = 39 - y;
         for (0..10) |x| {
             const expected_color: nterm.Color = blk: {
-                const cell = expected[expected_y][x] orelse break :blk .Black;
+                const cell = expected[expected_y][x] orelse break :blk .black;
                 break :blk if (mem.eql(u8, cell, "i"))
-                    .BrightCyan
+                    .bright_cyan
                 else if (mem.eql(u8, cell, "o"))
-                    .BrightYellow
+                    .bright_yellow
                 else if (mem.eql(u8, cell, "t"))
-                    .BrightMagenta
+                    .bright_magenta
                 else if (mem.eql(u8, cell, "s"))
-                    .BrightGreen
+                    .bright_green
                 else if (mem.eql(u8, cell, "z"))
-                    .Red
+                    .red
                 else if (mem.eql(u8, cell, "l"))
-                    .Yellow
+                    .yellow
                 else if (mem.eql(u8, cell, "j"))
-                    .Blue
+                    .blue
                 else if (mem.eql(u8, cell, "gb"))
-                    .White
+                    .white
                 else
                     return error.UnknownColor;
             };

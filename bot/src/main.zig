@@ -29,18 +29,16 @@ pub fn main() !void {
     try nterm.init(allocator, FPS_TIMING_WINDOW, Player.DISPLAY_W + 2, Player.DISPLAY_H);
     defer nterm.deinit();
 
-    const settings = engine.Settings{
+    const settings = engine.GameSettings{
         .g = 0,
     };
-    const player_view = View.init(1, 0, Player.DISPLAY_W, Player.DISPLAY_H);
-    var player = Player.init(
-        allocator,
-        "You",
-        SevenBag.init(0),
-        player_view,
-        40.0 * FRAMERATE,
-        &settings,
-    );
+    const player_view = View{
+        .left = 1,
+        .top = 0,
+        .width = Player.DISPLAY_W,
+        .height = Player.DISPLAY_H,
+    };
+    var player = Player.init("You", SevenBag.init(0), player_view, &.{}, settings);
 
     var placement_i: usize = 0;
     var pc_queue = std.ArrayList([]Placement).init(allocator);
@@ -51,12 +49,17 @@ pub fn main() !void {
     }, pcThread, .{ allocator, player.state, &pc_queue });
     defer pc_thread.join();
 
-    const fps_view = View.init(1, 0, 15, 1);
+    const fps_view = View{
+        .left = 1,
+        .top = 0,
+        .width = 15,
+        .height = 1,
+    };
 
     var render_timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
     while (true) {
         if (render_timer.trigger()) |dt| {
-            try fps_view.printAt(0, 0, .White, .Black, "{d:.2}FPS", .{nterm.fps()});
+            fps_view.printAt(0, 0, .white, .black, "{d:.2}FPS", .{nterm.fps()});
 
             placePcPiece(allocator, &player, &pc_queue, &placement_i);
             player.tick(dt);

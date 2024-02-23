@@ -6,7 +6,6 @@ const math = std.math;
 const mem = std.mem;
 
 const nterm = @import("nterm");
-const View = nterm.View;
 const Color = nterm.Color;
 
 const engine = @import("engine");
@@ -14,7 +13,7 @@ const BoardMask = engine.bit_masks.BoardMask;
 const ClearInfo = engine.attack.ClearInfo;
 const Player = engine.Player(Bag, engine.kicks.srsPlus);
 const PieceKind = engine.pieces.PieceKind;
-const Settings = engine.Settings;
+const GameSettings = engine.GameSettings;
 
 const LeagueData = @import("main.zig").LeagueData;
 const replay = @import("replay.zig");
@@ -75,7 +74,7 @@ const Bag = struct {
 
     pub fn next(self: *Bag) PieceKind {
         if (self.index >= self.pieces.len) {
-            self.pieces = .{ .Z, .L, .O, .S, .I, .J, .T };
+            self.pieces = .{ .z, .l, .o, .s, .i, .j, .t };
             self.shuffle();
             self.index = 0;
         }
@@ -116,15 +115,15 @@ const Options = struct {
 
 const EventTag = enum {
     garbage,
-    garbageConfirm,
-    keyDown,
-    keyUp,
+    garbage_confirm,
+    key_down,
+    key_up,
 };
 const Event = union(EventTag) {
     garbage: GarbageEvent,
-    garbageConfirm: GarbageEvent,
-    keyDown: KeyEvent,
-    keyUp: KeyEvent,
+    garbage_confirm: GarbageEvent,
+    key_down: KeyEvent,
+    key_up: KeyEvent,
 
     pub fn fromEventJson(event_json: EventJson) ?Event {
         const data = event_json.data.object;
@@ -150,7 +149,7 @@ const Event = union(EventTag) {
                 return if (mem.eql(u8, event_type, "interaction"))
                     Event{ .garbage = event }
                 else if (mem.eql(u8, event_type, "interaction_confirm"))
-                    Event{ .garbageConfirm = event }
+                    Event{ .garbage_confirm = event }
                 else
                     null;
             },
@@ -169,9 +168,9 @@ const Event = union(EventTag) {
                     .hoisted = hoisted,
                 };
                 return if (event_json.type == .keydown)
-                    Event{ .keyDown = event }
+                    Event{ .key_down = event }
                 else
-                    Event{ .keyUp = event };
+                    Event{ .key_up = event };
             },
             else => return null,
         }
@@ -180,9 +179,9 @@ const Event = union(EventTag) {
     pub fn subframe(self: Event) u32 {
         return switch (self) {
             .garbage => self.garbage.subframe,
-            .garbageConfirm => self.garbageConfirm.subframe,
-            .keyDown => self.keyDown.subframe,
-            .keyUp => self.keyUp.subframe,
+            .garbage_confirm => self.garbage_confirm.subframe,
+            .key_down => self.key_down.subframe,
+            .key_up => self.key_up.subframe,
         };
     }
 };
@@ -196,31 +195,31 @@ const GarbageEvent = struct {
 
 const Key = enum {
     hold,
-    moveLeft,
-    moveRight,
-    rotateCW,
-    rotateCCW,
+    move_left,
+    move_right,
+    rotate_cw,
+    rotate_ccw,
     rotate180,
-    softDrop,
-    hardDrop,
+    soft_drop,
+    hard_drop,
 
     pub fn fromString(str: []const u8) ?Key {
         return if (mem.eql(u8, str, "hold"))
             .hold
         else if (mem.eql(u8, str, "moveLeft"))
-            .moveLeft
+            .move_left
         else if (mem.eql(u8, str, "moveRight"))
-            .moveRight
+            .move_right
         else if (mem.eql(u8, str, "rotateCW"))
-            .rotateCW
+            .rotate_cw
         else if (mem.eql(u8, str, "rotateCCW"))
-            .rotateCCW
+            .rotate_ccw
         else if (mem.eql(u8, str, "rotate180"))
             .rotate180
         else if (mem.eql(u8, str, "softDrop"))
-            .softDrop
+            .soft_drop
         else if (mem.eql(u8, str, "hardDrop"))
-            .hardDrop
+            .hard_drop
         else
             null;
     }
@@ -242,7 +241,7 @@ pub fn init(
     id: u32,
     frames: u32,
     event_jsons: []const EventJson,
-    settings: *const Settings,
+    settings: GameSettings,
     user_data: std.StringHashMap(LeagueData),
 ) !Self {
     var i: usize = 0;
@@ -282,11 +281,10 @@ pub fn init(
         .frames = frames,
         .events = undefined,
         .player = Player.init(
-            allocator,
             "",
             Bag.init(options.seed),
             .{ .left = 0, .top = 0, .width = 0, .height = 0 },
-            400.0 * replay.FRAMERATE,
+            &.{},
             settings,
         ),
         .arr = @intFromFloat(@round(options.handling.arr * 10)),
@@ -318,7 +316,6 @@ pub fn init(
 
 pub fn deinit(self: *Self) void {
     self.allocator.free(self.events);
-    self.player.deinit();
     self.garbage_queue.deinit(self.allocator);
     self.data.deinit(self.allocator);
 }
@@ -329,9 +326,9 @@ pub fn nextFrame(self: *Self, frame: u32) !bool {
         try self.nextSubframes(self.events[self.event_i].subframe());
         switch (self.events[self.event_i]) {
             .garbage => |event| self.handleGarbage(event),
-            .garbageConfirm => |event| self.handleGarbageConfirm(event),
-            .keyDown => |event| try self.handleKeyDown(event),
-            .keyUp => |event| self.handleKeyUp(event),
+            .garbage_confirm => |event| self.handleGarbageConfirm(event),
+            .key_down => |event| try self.handleKeyDown(event),
+            .key_up => |event| self.handleKeyUp(event),
         }
     }
     try self.nextSubframes(subframe);
@@ -418,7 +415,7 @@ fn handleGarbageConfirm(self: *Self, event: GarbageEvent) void {
 
 fn handleKeyDown(self: *Self, event: KeyEvent) !void {
     switch (event.key) {
-        .hold, .rotateCW, .rotateCCW, .rotate180 => self.applyDCD(event.subframe, false),
+        .hold, .rotate_cw, .rotate_ccw, .rotate180 => self.applyDCD(event.subframe, false),
         else => {},
     }
 
@@ -432,7 +429,7 @@ fn handleKeyDown(self: *Self, event: KeyEvent) !void {
             self.player.hold();
             self.adjustSpawn();
         },
-        .moveLeft => {
+        .move_left => {
             if (force_lock) {
                 try self.place(event.subframe);
             }
@@ -444,7 +441,7 @@ fn handleKeyDown(self: *Self, event: KeyEvent) !void {
                 self.left_shift_subframe.? += self.das;
             }
         },
-        .moveRight => {
+        .move_right => {
             if (force_lock) {
                 try self.place(event.subframe);
             }
@@ -456,13 +453,13 @@ fn handleKeyDown(self: *Self, event: KeyEvent) !void {
                 self.right_shift_subframe.? += self.das;
             }
         },
-        .rotateCW => {
+        .rotate_cw => {
             if (force_lock) {
                 try self.place(event.subframe);
             }
             self.player.rotateCw();
         },
-        .rotateCCW => {
+        .rotate_ccw => {
             if (force_lock) {
                 try self.place(event.subframe);
             }
@@ -474,11 +471,11 @@ fn handleKeyDown(self: *Self, event: KeyEvent) !void {
             }
             self.player.rotateDouble();
         },
-        .softDrop => {
+        .soft_drop => {
             self.softdropping = true;
             self.player.softDrop();
         },
-        .hardDrop => try self.place(event.subframe),
+        .hard_drop => try self.place(event.subframe),
     }
 }
 
@@ -523,7 +520,7 @@ fn place(self: *Self, subframe: u32) !void {
     self.applyDCD(subframe, true);
 
     // Tetr.io counts T-spin minis as difficult clears as well
-    if (clear_info.cleared > 0 and clear_info.t_spin == .Mini) {
+    if (clear_info.cleared > 0 and clear_info.t_spin == .mini) {
         self.player.state.b2b += 1;
     }
 
@@ -587,7 +584,7 @@ fn blockAndAttack(self: *Self, original_attack: u16) !void {
     if (actual_attack > 0) {
         try self.opponent.garbage_queue.append(self.opponent.allocator, .{
             // Don't set the subframe yet because of rollback, the proper subframe will be set by
-            // a garbageConfirm event later
+            // a garbage_confirm event later
             .subframe = std.math.maxInt(u32),
             .id = self.garbage_i,
             .hole = undefined,
@@ -597,7 +594,7 @@ fn blockAndAttack(self: *Self, original_attack: u16) !void {
 }
 
 fn getTetrioAttack(info: ClearInfo, b2b: u32, combo: u32, subframe: u32) u16 {
-    var attack: f64 = if (info.t_spin == .Full)
+    var attack: f64 = if (info.t_spin == .full)
         @floatFromInt(info.cleared * 2)
     else
         ([_]f64{ 0, 0, 1, 2, 4 })[info.cleared];
@@ -630,7 +627,7 @@ fn multiplyGarbage(attack: f64, subframe: u32) u16 {
 
 fn handleKeyUp(self: *Self, event: KeyEvent) void {
     switch (event.key) {
-        .moveLeft => {
+        .move_left => {
             if (self.left_shift_subframe) |t| {
                 if (event.subframe > t) {
                     self.player.moveLeftAll();
@@ -638,7 +635,7 @@ fn handleKeyUp(self: *Self, event: KeyEvent) void {
             }
             self.left_shift_subframe = null;
         },
-        .moveRight => {
+        .move_right => {
             if (self.right_shift_subframe) |t| {
                 if (event.subframe > t) {
                     self.player.moveRightAll();
@@ -646,7 +643,7 @@ fn handleKeyUp(self: *Self, event: KeyEvent) void {
             }
             self.right_shift_subframe = null;
         },
-        .softDrop => {
+        .soft_drop => {
             self.player.softDrop();
             self.softdropping = false;
         },
@@ -729,32 +726,32 @@ fn colorToString(color: ?Color) u8 {
         return 'N';
     }
     return switch (color.?) {
-        .Black => 'N',
-        .BrightCyan => 'I',
-        .BrightYellow => 'O',
-        .BrightMagenta => 'T',
-        .BrightGreen => 'S',
-        .Red => 'Z',
-        .Yellow => 'J',
-        .Blue => 'L',
-        .White => 'G',
+        .black => 'N',
+        .bright_cyan => 'I',
+        .bright_yellow => 'O',
+        .bright_magenta => 'T',
+        .bright_green => 'S',
+        .red => 'Z',
+        .yellow => 'J',
+        .blue => 'L',
+        .white => 'G',
         else => unreachable,
     };
 }
 
 fn tSpinToString(kind: engine.attack.TSpin) u8 {
     return switch (kind) {
-        .None => 'N',
-        .Mini => 'M',
-        .Full => 'F',
+        .none => 'N',
+        .mini => 'M',
+        .full => 'F',
     };
 }
 
 fn facingToString(facing: engine.pieces.Facing) u8 {
     return switch (facing) {
-        .Up => 'N',
-        .Right => 'E',
-        .Down => 'S',
-        .Left => 'W',
+        .up => 'N',
+        .right => 'E',
+        .down => 'S',
+        .left => 'W',
     };
 }

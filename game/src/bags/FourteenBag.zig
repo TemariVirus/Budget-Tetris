@@ -10,8 +10,8 @@ const PieceKind = @import("../root.zig").pieces.PieceKind;
 const Self = @This();
 
 pieces: [14]PieceKind = .{
-    .I, .O, .T, .S, .Z, .J, .L,
-    .I, .O, .T, .S, .Z, .J, .L,
+    .i, .o, .t, .s, .z, .j, .l,
+    .i, .o, .t, .s, .z, .j, .l,
 },
 index: u8 = 14,
 random: Xoroshiro128,
@@ -50,7 +50,7 @@ test "14-bag randomizer" {
     }
 
     // Should have 4 of each piece
-    const expected = [_]PieceKind{ .I, .O, .T, .S, .Z, .J, .L };
+    const expected = [_]PieceKind{ .i, .o, .t, .s, .z, .j, .l };
     for (expected) |piece| {
         const count = actual.get(piece) orelse 0;
         try expect(count == 4);

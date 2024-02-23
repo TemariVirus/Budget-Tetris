@@ -5,27 +5,27 @@ const Self = @This();
 
 pub const WIDTH = 10;
 pub const HEIGHT = 40;
-pub const EMPTY_COLOR = Color.Black;
-pub const GARBAGE_COLOR = Color.White;
-const EMPTY_BYTE = (@intFromEnum(PackedColor.Empty) << 4) | @intFromEnum(PackedColor.Empty);
+pub const EMPTY_COLOR = Color.black;
+pub const GARBAGE_COLOR = Color.white;
+const EMPTY_BYTE = (@intFromEnum(PackedColor.empty) << 4) | @intFromEnum(PackedColor.empty);
 
 const PackedColor = enum(u8) {
-    Empty,
-    Red,
-    Green,
-    Yellow,
-    Blue,
-    Magenta,
-    Cyan,
-    Garbage,
-    BrightBlack,
-    BrightRed,
-    BrightGreen,
-    BrightYellow,
-    BrightBlue,
-    BrightMagenta,
-    BrightCyan,
-    BrightWhite,
+    empty,
+    red,
+    green,
+    yellow,
+    blue,
+    magenta,
+    cyan,
+    garbage,
+    bright_black,
+    bright_red,
+    bright_green,
+    bright_yellow,
+    bright_blue,
+    bright_magenta,
+    bright_cyan,
+    bright_white,
 };
 
 data: [WIDTH * HEIGHT / 2]u8,
@@ -37,43 +37,43 @@ pub fn init() Self {
 
 fn pack(color: Color) PackedColor {
     return switch (color) {
-        .Black => .Empty,
-        .Red => .Red,
-        .Green => .Green,
-        .Yellow => .Yellow,
-        .Blue => .Blue,
-        .Magenta => .Magenta,
-        .Cyan => .Cyan,
-        .White => .Garbage,
-        .BrightBlack => .BrightBlack,
-        .BrightRed => .BrightRed,
-        .BrightGreen => .BrightGreen,
-        .BrightYellow => .BrightYellow,
-        .BrightBlue => .BrightBlue,
-        .BrightMagenta => .BrightMagenta,
-        .BrightCyan => .BrightCyan,
-        .BrightWhite => .BrightWhite,
+        .black => .empty,
+        .red => .red,
+        .green => .green,
+        .yellow => .yellow,
+        .blue => .blue,
+        .magenta => .magenta,
+        .cyan => .cyan,
+        .white => .garbage,
+        .bright_black => .bright_black,
+        .bright_red => .bright_red,
+        .bright_green => .bright_green,
+        .bright_yellow => .bright_yellow,
+        .bright_blue => .bright_blue,
+        .bright_magenta => .bright_magenta,
+        .bright_cyan => .bright_cyan,
+        .bright_white => .bright_white,
     };
 }
 
 fn unpack(color: PackedColor) Color {
     return switch (color) {
-        .Empty => .Black,
-        .Red => .Red,
-        .Green => .Green,
-        .Yellow => .Yellow,
-        .Blue => .Blue,
-        .Magenta => .Magenta,
-        .Cyan => .Cyan,
-        .Garbage => .White,
-        .BrightBlack => .BrightBlack,
-        .BrightRed => .BrightRed,
-        .BrightGreen => .BrightGreen,
-        .BrightYellow => .BrightYellow,
-        .BrightBlue => .BrightBlue,
-        .BrightMagenta => .BrightMagenta,
-        .BrightCyan => .BrightCyan,
-        .BrightWhite => .BrightWhite,
+        .empty => .black,
+        .red => .red,
+        .green => .green,
+        .yellow => .yellow,
+        .blue => .blue,
+        .magenta => .magenta,
+        .cyan => .cyan,
+        .garbage => .white,
+        .bright_black => .bright_black,
+        .bright_red => .bright_red,
+        .bright_green => .bright_green,
+        .bright_yellow => .bright_yellow,
+        .bright_blue => .bright_blue,
+        .bright_magenta => .bright_magenta,
+        .bright_cyan => .bright_cyan,
+        .bright_white => .bright_white,
     };
 }
 
@@ -112,7 +112,7 @@ pub fn copyRow(self: *Self, dst: usize, src: usize) void {
 
 pub fn isRowFull(colors: Self, y: usize) bool {
     assert(y < HEIGHT);
-    const empty = @intFromEnum(PackedColor.Empty);
+    const empty = @intFromEnum(PackedColor.empty);
 
     const i = y * WIDTH / 2;
     for (colors.data[i .. i + WIDTH / 2]) |color| {
@@ -127,7 +127,7 @@ pub fn isRowFull(colors: Self, y: usize) bool {
 
 pub fn isRowGarbage(colors: Self, y: usize) bool {
     assert(y < HEIGHT);
-    const garbage = @intFromEnum(PackedColor.Garbage);
+    const garbage = @intFromEnum(PackedColor.garbage);
 
     const i = y * WIDTH / 2;
     for (colors.data[i .. i + WIDTH / 2]) |color| {

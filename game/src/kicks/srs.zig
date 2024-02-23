@@ -32,7 +32,7 @@ const cw_kicks = [4][4]Position{
     },
 };
 
-const CCw_kicks = [4][4]Position{
+const ccw_kicks = [4][4]Position{
     [4]Position{
         Position{ .x = 1, .y = 0 },
         Position{ .x = 1, .y = 1 },
@@ -86,7 +86,7 @@ const cw_i_kicks = [4][4]Position{
     },
 };
 
-const CCw_i_kicks = [4][4]Position{
+const ccw_i_kicks = [4][4]Position{
     [4]Position{
         Position{ .x = -1, .y = 0 },
         Position{ .x = 2, .y = 0 },
@@ -116,16 +116,16 @@ const CCw_i_kicks = [4][4]Position{
 /// Classic SRS kicks. No 180 kicks.
 pub fn srs(piece: Piece, rotation: Rotation) []const Position {
     return &switch (rotation) {
-        .QuarterCw => switch (piece.kind) {
-            .I => cw_i_kicks[@intFromEnum(piece.facing)],
-            .O => no_kicks,
-            .T, .S, .Z, .J, .L => cw_kicks[@intFromEnum(piece.facing)],
+        .quarter_cw => switch (piece.kind) {
+            .i => cw_i_kicks[@intFromEnum(piece.facing)],
+            .o => no_kicks,
+            .t, .s, .z, .j, .l => cw_kicks[@intFromEnum(piece.facing)],
         },
-        .Half => no_kicks,
-        .QuarterCCw => switch (piece.kind) {
-            .I => CCw_i_kicks[@intFromEnum(piece.facing)],
-            .O => no_kicks,
-            .T, .S, .Z, .J, .L => CCw_kicks[@intFromEnum(piece.facing)],
+        .half => no_kicks,
+        .quarter_ccw => switch (piece.kind) {
+            .i => ccw_i_kicks[@intFromEnum(piece.facing)],
+            .o => no_kicks,
+            .t, .s, .z, .j, .l => ccw_kicks[@intFromEnum(piece.facing)],
         },
     };
 }
