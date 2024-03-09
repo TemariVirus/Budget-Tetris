@@ -8,50 +8,18 @@ const root = @import("root.zig");
 const KickFn = root.kicks.KickFn;
 const Settings = root.GameSettings;
 
-fn BoundedArray(comptime T: type) type {
-    return struct {
-        items: []T,
-        len: usize,
-
-        const Self = @This();
-
-        pub fn init(allocator: Allocator, len: usize) !Self {
-            const items = try allocator.alloc(T, len);
-            return Self{ .items = items, .len = len };
-        }
-
-        pub fn deinit(self: Self, allocator: Allocator) void {
-            allocator.free(self.items);
-        }
-
-        pub fn swapRemove(self: *Self, index: usize) void {
-            assert(index < self.len);
-            self.len -= 1;
-            std.mem.swap(T, &self.items[index], &self.items[self.len]);
-        }
-
-        pub fn slice(self: Self) []T {
-            return self.items[0..self.len];
-        }
-    };
-}
-
 pub fn Match(comptime Bag: type, comptime kicks: KickFn) type {
     const Player = root.Player(Bag, kicks);
 
     return struct {
-        alive_indices: BoundedArray(usize),
+        // Players and bots are likely to maintain references to the player objects, so we
+        // they must NOT be moved after initialisation.
         players: []Player,
 
         const Self = @This();
 
         pub fn init(allocator: Allocator, player_count: usize, bag: Bag, default_settings: Settings) !Self {
             assert(player_count > 0);
-
-            const alive_indices = try BoundedArray(usize).init(allocator, player_count);
-            for (alive_indices.items, 0..) |*index, i| {
-                index.* = i;
-            }
 
             const size = optimalSize(player_count);
             const players = try allocator.alloc(Player, player_count);
@@ -71,10 +39,7 @@ pub fn Match(comptime Bag: type, comptime kicks: KickFn) type {
                 );
             }
 
-            return Self{
-                .alive_indices = alive_indices,
-                .players = players,
-            };
+            return Self{ .players = players };
         }
 
         fn optimalSize(player_count: usize) struct { width: u16, height: u16 } {
@@ -99,25 +64,11 @@ pub fn Match(comptime Bag: type, comptime kicks: KickFn) type {
 
         pub fn deinit(self: Self, allocator: Allocator) void {
             allocator.free(self.players);
-            self.alive_indices.deinit(allocator);
         }
 
         pub fn tick(self: *Self, nanoseconds: u64) void {
-            var i: usize = 0;
-            while (i < self.alive_indices.len) {
-                const player = &self.players[self.alive_indices.items[i]];
-                if (!player.alive) {
-                    self.alive_indices.swapRemove(i);
-                    continue;
-                }
-
-                player.tick(nanoseconds, i, self.alive_indices.slice(), self.players);
-
-                if (!player.alive) {
-                    self.alive_indices.swapRemove(i);
-                } else {
-                    i += 1;
-                }
+            for (self.players, 0..) |*player, i| {
+                player.tick(nanoseconds, i, self.players);
             }
         }
 

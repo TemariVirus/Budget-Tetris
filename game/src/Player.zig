@@ -1,10 +1,13 @@
-// TODO: Add death animation
+// TODO: Add clear animation
 const std = @import("std");
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
 
 const nterm = @import("nterm");
+const Animation = nterm.Animation;
 const Color = nterm.Color;
+const Frame = nterm.Frame;
+const Pixel = nterm.Pixel;
 const View = nterm.View;
 
 const root = @import("root.zig");
@@ -19,6 +22,43 @@ const Settings = root.GameSettings;
 const sound = root.sound;
 const Stat = root.GameSettings.Stat;
 
+const ANIM_TIME_NULL = std.math.maxInt(u64);
+const Animations = struct {
+    const TRANSPERENT_ROW = [_]Pixel{.{ .fg = Color.none, .bg = Color.none, .char = 0 }} ** 20;
+    const BLACK_ROW = [_]Pixel{.{ .fg = Color.black, .bg = Color.black, .char = ' ' }} ** 20;
+
+    const DEATH_WIDTH = 20;
+    const DEATH_HEIGHT = 20;
+    const DEATH_FRAMES = blk: {
+        var frames = [_]Frame{undefined} ** 21;
+        for (0..frames.len) |i| {
+            var pixels = TRANSPERENT_ROW ** (frames.len - i - 1) ++ BLACK_ROW ** i;
+            frames[i] = .{
+                .size = .{ .width = DEATH_WIDTH, .height = DEATH_HEIGHT },
+                .pixels = &pixels,
+            };
+        }
+
+        // Add dead face
+        var x = 7;
+        var face = std.unicode.Utf8Iterator{ .bytes = "(x╭╮x)", .i = 0 };
+        while (face.nextCodepoint()) |c| {
+            frames[frames.len - 1].set(x, 7, .{ .fg = Color.white, .bg = Color.black, .char = c });
+            x += 1;
+        }
+
+        break :blk &frames;
+    };
+    const DEATH_TIMES = blk: {
+        var times = [_]u64{undefined} ** 21;
+        for (0..times.len - 1) |i| {
+            times[i] = @as(u64, @intCast(i + 1)) * 100 * std.time.ns_per_ms;
+        }
+        times[times.len - 1] = std.math.maxInt(u64);
+        break :blk &times;
+    };
+};
+
 const IncomingGarbage = packed struct {
     /// The x position of the hole in the garbage.
     hole: u4,
@@ -27,6 +67,7 @@ const IncomingGarbage = packed struct {
     /// The time in miliseconds at which the garbage should be added.
     time: u44,
 };
+// Use a bounded array to avoid dynamic allocation
 const GarbageQueue = std.BoundedArray(IncomingGarbage, 25);
 
 pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
@@ -37,6 +78,65 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
         pub const DISPLAY_W = 44;
         pub const DISPLAY_H = 24;
+
+        const AlivePlayers = struct {
+            players: []Self,
+
+            pub fn count(self: AlivePlayers) usize {
+                var result: usize = 0;
+                for (self.players) |p| {
+                    if (p.alive()) {
+                        result += 1;
+                    }
+                }
+                return result;
+            }
+
+            pub fn iter(self: AlivePlayers) AlivePlayersIterator {
+                return AlivePlayersIterator{ .players = self.players };
+            }
+
+            pub fn getAt(self: AlivePlayers, index: usize) *Self {
+                var i: usize = 0;
+                for (self.players) |*p| {
+                    if (p.alive()) {
+                        if (i == index) {
+                            return p;
+                        }
+                        i += 1;
+                    }
+                }
+                unreachable;
+            }
+
+            pub fn getAtButSelf(self: AlivePlayers, index: usize, self_index: usize) *Self {
+                var i: usize = 0;
+                for (self.players, 0..) |*p, j| {
+                    if (p.alive() and j != self_index) {
+                        if (i == index) {
+                            return p;
+                        }
+                        i += 1;
+                    }
+                }
+                unreachable;
+            }
+        };
+
+        const AlivePlayersIterator = struct {
+            players: []Self,
+            index: usize = 0,
+
+            pub fn next(self: *AlivePlayersIterator) ?*Self {
+                while (self.index < self.players.len) {
+                    defer self.index += 1;
+                    if (self.players[self.index].alive()) {
+                        return &self.players[self.index];
+                    }
+                }
+                return null;
+            }
+        };
 
         name: []const u8,
         state: GameState,
@@ -53,7 +153,6 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         view: View,
         settings: Settings,
 
-        alive: bool = true,
         already_held: bool = false,
         last_kick: i8 = -1,
         move_count: u8 = 0,
@@ -62,7 +161,10 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         soft_dropping: bool = false,
         vel: f32 = 0.0,
 
-        // TODO: Group into stats struct
+        clears: [4]u8 = undefined,
+        clear_anim_time: u64 = ANIM_TIME_NULL,
+        death_anim_time: u64 = ANIM_TIME_NULL,
+
         /// The number of nanoseconds since the game started.
         time: u64 = 0,
         lines_cleared: u32 = 0,
@@ -89,9 +191,13 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             };
         }
 
+        pub fn alive(self: Self) bool {
+            return self.death_anim_time == ANIM_TIME_NULL;
+        }
+
         /// Holds the current piece, or does nothing if the piece has already been held.
         pub fn hold(self: *Self) void {
-            if (!self.alive) {
+            if (!self.alive()) {
                 return;
             }
 
@@ -109,7 +215,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn moveLeft(self: *Self, das: bool) void {
-            if (!self.alive) {
+            if (!self.alive()) {
                 return;
             }
 
@@ -134,7 +240,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
         /// Assumes that the move was caused by DAS and does not count as an extra keypress.
         pub fn moveLeftAll(self: *Self) void {
-            if (!self.alive) {
+            if (!self.alive()) {
                 return;
             }
 
@@ -151,7 +257,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn moveRight(self: *Self, das: bool) void {
-            if (!self.alive) {
+            if (!self.alive()) {
                 return;
             }
 
@@ -176,7 +282,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
         /// Assumes that the move was caused by DAS and does not count as an extra keypress.
         pub fn moveRightAll(self: *Self) void {
-            if (!self.alive) {
+            if (!self.alive()) {
                 return;
             }
 
@@ -193,7 +299,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn rotateCw(self: *Self) void {
-            if (!self.alive) {
+            if (!self.alive()) {
                 return;
             }
 
@@ -213,7 +319,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn rotateDouble(self: *Self) void {
-            if (!self.alive) {
+            if (!self.alive()) {
                 return;
             }
 
@@ -233,7 +339,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn rotateCcw(self: *Self) void {
-            if (!self.alive) {
+            if (!self.alive()) {
                 return;
             }
 
@@ -253,14 +359,14 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         pub fn softDrop(self: *Self) void {
-            if (!self.alive or self.soft_dropping) {
+            if (!self.alive() or self.soft_dropping) {
                 return;
             }
             self.soft_dropping = true;
         }
 
-        pub fn hardDrop(self: *Self, self_index: usize, alive_indices: []usize, players: []Self) void {
-            if (!self.alive) {
+        pub fn hardDrop(self: *Self, self_index: usize, players: []Self) void {
+            if (!self.alive()) {
                 return;
             }
 
@@ -271,12 +377,12 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             sound.playSfx(.hard_drop) catch {};
-            self.placeCurrent(self_index, alive_indices, players);
+            self.placeCurrent(self_index, players);
         }
 
-        fn placeCurrent(self: *Self, self_index: usize, alive_indices: []usize, players: []Self) void {
+        fn placeCurrent(self: *Self, self_index: usize, players: []Self) void {
             const clear_info = self.lockCurrent();
-            self.handleGarbage(clear_info.info.cleared > 0, clear_info.attack, self_index, alive_indices, players);
+            self.handleGarbage(clear_info.info.cleared > 0, clear_info.attack, self_index, players);
             self.updateStats(clear_info.info, clear_info.score, clear_info.attack);
             self.clearLines();
 
@@ -311,7 +417,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             if (self.state.playfield.collides(self.state.current.mask(), self.state.pos) or // Block out
                 (self.settings.use_lockout and self.state.pos.y - self.state.current.bottom() >= 20)) // Lock out
             {
-                self.alive = false;
+                self.death_anim_time = 0;
             }
         }
 
@@ -320,7 +426,6 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             cleared: bool,
             attack: u16,
             self_index: usize,
-            alive_indices: []usize,
             players: []Self,
         ) void {
             // Counter garbage
@@ -337,20 +442,60 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             }
 
             // Send remaining attack
-            const targets = self.selectTargets(self_index, alive_indices);
-            for (targets.first) |j| {
-                players[j].queueGarbage(
-                    null,
-                    remaining_attack,
-                    self.time + self.settings.garbage_delay * std.time.ns_per_ms,
-                );
-            }
-            for (targets.second) |j| {
-                players[j].queueGarbage(
-                    null,
-                    remaining_attack,
-                    self.time + self.settings.garbage_delay * std.time.ns_per_ms,
-                );
+            const alive_players = AlivePlayers{ .players = players };
+            switch (self.settings.target_mode) {
+                .none => {},
+                .random => {
+                    const index = std.crypto.random.uintLessThan(usize, alive_players.count());
+                    alive_players.getAt(index).queueGarbage(
+                        null,
+                        remaining_attack,
+                        self.time + self.settings.garbage_delay * std.time.ns_per_ms,
+                    );
+                },
+                .random_but_self => blk: {
+                    const alive_count = if (self.alive()) alive_players.count() - 1 else alive_players.count();
+                    if (alive_count == 0) {
+                        break :blk;
+                    }
+
+                    const index = std.crypto.random.uintLessThan(usize, alive_count);
+                    alive_players.getAtButSelf(index, self_index).queueGarbage(
+                        null,
+                        remaining_attack,
+                        self.time + self.settings.garbage_delay * std.time.ns_per_ms,
+                    );
+                },
+                .all => {
+                    var iter = alive_players.iter();
+                    while (iter.next()) |p| {
+                        p.queueGarbage(
+                            null,
+                            remaining_attack,
+                            self.time + self.settings.garbage_delay * std.time.ns_per_ms,
+                        );
+                    }
+                },
+                .all_but_self => {
+                    var iter = alive_players.iter();
+                    while (iter.next()) |p| {
+                        if (iter.index == self_index) {
+                            continue;
+                        }
+                        p.queueGarbage(
+                            null,
+                            remaining_attack,
+                            self.time + self.settings.garbage_delay * std.time.ns_per_ms,
+                        );
+                    }
+                },
+                .self => {
+                    players[self_index].queueGarbage(
+                        null,
+                        remaining_attack,
+                        self.time + self.settings.garbage_delay * std.time.ns_per_ms,
+                    );
+                },
             }
 
             // Receive garbage
@@ -376,33 +521,6 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
                 self.garbage_queue.buffer[j] = self.garbage_queue.buffer[i + j];
             }
             self.garbage_queue.len -= @intCast(i);
-        }
-
-        fn selectTargets(self: Self, self_index: usize, alive_indices: []usize) struct {
-            first: []usize = &.{},
-            second: []usize = &.{},
-        } {
-            return switch (self.settings.target_mode) {
-                .none => .{},
-                .random => .{ .first = alive_indices[std.crypto.random.uintLessThan(usize, alive_indices.len)..][0..1] },
-                .random_but_self => blk: {
-                    if (alive_indices.len == 1) {
-                        break :blk .{};
-                    }
-
-                    var index = std.crypto.random.uintLessThan(usize, alive_indices.len - 1);
-                    if (index >= self_index) {
-                        index += 1;
-                    }
-                    break :blk .{ .first = alive_indices[index .. index + 1] };
-                },
-                .all => .{ .first = alive_indices },
-                .all_but_self => .{
-                    .first = alive_indices[0..self_index],
-                    .second = alive_indices[self_index + 1 .. alive_indices.len],
-                },
-                .self => .{ .first = alive_indices[self_index .. self_index + 1] },
-            };
         }
 
         fn lockCurrent(self: *Self) struct { info: ClearInfo, score: u64, attack: u16 } {
@@ -525,8 +643,15 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         }
 
         /// Advances the game.
-        pub fn tick(self: *Self, nanoseconds: u64, self_index: usize, alive_indices: []usize, players: []Self) void {
-            if (!self.alive) {
+        pub fn tick(self: *Self, nanoseconds: u64, self_index: usize, players: []Self) void {
+            if (self.clear_anim_time != ANIM_TIME_NULL) {
+                // if (self.clear_anim_time >= Animations.CLEAR_TIMES[Animations.CLEAR_TIMES.len - 1]) {
+                //     self.clear_anim_time = ANIM_TIME_NULL;
+                // }
+                self.clear_anim_time += nanoseconds;
+            }
+            if (!self.alive()) {
+                self.death_anim_time += nanoseconds;
                 return;
             }
 
@@ -541,7 +666,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
                 if (self.move_count > self.settings.autolock_grace or
                     now -| self.last_move_time >= self.settings.lock_delay * std.time.ns_per_ms)
                 {
-                    self.placeCurrent(self_index, alive_indices, players);
+                    self.placeCurrent(self_index, players);
                     sound.playSfx(.landing) catch {};
                 }
             }
@@ -770,6 +895,16 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
             // Current piece
             state.pos.y += @intCast(dropped);
             drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, true);
+
+            // Death animation
+            if (!self.alive()) {
+                _ = (Animation{
+                    .time = self.death_anim_time,
+                    .frames = Animations.DEATH_FRAMES,
+                    .frame_times = Animations.DEATH_TIMES,
+                    .view = matrix_box_inner,
+                }).forceRender();
+            }
         }
 
         fn drawGarbageMeter(self: Self) void {

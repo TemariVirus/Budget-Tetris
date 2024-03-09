@@ -32,6 +32,7 @@ data: [WIDTH * HEIGHT / 2]u8 = [_]u8{EMPTY_BYTE} ** (WIDTH * HEIGHT / 2),
 
 fn pack(color: Color) PackedColor {
     return switch (color) {
+        .none => unreachable,
         .black => .empty,
         .red => .red,
         .green => .green,

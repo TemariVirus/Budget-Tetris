@@ -17,6 +17,7 @@ const View = nterm.View;
 
 // TODO: check that view is updated when current frame updates
 // TODO: Add title screen
+// TODO: Add restart
 
 // 2 * 8 is close to 15.625, so other programs should be affacted minimally.
 // Also, 1000 / 8 = 125 is close to 120Hz
@@ -107,7 +108,7 @@ const MoveFuncs = struct {
             return;
         }
 
-        match.players[0].hardDrop(0, match.alive_indices.slice(), match.players);
+        match.players[0].hardDrop(0, match.players);
     }
 
     fn hold() void {

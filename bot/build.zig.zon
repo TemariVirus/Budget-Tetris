@@ -6,10 +6,6 @@
         .engine = .{
             .path = "../game",
         },
-        .nterm = .{
-            .url = "https://github.com/Zemogus/nterm/archive/56430a7a7a3a560e32451d2877960b9a8962ff47.tar.gz",
-            .hash = "12204446700d1837954a104cf7148c5914d37737803bbb1adf3e45ff2c6549e5f2bd",
-        },
     },
     .paths = .{
         "build.zig",
