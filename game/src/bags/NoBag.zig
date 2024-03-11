@@ -18,5 +18,5 @@ pub fn next(self: *Self) PieceKind {
 
 /// Sets the seed of the bag.
 pub fn setSeed(self: *Self, seed: u64) void {
-    self.random = Xoroshiro128.init(seed);
+    self.* = init(seed);
 }

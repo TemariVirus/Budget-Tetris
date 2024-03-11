@@ -33,7 +33,7 @@ pub fn next(self: *Self) PieceKind {
 
 /// Sets the seed of the bag. The current bag will be discarded and refilled.
 pub fn setSeed(self: *Self, seed: u64) void {
-    self.random = Xoroshiro128.init(seed);
+    self.* = init(seed);
 }
 
 test "14-bag randomizer" {

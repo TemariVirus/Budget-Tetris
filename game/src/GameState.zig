@@ -23,33 +23,24 @@ const Facing = pieces.Facing;
 const KickFn = root.kicks.KickFn;
 const Rotation = root.kicks.Rotation;
 
-pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
+pub fn GameState(comptime BagImpl: type, comptime kicks: KickFn) type {
     return struct {
-        const Self = @This();
-
-        playfield: BoardMask,
-        pos: Position,
-        current: Piece,
-        hold_kind: ?PieceKind,
+        playfield: BoardMask = BoardMask{},
+        pos: Position = undefined,
+        current: Piece = undefined,
+        hold_kind: ?PieceKind = null,
         /// At most 7 next pieces can be displayed, so don't store more. If more
         /// lookaheads are required, use a copy of the current bag.
-        next_pieces: [7]PieceKind,
+        next_pieces: [7]PieceKind = undefined,
         bag: Bag,
-        b2b: u32,
-        combo: u32,
+        b2b: u32 = 0,
+        combo: u32 = 0,
 
-        // TODO: Revisit whether allowing for generic bags is worth it
+        const Self = @This();
+        const Bag = root.bags.Bag(BagImpl);
+
         pub fn init(bag: Bag) Self {
-            var game = Self{
-                .playfield = BoardMask{},
-                .pos = undefined,
-                .current = undefined,
-                .hold_kind = null,
-                .next_pieces = undefined,
-                .bag = bag,
-                .b2b = 0,
-                .combo = 0,
-            };
+            var game = Self{ .bag = bag };
             for (&game.next_pieces) |*piece| {
                 piece.* = game.bag.next();
             }
@@ -284,6 +275,15 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
             }
         }
 
+        /// Restarts the game with the given seed. If `seed` is `null`, the seed is
+        /// unchanged.
+        pub fn restart(self: *Self, seed: ?u64) void {
+            if (seed) |s| {
+                self.bag.setSeed(s);
+            }
+            self.* = init(self.bag);
+        }
+
         // For debugging
         pub fn format(self: Self, comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
             _ = fmt;
@@ -367,7 +367,7 @@ pub fn GameState(comptime Bag: type, comptime kicks: KickFn) type {
 
 test "DT cannon" {
     var game = GameState(root.bags.SevenBag, root.kicks.srsPlus)
-        .init(root.bags.SevenBag.init(69));
+        .init(.{ .context = root.bags.SevenBag.init(69) });
 
     // J piece
     game.hold();

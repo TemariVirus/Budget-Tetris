@@ -8,8 +8,8 @@ const root = @import("root.zig");
 const KickFn = root.kicks.KickFn;
 const Settings = root.GameSettings;
 
-pub fn Match(comptime Bag: type, comptime kicks: KickFn) type {
-    const Player = root.Player(Bag, kicks);
+pub fn Match(comptime BagImpl: type, comptime kicks: KickFn) type {
+    const Player = root.Player(BagImpl, kicks);
 
     return struct {
         // Players and bots are likely to maintain references to the player objects, so we
@@ -18,7 +18,7 @@ pub fn Match(comptime Bag: type, comptime kicks: KickFn) type {
 
         const Self = @This();
 
-        pub fn init(allocator: Allocator, player_count: usize, bag: Bag, default_settings: Settings) !Self {
+        pub fn init(allocator: Allocator, player_count: usize, bag: BagImpl, default_settings: Settings) !Self {
             assert(player_count > 0);
 
             const size = optimalSize(player_count);
@@ -28,7 +28,7 @@ pub fn Match(comptime Bag: type, comptime kicks: KickFn) type {
                 const col = i % size.width;
                 player.* = Player.init(
                     "",
-                    bag,
+                    .{ .context = bag },
                     View{
                         .left = @intCast(1 + (Player.DISPLAY_W + 1) * col),
                         .top = @intCast((Player.DISPLAY_H + 1) * row),
@@ -66,9 +66,16 @@ pub fn Match(comptime Bag: type, comptime kicks: KickFn) type {
             allocator.free(self.players);
         }
 
-        pub fn tick(self: *Self, nanoseconds: u64) void {
+        pub fn tick(self: Self, nanoseconds: u64) void {
             for (self.players, 0..) |*player, i| {
                 player.tick(nanoseconds, i, self.players);
+            }
+        }
+
+        pub fn restart(self: Self) void {
+            const seed = std.crypto.random.int(u64);
+            for (self.players) |*player| {
+                player.restart(seed);
             }
         }
 

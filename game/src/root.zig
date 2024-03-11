@@ -55,6 +55,7 @@ pub const GameSettings = struct {
     use_lockout: bool = false,
     autolock_grace: u8 = 15,
     lock_delay: u32 = 500,
+    clear_delay: u32 = 0,
     clear_erase_dalay: u32 = 1000,
     garbage_delay: u32 = 500,
     garbage_cap: u16 = 8,

@@ -32,8 +32,7 @@ pub fn NBag(comptime N: usize) type {
         }
 
         /// Returns the next piece in the bag.
-        pub fn next(ptr: *Self) PieceKind {
-            const self: *Self = @ptrCast(@alignCast(ptr));
+        pub fn next(self: *Self) PieceKind {
             if (self.index >= self.pieces.len) {
                 self.refill();
                 self.index = 0;
@@ -44,10 +43,8 @@ pub fn NBag(comptime N: usize) type {
         }
 
         /// Sets the seed of the bag. The current bag will be discarded and refilled.
-        pub fn setSeed(ptr: *Self, seed: u64) void {
-            const self: *Self = @ptrCast(@alignCast(ptr));
-            self.index = N;
-            self.random = Xoroshiro128.init(seed);
+        pub fn setSeed(self: *Self, seed: u64) void {
+            self.* = init(seed);
         }
     };
 }

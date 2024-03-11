@@ -17,7 +17,6 @@ const View = nterm.View;
 
 // TODO: check that view is updated when current frame updates
 // TODO: Add title screen
-// TODO: Add restart
 
 // 2 * 8 is close to 15.625, so other programs should be affacted minimally.
 // Also, 1000 / 8 = 125 is close to 120Hz
@@ -130,6 +129,11 @@ const MoveFuncs = struct {
             player.move_count += 1;
         }
     }
+
+    fn restart() void {
+        paused = false;
+        match.restart();
+    }
 };
 
 pub fn main() !void {
@@ -217,6 +221,8 @@ fn togglePause() void {
 fn setupPlayerInput(match: *Match) !void {
     MoveFuncs.match = match;
     match.players[0].name = "You";
+
+    _ = try input.addKeyTrigger(.R, 0, null, MoveFuncs.restart);
 
     _ = try input.addKeyTrigger(.C, 0, null, MoveFuncs.hold);
 

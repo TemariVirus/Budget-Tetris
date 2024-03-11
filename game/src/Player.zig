@@ -70,11 +70,11 @@ const IncomingGarbage = packed struct {
 // Use a bounded array to avoid dynamic allocation
 const GarbageQueue = std.BoundedArray(IncomingGarbage, 25);
 
-pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
-    const GameState = root.GameState(Bag, kicks);
-
+pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
     return struct {
         const Self = @This();
+        const GameState = root.GameState(BagImpl, kicks);
+        const Bag = root.bags.Bag(BagImpl);
 
         pub const DISPLAY_W = 44;
         pub const DISPLAY_H = 24;
@@ -645,6 +645,7 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
         /// Advances the game.
         pub fn tick(self: *Self, nanoseconds: u64, self_index: usize, players: []Self) void {
             if (self.clear_anim_time != ANIM_TIME_NULL) {
+                // Reset clear animation when it's done
                 // if (self.clear_anim_time >= Animations.CLEAR_TIMES[Animations.CLEAR_TIMES.len - 1]) {
                 //     self.clear_anim_time = ANIM_TIME_NULL;
                 // }
@@ -684,6 +685,15 @@ pub fn Player(comptime Bag: type, comptime kicks: KickFn) type {
 
             self.time = now;
             self.soft_dropping = false;
+        }
+
+        /// Restarts the game with the given seed. If `seed` is `null`, the seed is
+        /// unchanged.
+        pub fn restart(self: *Self, seed: ?u64) void {
+            if (seed) |s| {
+                self.state.bag.setSeed(s);
+            }
+            self.* = init(self.name, self.state.bag, self.view, self.settings);
         }
 
         /// Returns the current level
