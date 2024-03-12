@@ -51,16 +51,27 @@ pub const GameSettings = struct {
 
     // Gravity assumes 60 FPS
     g: f32 = 0.025 * 60,
+    /// Gravity for soft drops.
     soft_g: f32 = 400 * 60,
+    /// Whether to use lockout.
     use_lockout: bool = false,
+    /// The number of moves before a piece autolocks.
     autolock_grace: u8 = 15,
+    /// The delay before locking a piece, in milliseconds.
     lock_delay: u32 = 500,
+    /// The length of the clear animation, in milliseconds.
     clear_delay: u32 = 0,
+    /// The delay before erasing clear info, in milliseconds.
     clear_erase_dalay: u32 = 1000,
+    /// The delay before garbage is sent, in milliseconds.
     garbage_delay: u32 = 500,
+    /// The max amount of garbage that can be received at once.
     garbage_cap: u16 = 8,
+    /// The number of next pieces to show.
     show_next_count: u3 = 6,
+    /// The stats to display.
     display_stats: [3]Stat = .{ .pps, .app, .vs_score },
+    /// The attack table to use.
     attack_table: attack.AttackTable = .{
         .b2b = &.{ 0, 0, 1 },
         .clears = .{ 0, 0, 1, 2, 4 },
@@ -68,6 +79,7 @@ pub const GameSettings = struct {
         .perfect_clear = .{ 10, 10, 10, 10 },
         .t_spin = .{ 0, 2, 4, 6 },
     },
+    /// The target mode to use.
     target_mode: attack.TargetMode = .random_but_self,
 };
 

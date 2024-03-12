@@ -1,4 +1,3 @@
-// TODO: Add clear animation
 const std = @import("std");
 const assert = std.debug.assert;
 const Allocator = std.mem.Allocator;
@@ -12,6 +11,7 @@ const View = nterm.View;
 
 const root = @import("root.zig");
 const AttackTable = root.attack.AttackTable;
+const BoardMask = root.bit_masks.BoardMask;
 const ClearInfo = root.attack.ClearInfo;
 const TargetMode = root.attack.TargetMode;
 const ColorArray = @import("ColorArray.zig");
@@ -22,10 +22,33 @@ const Settings = root.GameSettings;
 const sound = root.sound;
 const Stat = root.GameSettings.Stat;
 
-const ANIM_TIME_NULL = std.math.maxInt(u64);
 const Animations = struct {
-    const TRANSPERENT_ROW = [_]Pixel{.{ .fg = Color.none, .bg = Color.none, .char = 0 }} ** 20;
-    const BLACK_ROW = [_]Pixel{.{ .fg = Color.black, .bg = Color.black, .char = ' ' }} ** 20;
+    const TRANSPERENT_PIXEL = Pixel{ .fg = Color.none, .bg = Color.none, .char = 0 };
+    const TRANSPERENT_ROW = [_]Pixel{TRANSPERENT_PIXEL} ** 20;
+    const BLACK_PIXEL = Pixel{ .fg = Color.black, .bg = Color.black, .char = ' ' };
+    const BLACK_ROW = [_]Pixel{BLACK_PIXEL} ** 20;
+
+    const CLEAR_WIDTH = 20;
+    const CLEAR_HEIGHT = 1;
+    const CLEAR_FRAMES = blk: {
+        var frames = [_]Frame{undefined} ** 5;
+        for (0..frames.len) |i| {
+            var pixels = [_]Pixel{TRANSPERENT_PIXEL} ** (2 * (5 - i)) ++ [_]Pixel{BLACK_PIXEL} ** (4 * i) ++ [_]Pixel{TRANSPERENT_PIXEL} ** (2 * (5 - i));
+            frames[i] = .{
+                .size = .{ .width = CLEAR_WIDTH, .height = CLEAR_HEIGHT },
+                .pixels = &pixels,
+            };
+        }
+        break :blk &frames;
+    };
+    pub fn clearTimes(clear_delay: u32) [5]u64 {
+        var times = [_]u64{undefined} ** 5;
+        for (0..times.len - 1) |i| {
+            times[i] = std.time.ns_per_ms / 5 * @as(u64, @intCast(i + 1)) * clear_delay;
+        }
+        times[4] = std.math.maxInt(u64);
+        return times;
+    }
 
     const DEATH_WIDTH = 20;
     const DEATH_HEIGHT = 20;
@@ -161,11 +184,12 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
         soft_dropping: bool = false,
         vel: f32 = 0.0,
 
-        clears: [4]u8 = undefined,
-        clear_anim_time: u64 = ANIM_TIME_NULL,
-        death_anim_time: u64 = ANIM_TIME_NULL,
+        anim_time: u64 = 0,
+        clear_anim_start: u64 = 0,
+        death_anim_start: u64 = 0,
 
-        /// The number of nanoseconds since the game started.
+        /// The number of nanoseconds since the game started. Stops increasing when the
+        /// game is paused or the player is dead.
         time: u64 = 0,
         lines_cleared: u32 = 0,
         garbage_cleared: u32 = 0,
@@ -192,12 +216,16 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
         }
 
         pub fn alive(self: Self) bool {
-            return self.death_anim_time == ANIM_TIME_NULL;
+            return self.death_anim_start == 0;
+        }
+
+        pub fn frozen(self: Self) bool {
+            return self.clear_anim_start != 0 or !self.alive();
         }
 
         /// Holds the current piece, or does nothing if the piece has already been held.
         pub fn hold(self: *Self) void {
-            if (!self.alive()) {
+            if (self.frozen()) {
                 return;
             }
 
@@ -215,7 +243,7 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
         }
 
         pub fn moveLeft(self: *Self, das: bool) void {
-            if (!self.alive()) {
+            if (self.frozen()) {
                 return;
             }
 
@@ -240,7 +268,7 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
 
         /// Assumes that the move was caused by DAS and does not count as an extra keypress.
         pub fn moveLeftAll(self: *Self) void {
-            if (!self.alive()) {
+            if (self.frozen()) {
                 return;
             }
 
@@ -257,7 +285,7 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
         }
 
         pub fn moveRight(self: *Self, das: bool) void {
-            if (!self.alive()) {
+            if (self.frozen()) {
                 return;
             }
 
@@ -282,7 +310,7 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
 
         /// Assumes that the move was caused by DAS and does not count as an extra keypress.
         pub fn moveRightAll(self: *Self) void {
-            if (!self.alive()) {
+            if (self.frozen()) {
                 return;
             }
 
@@ -299,7 +327,7 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
         }
 
         pub fn rotateCw(self: *Self) void {
-            if (!self.alive()) {
+            if (self.frozen()) {
                 return;
             }
 
@@ -319,7 +347,7 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
         }
 
         pub fn rotateDouble(self: *Self) void {
-            if (!self.alive()) {
+            if (self.frozen()) {
                 return;
             }
 
@@ -339,7 +367,7 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
         }
 
         pub fn rotateCcw(self: *Self) void {
-            if (!self.alive()) {
+            if (self.frozen()) {
                 return;
             }
 
@@ -359,14 +387,14 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
         }
 
         pub fn softDrop(self: *Self) void {
-            if (!self.alive() or self.soft_dropping) {
+            if (self.frozen() or self.soft_dropping) {
                 return;
             }
             self.soft_dropping = true;
         }
 
         pub fn hardDrop(self: *Self, self_index: usize, players: []Self) void {
-            if (!self.alive()) {
+            if (self.frozen()) {
                 return;
             }
 
@@ -384,12 +412,11 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
             const clear_info = self.lockCurrent();
             self.handleGarbage(clear_info.info.cleared > 0, clear_info.attack, self_index, players);
             self.updateStats(clear_info.info, clear_info.score, clear_info.attack);
-            self.clearLines();
 
             // Only overwrite the last clear info if there's something interesting to display
             if (clear_info.info.cleared > 0 or clear_info.info.pc or clear_info.info.t_spin != .none) {
                 self.last_clear_info = clear_info.info;
-                self.last_clear_time = self.time;
+                self.last_clear_time = self.anim_time;
             }
 
             self.state.nextPiece();
@@ -417,8 +444,60 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
             if (self.state.playfield.collides(self.state.current.mask(), self.state.pos) or // Block out
                 (self.settings.use_lockout and self.state.pos.y - self.state.current.bottom() >= 20)) // Lock out
             {
-                self.death_anim_time = 0;
+                self.death_anim_start = self.anim_time;
+            } else if (self.settings.clear_delay == 0 or clear_info.info.cleared == 0) {
+                // Skip clear animation if no clear delay or if no clears
+                self.finishClear();
+            } else {
+                self.clear_anim_start = self.anim_time;
             }
+        }
+
+        fn lockCurrent(self: *Self) struct { info: ClearInfo, score: u64, attack: u16 } {
+            // Place piece in playfield colors
+            const start: u8 = @max(0, self.state.pos.y);
+            for (start..@intCast(self.state.pos.y + 4)) |y| {
+                var row = self.state.current.mask().rows[@intCast(@as(isize, @intCast(y)) - self.state.pos.y)];
+                row = if (self.state.pos.x > 0)
+                    row >> @intCast(self.state.pos.x)
+                else
+                    row << @intCast(-self.state.pos.x);
+
+                for (0..10) |x| {
+                    if ((row >> @intCast(10 - x)) & 1 == 1) {
+                        self.playfield_colors.set(x, y, self.state.current.kind.color());
+                    }
+                }
+            }
+
+            // Scoring values taken from Tetris.wiki
+            // https://tetris.wiki/Scoring#Recent_guideline_compatible_games
+            const info = self.state.lockCurrent(self.last_kick);
+            var clear_score = ([_]u64{ 0, 100, 300, 500, 800 })[info.cleared];
+            clear_score += switch (info.t_spin) {
+                .mini => 100,
+                .full => ([_]u64{ 400, 700, 900, 1100 })[info.cleared],
+                .none => 0,
+            };
+            if (info.b2b) {
+                clear_score += clear_score / 2;
+            }
+            if (info.pc) {
+                clear_score += ([_]u64{ 800, 1200, 1800, 2000 })[info.cleared - 1];
+                if (info.b2b and info.cleared == 4) {
+                    clear_score += 1200;
+                }
+            }
+            if (self.state.combo > 1) {
+                clear_score += 50 * (self.state.combo - 1);
+            }
+            const attack = self.settings.attack_table.getAttack(info, self.state.b2b, self.state.combo);
+
+            return .{
+                .info = info,
+                .score = clear_score,
+                .attack = attack,
+            };
         }
 
         fn handleGarbage(
@@ -523,53 +602,6 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
             self.garbage_queue.len -= @intCast(i);
         }
 
-        fn lockCurrent(self: *Self) struct { info: ClearInfo, score: u64, attack: u16 } {
-            // Place piece in playfield colors
-            const start: u8 = @max(0, self.state.pos.y);
-            for (start..@intCast(self.state.pos.y + 4)) |y| {
-                var row = self.state.current.mask().rows[@intCast(@as(isize, @intCast(y)) - self.state.pos.y)];
-                row = if (self.state.pos.x > 0)
-                    row >> @intCast(self.state.pos.x)
-                else
-                    row << @intCast(-self.state.pos.x);
-
-                for (0..10) |x| {
-                    if ((row >> @intCast(10 - x)) & 1 == 1) {
-                        self.playfield_colors.set(x, y, self.state.current.kind.color());
-                    }
-                }
-            }
-
-            // Scoring values taken from Tetris.wiki
-            // https://tetris.wiki/Scoring#Recent_guideline_compatible_games
-            const info = self.state.lockCurrent(self.last_kick);
-            var clear_score = ([_]u64{ 0, 100, 300, 500, 800 })[info.cleared];
-            clear_score += switch (info.t_spin) {
-                .mini => 100,
-                .full => ([_]u64{ 400, 700, 900, 1100 })[info.cleared],
-                .none => 0,
-            };
-            if (info.b2b) {
-                clear_score += clear_score / 2;
-            }
-            if (info.pc) {
-                clear_score += ([_]u64{ 800, 1200, 1800, 2000 })[info.cleared - 1];
-                if (info.b2b and info.cleared == 4) {
-                    clear_score += 1200;
-                }
-            }
-            if (self.state.combo > 1) {
-                clear_score += 50 * (self.state.combo - 1);
-            }
-            const attack = self.settings.attack_table.getAttack(info, self.state.b2b, self.state.combo);
-
-            return .{
-                .info = info,
-                .score = clear_score,
-                .attack = attack,
-            };
-        }
-
         fn updateStats(self: *Self, info: ClearInfo, score: u64, attack: u16) void {
             self.score += score * self.level();
             self.lines_cleared += info.cleared;
@@ -580,9 +612,12 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
             self.current_piece_keys = 0;
         }
 
-        fn clearLines(self: *Self) void {
+        fn finishClear(self: *Self) void {
+            self.clear_anim_start = 0;
+
+            // Clear full lines in playfield colors
             var clears: usize = 0;
-            var i: usize = @max(0, self.state.pos.y);
+            var i: usize = 0;
             while (i + clears < ColorArray.HEIGHT) {
                 self.playfield_colors.copyRow(i, i + clears);
                 if (!self.playfield_colors.isRowFull(i)) {
@@ -644,19 +679,23 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
 
         /// Advances the game.
         pub fn tick(self: *Self, nanoseconds: u64, self_index: usize, players: []Self) void {
-            if (self.clear_anim_time != ANIM_TIME_NULL) {
+            if (self.clear_anim_start != 0) {
                 // Reset clear animation when it's done
-                // if (self.clear_anim_time >= Animations.CLEAR_TIMES[Animations.CLEAR_TIMES.len - 1]) {
-                //     self.clear_anim_time = ANIM_TIME_NULL;
-                // }
-                self.clear_anim_time += nanoseconds;
+                const clear_anim_time = self.anim_time - self.clear_anim_start;
+                if (clear_anim_time >= @as(u64, @intCast(self.settings.clear_delay)) * std.time.ns_per_ms) {
+                    self.finishClear();
+                }
             }
-            if (!self.alive()) {
-                self.death_anim_time += nanoseconds;
+
+            self.anim_time += nanoseconds;
+            if (self.frozen()) {
+                if (self.alive()) {
+                    self.soft_dropping = false;
+                }
                 return;
             }
 
-            const now = self.time + nanoseconds;
+            const now = self.anim_time; // Time is not updated when forzen, use anim_time to catch up
             const g = self.settings.g + if (self.soft_dropping) self.settings.soft_g else 0.0;
             self.vel += g * @as(f32, @floatFromInt(nanoseconds)) / std.time.ns_per_s;
 
@@ -830,7 +869,7 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
             const TOP = 15;
             const WIDTH = 10;
             const HEIGHT = 5;
-            if (self.time - self.last_clear_time >= self.settings.clear_erase_dalay * std.time.ns_per_ms) {
+            if (self.clear_anim_start == 0 and self.anim_time - self.last_clear_time >= self.settings.clear_erase_dalay * std.time.ns_per_ms) {
                 return;
             }
 
@@ -897,19 +936,35 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
                 }
             }
 
-            // Ghost piece
-            var state = self.state;
-            const dropped = state.dropToGround();
-            drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, false);
+            if (self.clear_anim_start == 0) {
+                // Ghost piece
+                var state = self.state;
+                const dropped = state.dropToGround();
+                drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, false);
 
-            // Current piece
-            state.pos.y += @intCast(dropped);
-            drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, true);
+                // Current piece
+                state.pos.y += @intCast(dropped);
+                drawPiece(matrix_box_inner, state.pos.x * 2, 19 - state.pos.y, state.current, true);
+            }
+
+            // Clear animation
+            if (self.clear_anim_start != 0) {
+                for (0..20) |y| {
+                    if (self.playfield_colors.isRowFull(y)) {
+                        _ = (Animation{
+                            .time = self.anim_time - self.clear_anim_start,
+                            .frames = Animations.CLEAR_FRAMES,
+                            .frame_times = &Animations.clearTimes(self.settings.clear_delay),
+                            .view = self.view.sub(12, @intCast(22 - y), Animations.CLEAR_WIDTH, Animations.CLEAR_HEIGHT),
+                        }).forceRender();
+                    }
+                }
+            }
 
             // Death animation
-            if (!self.alive()) {
+            if (self.death_anim_start != 0) {
                 _ = (Animation{
-                    .time = self.death_anim_time,
+                    .time = self.anim_time - self.death_anim_start,
                     .frames = Animations.DEATH_FRAMES,
                     .frame_times = Animations.DEATH_TIMES,
                     .view = matrix_box_inner,
