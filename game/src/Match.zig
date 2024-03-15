@@ -9,14 +9,13 @@ const KickFn = root.kicks.KickFn;
 const Settings = root.GameSettings;
 
 pub fn Match(comptime BagImpl: type, comptime kicks: KickFn) type {
-    const Player = root.Player(BagImpl, kicks);
-
     return struct {
         // Players and bots are likely to maintain references to the player objects, so we
         // they must NOT be moved after initialisation.
         players: []Player,
 
         const Self = @This();
+        pub const Player = root.Player(BagImpl, kicks);
 
         pub fn init(allocator: Allocator, player_count: usize, bag: BagImpl, default_settings: Settings) !Self {
             assert(player_count > 0);

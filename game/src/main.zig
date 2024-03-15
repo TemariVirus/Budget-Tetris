@@ -10,13 +10,14 @@ const input = nterm.input;
 
 const BoardMask = root.bit_masks.BoardMask;
 const Match = root.Match(SevenBag, kicks.srsPlus);
-const Player = root.Player(SevenBag, kicks.srsPlus);
+const Player = Match.Player;
 const PeriodicTrigger = root.PeriodicTrigger;
 const SevenBag = root.bags.SevenBag;
 const View = nterm.View;
 
-// TODO: check that view is updated when current frame updates
+// TODO: Check that view is updated when current frame updates
 // TODO: Add title screen
+// TODO: Add support for old bot
 
 // 2 * 8 is close to 15.625, so other programs should be affacted minimally.
 // Also, 1000 / 8 = 125 is close to 120Hz
@@ -153,7 +154,7 @@ pub fn main() !void {
     defer _ = timeEndPeriod(WIN_TIMER_PERIOD);
 
     // Add 2 to create a 1-wide empty boarder on the left and right.
-    try nterm.init(allocator, FPS_TIMING_WINDOW, Player.DISPLAY_W * 2 + 3, Player.DISPLAY_H * 2 + 1);
+    try nterm.init(allocator, FPS_TIMING_WINDOW, Player.DISPLAY_W * 2 + 3, Player.DISPLAY_H);
     defer nterm.deinit();
 
     try input.init(allocator);
@@ -165,7 +166,7 @@ pub fn main() !void {
     _ = try input.addKeyTrigger(.Escape, 0, null, togglePause);
 
     const settings = root.GameSettings{};
-    var match = try Match.init(allocator, 4, SevenBag.init(std.crypto.random.int(u64)), settings);
+    var match = try Match.init(allocator, 2, SevenBag.init(std.crypto.random.int(u64)), settings);
     try setupPlayerInput(&match);
 
     const fps_view = View{ .left = 1, .top = 0, .width = 15, .height = 1 };

@@ -11,20 +11,12 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
-    const bot_exe = b.addExecutable(.{
-        .name = "Budget Tetris Bot",
-        .root_source_file = .{ .path = "src/bot.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
     // Add engine dependency
     const engine_module = b.dependency("engine", .{
         .target = target,
         .optimize = optimize,
     }).module("engine");
     train_exe.root_module.addImport("engine", engine_module);
-    bot_exe.root_module.addImport("engine", engine_module);
 
     // Add nterm dependency
     const nterm_module = engine_module.import_table.get("nterm").?;
@@ -38,8 +30,15 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    // Add NNs
+    const install_NNs = b.addInstallDirectory(.{
+        .source_dir = .{ .path = "./NNs" },
+        .install_dir = .bin,
+        .install_subdir = "NNs",
+    });
+    train_exe.step.dependOn(&install_NNs.step);
+
     b.installArtifact(train_exe);
-    b.installArtifact(bot_exe);
 
     // Add run step
     const run_cmd = b.addRunArtifact(train_exe);
@@ -66,17 +65,9 @@ pub fn build(b: *std.Build) void {
     });
     const run_train_exe_tests = b.addRunArtifact(train_exe_tests);
 
-    const bot_exe_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/bot.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-    const run_bot_exe_tests = b.addRunArtifact(bot_exe_tests);
-
     const test_step = b.step("test", "Run library tests");
     test_step.dependOn(&run_lib_tests.step);
     test_step.dependOn(&run_train_exe_tests.step);
-    test_step.dependOn(&run_bot_exe_tests.step);
 
     // Add bench step
     const bench_exe = b.addExecutable(.{

@@ -9,7 +9,6 @@ pub const bit_masks = @import("bit_masks.zig");
 pub const kicks = @import("kicks.zig");
 pub const pieces = @import("pieces.zig");
 pub const sound = @import("sound.zig");
-pub const tbp = @import("tbp.zig");
 
 pub const Match = @import("Match.zig").Match;
 pub const Player = @import("Player.zig").Player;

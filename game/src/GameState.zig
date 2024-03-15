@@ -39,8 +39,10 @@ pub fn GameState(comptime BagImpl: type, comptime kicks: KickFn) type {
         const Self = @This();
         const Bag = root.bags.Bag(BagImpl);
 
-        pub fn init(bag: Bag) Self {
-            var game = Self{ .bag = bag };
+        pub fn init(bag: BagImpl) Self {
+            var game = Self{
+                .bag = .{ .context = bag },
+            };
             for (&game.next_pieces) |*piece| {
                 piece.* = game.bag.next();
             }

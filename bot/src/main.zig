@@ -4,7 +4,7 @@ const time = std.time;
 
 const engine = @import("engine");
 const Player = engine.Player(SevenBag, kicks.srsPlus);
-const GameState = engine.GameState(SevenBag, kicks.srsPlus);
+const GameState = Player.GameState;
 const kicks = engine.kicks;
 const PeriodicTrigger = engine.PeriodicTrigger;
 const SevenBag = engine.bags.SevenBag;
@@ -13,6 +13,7 @@ const nterm = @import("nterm");
 const View = nterm.View;
 
 const root = @import("root.zig");
+const neat = root.neat;
 const pc = root.pc;
 const Placement = pc.Placement;
 
@@ -63,7 +64,7 @@ pub fn main() !void {
             fps_view.printAt(0, 0, .white, .black, "{d:.2}FPS", .{nterm.fps()});
 
             placePcPiece(allocator, &player, &pc_queue, &placement_i);
-            player.tick(dt, 0, &.{}, &.{});
+            player.tick(dt, 0, &.{});
             try player.draw();
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {
@@ -89,7 +90,7 @@ fn placePcPiece(allocator: Allocator, game: *Player, queue: *std.ArrayList([]Pla
     }
     game.state.pos = placement.pos;
     game.state.current = placement.piece;
-    game.hardDrop(0, &.{}, &.{});
+    game.hardDrop(0, &.{});
     placement_i.* += 1;
 
     if (placement_i.* == placements.len) {

@@ -96,8 +96,8 @@ const GarbageQueue = std.BoundedArray(IncomingGarbage, 25);
 pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
     return struct {
         const Self = @This();
-        const GameState = root.GameState(BagImpl, kicks);
-        const Bag = root.bags.Bag(BagImpl);
+        pub const GameState = root.GameState(BagImpl, kicks);
+        pub const Bag = root.bags.Bag(BagImpl);
 
         pub const DISPLAY_W = 44;
         pub const DISPLAY_H = 24;
@@ -203,7 +203,7 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
 
         pub fn init(
             name: []const u8,
-            bag: Bag,
+            bag: BagImpl,
             view: View,
             settings: Settings,
         ) Self {
