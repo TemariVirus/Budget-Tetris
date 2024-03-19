@@ -1,9 +1,10 @@
 const std = @import("std");
-const Xoroshiro128 = std.rand.Xoroshiro128;
 const testing = std.testing;
 const expect = testing.expect;
 
-const PieceKind = @import("../root.zig").pieces.PieceKind;
+const root = @import("../root.zig");
+const PieceKind = root.pieces.PieceKind;
+const SplitMix64 = root.bags.SplitMix64;
 
 /// Draws from a bag of N pieces without replacement. The bag is refilled with
 /// all pieces evenly. If `N` is not a multiple of 7, the excess pieces will be
@@ -14,10 +15,10 @@ pub fn NBag(comptime N: usize) type {
 
         pieces: [N]PieceKind = undefined,
         index: usize = N,
-        random: Xoroshiro128,
+        random: SplitMix64,
 
         pub fn init(seed: u64) Self {
-            return Self{ .random = Xoroshiro128.init(seed) };
+            return Self{ .random = SplitMix64.init(seed) };
         }
 
         fn refill(self: *Self) void {

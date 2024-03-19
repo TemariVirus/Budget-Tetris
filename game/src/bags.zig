@@ -37,6 +37,53 @@ pub fn Bag(comptime T: type) type {
     };
 }
 
+/// Stolen from the standard library's `std.rand.SplitMix64`, but with `fill`
+/// and `random` functions.
+pub const SplitMix64 = struct {
+    s: u64,
+
+    pub fn init(seed: u64) SplitMix64 {
+        return SplitMix64{ .s = seed };
+    }
+
+    pub fn random(self: *SplitMix64) std.Random {
+        return std.Random.init(self, fill);
+    }
+
+    pub fn next(self: *SplitMix64) u64 {
+        self.s +%= 0x9e3779b97f4a7c15;
+
+        var z = self.s;
+        z = (z ^ (z >> 30)) *% 0xbf58476d1ce4e5b9;
+        z = (z ^ (z >> 27)) *% 0x94d049bb133111eb;
+        return z ^ (z >> 31);
+    }
+
+    pub fn fill(self: *SplitMix64, buf: []u8) void {
+        var i: usize = 0;
+        const aligned_len = buf.len - (buf.len & 7);
+
+        // Complete 8 byte segments.
+        while (i < aligned_len) : (i += 8) {
+            var n = self.next();
+            comptime var j: usize = 0;
+            inline while (j < 8) : (j += 1) {
+                buf[i + j] = @as(u8, @truncate(n));
+                n >>= 8;
+            }
+        }
+
+        // Remaining. (cuts the stream)
+        if (i != buf.len) {
+            var n = self.next();
+            while (i < buf.len) : (i += 1) {
+                buf[i] = @as(u8, @truncate(n));
+                n >>= 8;
+            }
+        }
+    }
+};
+
 test {
     testing.refAllDecls(@This());
 }

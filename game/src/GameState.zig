@@ -370,8 +370,10 @@ pub fn GameState(comptime BagImpl: type, comptime kicks: KickFn) type {
 test "DT cannon" {
     var game = GameState(root.bags.SevenBag, root.kicks.srsPlus)
         .init(root.bags.SevenBag.init(69));
+    game.current = Piece{ .facing = .up, .kind = .z };
 
     // J piece
+    game.next_pieces[0] = .j;
     game.hold();
     var kick = game.rotate(.quarter_ccw);
     try expect(kick != -1);
@@ -383,6 +385,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .l;
     game.nextPiece();
 
     // L piece
@@ -396,6 +399,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .t;
     game.nextPiece();
 
     // T piece
@@ -407,6 +411,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .s;
     game.nextPiece();
 
     // S piece
@@ -420,6 +425,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .o;
     game.nextPiece();
 
     // O piece
@@ -432,6 +438,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .i;
     game.nextPiece();
 
     // I piece
@@ -445,6 +452,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .s;
     game.nextPiece();
 
     // S piece
@@ -457,6 +465,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .o;
     game.nextPiece();
 
     // O piece
@@ -469,6 +478,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .j;
     game.nextPiece();
 
     // J piece
@@ -482,6 +492,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .z;
     game.nextPiece();
 
     // Z piece
@@ -502,6 +513,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .t;
     game.nextPiece();
 
     // Z piece
@@ -516,6 +528,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .l;
     game.nextPiece();
 
     // L piece
@@ -529,6 +542,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .i;
     game.nextPiece();
 
     // I piece
@@ -542,6 +556,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .none,
     }));
+    game.next_pieces[0] = .t;
     game.nextPiece();
 
     // T piece
@@ -562,6 +577,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .full,
     }));
+    game.next_pieces[0] = .i;
     game.nextPiece();
 
     // T piece
@@ -579,6 +595,7 @@ test "DT cannon" {
         .pc = false,
         .t_spin = .full,
     }));
+    game.next_pieces[0] = .j;
     game.nextPiece();
 
     const end_playfield = BoardMask{

@@ -1,14 +1,15 @@
 //! Generates pieces completely at random.
 
-const Xoroshiro128 = @import("std").rand.Xoroshiro128;
-const PieceKind = @import("../root.zig").pieces.PieceKind;
+const root = @import("../root.zig");
+const SplitMix64 = root.bags.SplitMix64;
+const PieceKind = root.pieces.PieceKind;
 
 const Self = @This();
 
-random: Xoroshiro128,
+random: SplitMix64,
 
 pub fn init(seed: u64) Self {
-    return Self{ .random = Xoroshiro128.init(seed) };
+    return Self{ .random = SplitMix64.init(seed) };
 }
 
 /// Returns the next piece.
