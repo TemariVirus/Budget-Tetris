@@ -16,7 +16,7 @@ const SoundHandle = zxaudio2.SoundHandle;
 const sounds_dir = "sound/";
 
 var audio_context: AudioContext = undefined;
-var bgm_stream: *Stream = undefined;
+var bgm_stream: ?*Stream = null;
 
 pub var muted = false;
 pub var volume: f32 = 1.0;
@@ -51,12 +51,14 @@ pub fn init(allocator: Allocator) !void {
     try setVolume(volume);
 
     // Load background music
-    bgm_stream = try Stream.create(
+    bgm_stream = Stream.create(
         allocator,
         audio_context.device,
         sounds_dir ++ "Korobeiniki Remix.m4a",
-    );
-    try hrErrorOnFail(bgm_stream.voice.Start(.{}, xaudio2.COMMIT_NOW));
+    ) catch null;
+    if (bgm_stream) |stream| {
+        try hrErrorOnFail(stream.voice.Start(.{}, xaudio2.COMMIT_NOW));
+    }
 
     // Load sound effects
     sfx_handles[@intFromEnum(Sfx.move)] = audio_context.loadSound(sounds_dir ++ "move.m4a") catch null;
@@ -75,11 +77,13 @@ pub fn init(allocator: Allocator) !void {
     sfx_handles[@intFromEnum(Sfx.perfect_clear)] = audio_context.loadSound(sounds_dir ++ "pc.m4a") catch null;
 }
 pub fn deinit() void {
-    bgm_stream.destroy();
+    if (bgm_stream) |stream| {
+        stream.destroy();
+    }
     audio_context.deinit();
 
     audio_context = undefined;
-    bgm_stream = undefined;
+    bgm_stream = null;
     w32.CoUninitialize();
 }
 
@@ -105,9 +109,13 @@ pub fn setVolume(new_volume: f32) !void {
 }
 
 pub fn pause() !void {
-    try hrErrorOnFail(bgm_stream.voice.Stop(.{}, xaudio2.COMMIT_NOW));
+    if (bgm_stream) |stream| {
+        try hrErrorOnFail(stream.voice.Stop(.{}, xaudio2.COMMIT_NOW));
+    }
 }
 
 pub fn unpause() !void {
-    try hrErrorOnFail(bgm_stream.voice.Start(.{}, xaudio2.COMMIT_NOW));
+    if (bgm_stream) |stream| {
+        try hrErrorOnFail(stream.voice.Start(.{}, xaudio2.COMMIT_NOW));
+    }
 }

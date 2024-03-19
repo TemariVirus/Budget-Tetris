@@ -369,7 +369,7 @@ pub fn GameState(comptime BagImpl: type, comptime kicks: KickFn) type {
 
 test "DT cannon" {
     var game = GameState(root.bags.SevenBag, root.kicks.srsPlus)
-        .init(.{ .context = root.bags.SevenBag.init(69) });
+        .init(root.bags.SevenBag.init(69));
 
     // J piece
     game.hold();

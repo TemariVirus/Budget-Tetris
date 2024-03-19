@@ -436,13 +436,13 @@ const SourceReaderCallback = extern struct {
 
     fn _addRef(iself: *IUnknown) callconv(WINAPI) ULONG {
         const self = @as(*SourceReaderCallback, @ptrCast(iself));
-        const prev_refcount = @atomicRmw(u32, &self.refcount, .Add, 1, .Monotonic);
+        const prev_refcount = @atomicRmw(u32, &self.refcount, .Add, 1, .monotonic);
         return prev_refcount + 1;
     }
 
     fn _release(iself: *IUnknown) callconv(WINAPI) ULONG {
         const self = @as(*SourceReaderCallback, @ptrCast(iself));
-        const prev_refcount = @atomicRmw(u32, &self.refcount, .Sub, 1, .Monotonic);
+        const prev_refcount = @atomicRmw(u32, &self.refcount, .Sub, 1, .monotonic);
         assert(prev_refcount > 0);
         return prev_refcount - 1;
     }

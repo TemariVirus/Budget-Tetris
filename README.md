@@ -5,5 +5,4 @@ Check the Release branch for more info.
 ## Current Plans
 
 - [x] Build a backend engine mostly following the [2009 guidelines](https://tetris.fandom.com/wiki/Tetris_Guideline), but adding some flexibility like multiple rotation systems
-- [ ] Run own bots against Cold Clear via TBP
 - [ ] Compile client to wasm and run on the web?

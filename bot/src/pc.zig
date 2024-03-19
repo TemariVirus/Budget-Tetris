@@ -15,17 +15,13 @@ const SevenBag = engine.bags.SevenBag;
 const root = @import("root.zig");
 const PiecePosSet = root.PiecePosSet(.{ 10, 24, 4 });
 pub const PiecePosition = root.PiecePosition;
+const Placement = root.Placement;
 
 const NodeSet = std.AutoHashMap(SearchNode, void);
 // By drawing a snaking path through the playfield, the highest density of
 // pushed unexplored nodes (around 2 / 3) is achieved. Thus, the highest stack
 // length is given by: 10 * 24 * 4 * (2 / 3) = 640.
 const PlacementStack = std.BoundedArray(PiecePosition, 640);
-
-pub const Placement = struct {
-    piece: Piece,
-    pos: Position,
-};
 
 const Move = enum {
     left,
@@ -61,6 +57,9 @@ pub const FindPcError = error{
 
 /// Finds a perfect clear with the least number of pieces possible for the given
 /// game state, and returns the sequence of placements required to achieve it.
+///
+/// Returns an error if no perfect clear exists, or if the number of pieces needed
+/// exceeds `max_pieces`.
 pub fn findPc(allocator: Allocator, game: GameState, min_height: u8, comptime max_pieces: usize) ![]Placement {
     const field_height = blk: {
         var i: usize = BoardMask.HEIGHT;
@@ -211,25 +210,16 @@ fn findPcInner(
                 new_game.current = piece;
                 new_game.pos = pos;
 
-                switch (move) {
-                    .left => if (new_game.slide(-1) == 0) {
-                        continue;
-                    },
-                    .right => if (new_game.slide(1) == 0) {
-                        continue;
-                    },
-                    .rotate_cw => if (new_game.rotate(.quarter_cw) == -1) {
-                        continue;
-                    },
-                    .rotate_double => if (new_game.rotate(.half) == -1) {
-                        continue;
-                    },
-                    .rotate_ccw => if (new_game.rotate(.quarter_ccw) == -1) {
-                        continue;
-                    },
-                    .drop => if (new_game.drop(1) == 0) {
-                        continue;
-                    },
+                // Skip if piece was unable to move
+                if (switch (move) {
+                    .left => new_game.slide(-1) == 0,
+                    .right => new_game.slide(1) == 0,
+                    .rotate_cw => new_game.rotate(.quarter_cw) == -1,
+                    .rotate_double => new_game.rotate(.half) == -1,
+                    .rotate_ccw => new_game.rotate(.quarter_ccw) == -1,
+                    .drop => new_game.drop(1) == 0,
+                }) {
+                    continue;
                 }
                 // Branch out after movement
                 stack.append(PiecePosition.pack(new_game.current, new_game.pos)) catch unreachable;
@@ -278,6 +268,8 @@ fn findPcInner(
 
 // TODO: Check against dictionary of possible PCs if the remaining peice count
 // is high (maybe around 6 to 7)
+/// A fast check to see if a perfect clear is possible by making sure every empty
+/// "segment" of the playfield has a multiple of 4 cells.
 fn isPcPossible(rows: []const u16) bool {
     var walls = ~BoardMask.EMPTY_ROW;
     for (rows) |row| {
@@ -292,7 +284,7 @@ fn isPcPossible(rows: []const u16) bool {
         walls &= walls - 1; // Clear lowest bit
 
         // Each "segment" separated by a wall must have a multiple of 4 empty cells,
-        // as pieces can only be placed in one segment.
+        // as pieces can only be placed in one segment (each piece occupies 4 cells).
         var empty_count: u16 = 0;
         for (rows) |row| {
             const segment = ~row << (15 - start) >> (end -% start);

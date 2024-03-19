@@ -15,7 +15,7 @@ const View = nterm.View;
 const root = @import("root.zig");
 const neat = root.neat;
 const pc = root.pc;
-const Placement = pc.Placement;
+const Placement = root.Placement;
 
 const FRAMERATE = 4;
 const FPS_TIMING_WINDOW = 60;

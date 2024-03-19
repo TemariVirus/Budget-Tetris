@@ -147,7 +147,7 @@ name: []const u8,
 // Layout: [...inputs, bias, ...outputs, ...hiddens]
 nodes: []Node,
 connections: JaggedArray(Connection),
-inputs_used: [INPUTS]bool,
+inputs_used: [5]bool,
 
 /// Initializes a neural network from a list of connections and activation functions.
 pub fn init(allocator: Allocator, name: []const u8, connections: []ConnectionJson, activations: []ActivationType) !Self {
@@ -214,8 +214,8 @@ pub fn init(allocator: Allocator, name: []const u8, connections: []ConnectionJso
     }
     const connections_arrs = try JaggedArray(Connection).init(allocator, connection_lists);
 
-    var inputs_used: [INPUTS]bool = undefined;
-    @memcpy(&inputs_used, used[0..INPUTS]);
+    var inputs_used: [5]bool = undefined;
+    @memcpy(&inputs_used, used[0..5]);
     return Self{
         .name = try allocator.dupe(u8, name),
         .nodes = nodes,
@@ -295,8 +295,7 @@ fn scanUpstream(visited: []bool, connections: []ConnectionJson, i: u32) void {
 pub fn predict(self: Self, input: [INPUTS]f32) [OUTPUTS]f32 {
     // Set input nodes
     for (0..INPUTS) |i| {
-        if (self.inputs_used[i])
-            self.nodes[i].value = input[i];
+        self.nodes[i].value = input[i];
     }
     self.nodes[INPUTS].value = 1.0; // Bias node
 
@@ -315,7 +314,7 @@ pub fn predict(self: Self, input: [INPUTS]f32) [OUTPUTS]f32 {
     return output;
 }
 
-test "NN prediction" {
+test "NN prediction with hidden node" {
     const allocator = std.testing.allocator;
 
     const nn = try load(allocator, "NNs/Qoshae.json");
@@ -328,4 +327,19 @@ test "NN prediction" {
     out = nn.predict([_]f32{ 2.2, 0.0, 3.0, 5.0, 10.0, 8.0, 4.0, -0.97 });
     assert(out[0] == 0.9988278150558472);
     assert(out[1] == 0.9965899586677551);
+}
+
+test "NN prediction with unused hidden node" {
+    const allocator = std.testing.allocator;
+
+    const nn = try load(allocator, "NNs/Xesa.json");
+    defer nn.deinit(allocator);
+
+    var out = nn.predict([_]f32{ 5.2, 1.0, 3.0, 9.0, 11.0, 5.0, 2.0, -0.97 });
+    assert(out[0] == 0.455297589302063);
+    assert(out[1] == -0.9720132350921631);
+
+    out = nn.predict([_]f32{ 2.2, 0.0, 3.0, 5.0, 10.0, 8.0, 4.0, -0.97 });
+    assert(out[0] == 1.2168807983398438);
+    assert(out[1] == -0.9620361924171448);
 }

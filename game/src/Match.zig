@@ -27,7 +27,7 @@ pub fn Match(comptime BagImpl: type, comptime kicks: KickFn) type {
                 const col = i % size.width;
                 player.* = Player.init(
                     "",
-                    .{ .context = bag },
+                    bag,
                     View{
                         .left = @intCast(1 + (Player.DISPLAY_W + 1) * col),
                         .top = @intCast((Player.DISPLAY_H + 1) * row),

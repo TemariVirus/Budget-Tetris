@@ -732,7 +732,7 @@ pub fn Player(comptime BagImpl: type, comptime kicks: KickFn) type {
             if (seed) |s| {
                 self.state.bag.setSeed(s);
             }
-            self.* = init(self.name, self.state.bag, self.view, self.settings);
+            self.* = init(self.name, self.state.bag.context, self.view, self.settings);
         }
 
         /// Returns the current level
