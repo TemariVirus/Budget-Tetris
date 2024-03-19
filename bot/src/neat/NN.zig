@@ -2,7 +2,7 @@ const std = @import("std");
 const math = std.math;
 const json = std.json;
 const Allocator = std.mem.Allocator;
-const assert = std.debug.assert;
+const expect = std.testing.expect;
 
 const INPUTS = 8;
 const OUTPUTS = 2;
@@ -207,6 +207,7 @@ pub fn init(allocator: Allocator, name: []const u8, connections: []ConnectionJso
     }
 
     for (connections) |c| {
+        // This implementation is only meant for inference, so we can discard disabled connections
         if (!c.Enabled or !useful[c.Input] or !useful[c.Output]) {
             continue;
         }
@@ -215,7 +216,8 @@ pub fn init(allocator: Allocator, name: []const u8, connections: []ConnectionJso
     const connections_arrs = try JaggedArray(Connection).init(allocator, connection_lists);
 
     var inputs_used: [5]bool = undefined;
-    @memcpy(&inputs_used, used[0..5]);
+    @memcpy(&inputs_used, used[0..inputs_used.len]);
+
     return Self{
         .name = try allocator.dupe(u8, name),
         .nodes = nodes,
@@ -314,32 +316,30 @@ pub fn predict(self: Self, input: [INPUTS]f32) [OUTPUTS]f32 {
     return output;
 }
 
-test "NN prediction with hidden node" {
+test predict {
     const allocator = std.testing.allocator;
 
-    const nn = try load(allocator, "NNs/Qoshae.json");
-    defer nn.deinit(allocator);
+    // Has used hidden node
+    const nn1 = try load(allocator, "NNs/Qoshae.json");
+    defer nn1.deinit(allocator);
 
-    var out = nn.predict([_]f32{ 5.2, 1.0, 3.0, 9.0, 11.0, 5.0, 2.0, -0.97 });
-    assert(out[0] == 0.9761649966239929);
-    assert(out[1] == 0.9984789490699768);
+    var out = nn1.predict([_]f32{ 5.2, 1.0, 3.0, 9.0, 11.0, 5.0, 2.0, -0.97 });
+    try expect(out[0] == 0.9761649966239929);
+    try expect(out[1] == 0.9984789490699768);
 
-    out = nn.predict([_]f32{ 2.2, 0.0, 3.0, 5.0, 10.0, 8.0, 4.0, -0.97 });
-    assert(out[0] == 0.9988278150558472);
-    assert(out[1] == 0.9965899586677551);
-}
+    out = nn1.predict([_]f32{ 2.2, 0.0, 3.0, 5.0, 10.0, 8.0, 4.0, -0.97 });
+    try expect(out[0] == 0.9988278150558472);
+    try expect(out[1] == 0.9965899586677551);
 
-test "NN prediction with unused hidden node" {
-    const allocator = std.testing.allocator;
+    // Has unused hidden node
+    const nn2 = try load(allocator, "NNs/Xesa.json");
+    defer nn2.deinit(allocator);
 
-    const nn = try load(allocator, "NNs/Xesa.json");
-    defer nn.deinit(allocator);
+    out = nn2.predict([_]f32{ 5.2, 1.0, 3.0, 9.0, 11.0, 5.0, 2.0, -0.97 });
+    try expect(out[0] == 0.455297589302063);
+    try expect(out[1] == -0.9720132350921631);
 
-    var out = nn.predict([_]f32{ 5.2, 1.0, 3.0, 9.0, 11.0, 5.0, 2.0, -0.97 });
-    assert(out[0] == 0.455297589302063);
-    assert(out[1] == -0.9720132350921631);
-
-    out = nn.predict([_]f32{ 2.2, 0.0, 3.0, 5.0, 10.0, 8.0, 4.0, -0.97 });
-    assert(out[0] == 1.2168807983398438);
-    assert(out[1] == -0.9620361924171448);
+    out = nn2.predict([_]f32{ 2.2, 0.0, 3.0, 5.0, 10.0, 8.0, 4.0, -0.97 });
+    try expect(out[0] == 1.2168807983398438);
+    try expect(out[1] == -0.9620361924171448);
 }
