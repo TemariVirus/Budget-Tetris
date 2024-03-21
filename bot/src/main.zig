@@ -21,6 +21,67 @@ const FRAMERATE = 4;
 const FPS_TIMING_WINDOW = 60;
 
 pub fn main() !void {
+    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    const allocator = gpa.allocator();
+    defer _ = gpa.deinit();
+
+    // Add 2 to create a 1-wide empty boarder on the left and right.
+    try nterm.init(allocator, FPS_TIMING_WINDOW, Player.DISPLAY_W + 2, Player.DISPLAY_H + 3);
+    defer nterm.deinit();
+
+    const settings = engine.GameSettings{
+        .g = 0,
+        .target_mode = .none,
+    };
+    const player_view = View{
+        .left = 1,
+        .top = 0,
+        .width = Player.DISPLAY_W,
+        .height = Player.DISPLAY_H,
+    };
+    var player = Player.init("You", SevenBag.init(0), player_view, settings);
+
+    const bot_stats_view = View{
+        .left = 1,
+        .top = Player.DISPLAY_H,
+        .width = Player.DISPLAY_W + 1,
+        .height = 3,
+    };
+
+    const nn = try neat.NN.load(allocator, "NNs/Qoshae.json");
+    defer nn.deinit(allocator);
+
+    var bot = neat.Bot.init(nn, 0.5, player.settings.attack_table);
+
+    var t = time.nanoTimestamp();
+    while (true) {
+        const placement = bot.findMoves(player.state);
+        if (placement.piece.kind != player.state.current.kind) {
+            player.hold();
+        }
+        player.state.pos = placement.pos;
+        player.state.current = placement.piece;
+        player.hardDrop(0, &.{});
+
+        bot_stats_view.printAt(0, 0, .white, .black, "Nodes: {d}", .{bot.node_count});
+        bot_stats_view.printAt(0, 1, .white, .black, "Depth: {d}", .{bot.current_depth});
+        bot_stats_view.printAt(0, 2, .white, .black, "Tresh: {d}", .{bot.move_tresh});
+
+        const dt: u64 = @intCast(time.nanoTimestamp() - t);
+        player.tick(dt, 0, &.{});
+        t += dt;
+
+        try player.draw();
+        nterm.render() catch |err| {
+            if (err == error.NotInitialized) {
+                return;
+            }
+            return err;
+        };
+    }
+}
+
+pub fn main2() !void {
     // All allocators appear to perform the same for `pc.findPc()`
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
