@@ -1,34 +1,23 @@
 const std = @import("std");
+const Build = std.Build;
+const builtin = std.builtin;
+
 const zwin32 = @import("zwin32");
 const zxaudio2 = @import("zxaudio2");
 
-pub fn build(b: *std.Build) void {
+pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
-        .name = "Budget Tetris",
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
-    // Add nterm dependency
+    // Dependencies
     const nterm_module = b.dependency("nterm", .{
         .target = target,
         .optimize = optimize,
     }).module("nterm");
-    exe.root_module.addImport("nterm", nterm_module);
-
-    // Add zwin32 dependency
     const zwin32_pkg = zwin32.package(b, target, optimize, .{});
-    zwin32_pkg.link(exe, .{ .xaudio2 = true });
-
-    // Add zxaudio2 dependency
     const zxaudio2_pkg = zxaudio2.package(b, target, optimize, .{
         .deps = .{ .zwin32 = zwin32_pkg.zwin32 },
     });
-    zxaudio2_pkg.link(exe);
 
     // Expose the library root
     _ = b.addModule("engine", .{
@@ -39,6 +28,31 @@ pub fn build(b: *std.Build) void {
             .{ .name = "zxaudio2", .module = zxaudio2_pkg.zxaudio2 },
         },
     });
+
+    _ = buildExe(b, target, optimize, nterm_module, zwin32_pkg, zxaudio2_pkg);
+
+    buildTests(b);
+}
+
+fn buildExe(
+    b: *Build,
+    target: Build.ResolvedTarget,
+    optimize: builtin.OptimizeMode,
+    nterm_module: *Build.Module,
+    zwin32_pkg: zwin32.Package,
+    zxaudio2_pkg: zxaudio2.Package,
+) void {
+    const exe = b.addExecutable(.{
+        .name = "Budget Tetris",
+        .root_source_file = .{ .path = "src/main.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add dependencies
+    exe.root_module.addImport("nterm", nterm_module);
+    zwin32_pkg.link(exe, .{ .xaudio2 = true });
+    zxaudio2_pkg.link(exe);
 
     if (exe.root_module.optimize == .ReleaseFast) {
         exe.root_module.strip = true;
@@ -62,19 +76,16 @@ pub fn build(b: *std.Build) void {
     }
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+}
 
-    // Add test step
+fn buildTests(b: *Build) void {
     const lib_tests = b.addTest(.{
         .root_source_file = .{ .path = "src/root.zig" },
-        .target = target,
-        .optimize = optimize,
     });
     const run_lib_tests = b.addRunArtifact(lib_tests);
 
     const exe_tests = b.addTest(.{
         .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
     });
     const run_exe_tests = b.addRunArtifact(exe_tests);
 
