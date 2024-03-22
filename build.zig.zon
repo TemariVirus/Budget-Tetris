@@ -3,19 +3,17 @@
     .version = "0.0.0",
     .dependencies = .{
         .engine = .{
-            .url = "https://github.com/TemariVirus/Budget-Tetris-Engine/archive/913d9bebe4b09885b65f98fa2db72a0b33e7807f.tar.gz",
+            .url = "https://github.com/TemariVirus/Budget-Tetris-Engine/archive/a0caf663386d72a50bdc2b3aa49814d6ef2aa0f9.tar.gz",
             .hash = "12201a83b608c6cbd4736627ba867d32523d66292d4493fdfd8e5eadfbfb555d721d",
         },
         .nterm = .{
             .url = "https://github.com/TemariVirus/nterm/archive/02ac37cb26acdbd142d5628a19bd33e72d8899d2.tar.gz",
             .hash = "12208dbf94efbe56a652827a3d319b90b894b257225877a3394c40190789e9d9068e",
         },
+        .bot = .{
+            .url = "https://github.com/TemariVirus/Budget-Tetris-Bot/archive/a97f5e132a97abeac907b873f2f25eef0e1b4399.tar.gz",
+            .hash = "12206f515f32e439d221c75e7e6ae1fe7bf4fa66c74f41e90939ff0820f4543da3fc",
+        },
     },
-    .paths = .{
-        "build.zig",
-        "build.zig.zon",
-        "src",
-        "LICENSE",
-        "README.md",
-    },
+    .paths = .{""},
 }

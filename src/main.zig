@@ -1,10 +1,15 @@
 const std = @import("std");
+const Allocator = std.mem.Allocator;
 const time = std.time;
 const windows = std.os.windows;
 
 const root = @import("engine");
 const kicks = root.kicks;
 const sound = root.sound;
+const bot = @import("bot");
+const Bot = bot.neat.Bot;
+const NN = bot.neat.NN;
+
 const nterm = @import("nterm");
 const input = nterm.input;
 
@@ -17,7 +22,6 @@ const View = nterm.View;
 
 // TODO: Check that view is updated when current frame updates
 // TODO: Add title screen
-// TODO: Add support for old bot
 
 // 2 * 8 is close to 15.625, so other programs should be affacted minimally.
 // Also, 1000 / 8 = 125 is close to 120Hz
@@ -169,6 +173,11 @@ pub fn main() !void {
     var match = try Match.init(allocator, 2, SevenBag.init(std.crypto.random.int(u64)), settings);
     try setupPlayerInput(&match);
 
+    const bot_thread = try std.Thread.spawn(.{
+        .allocator = allocator,
+    }, botThread, .{ allocator, &match, 1 });
+    defer bot_thread.join();
+
     const fps_view = View{ .left = 1, .top = 0, .width = 15, .height = 1 };
     var input_timer = PeriodicTrigger.init(time.ns_per_s / INPUT_RATE);
     var render_timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
@@ -251,4 +260,27 @@ fn setupPlayerInput(match: *Match) !void {
     _ = try input.addKeyTrigger(.Down, 0, null, MoveFuncs.softDropStart);
     _ = try input.addKeyTrigger(.Down, 0, time.ns_per_s / INPUT_RATE, MoveFuncs.softDrop);
     _ = try input.addKeyTrigger(.Space, 0, null, MoveFuncs.hardDrop);
+}
+
+fn botThread(allocator: Allocator, match: *Match, index: usize) !void {
+    const nn = try NN.load(allocator, "NNs/Soqyme.json");
+    defer nn.deinit(allocator);
+
+    const player = &match.players[index];
+    var b = Bot.init(nn, 1.0, player.settings.attack_table);
+
+    while (true) {
+        const placement = b.findMoves(player.state);
+        if (placement.piece.kind != player.state.current.kind) {
+            player.hold();
+        }
+        player.state.pos = placement.pos;
+        player.state.current = placement.piece;
+        player.hardDrop(index, match.players);
+
+        // TODO: Print bot stats
+        // bot_stats_view.printAt(0, 0, .white, .black, "Nodes: {d}", .{bot.node_count});
+        // bot_stats_view.printAt(0, 1, .white, .black, "Depth: {d}", .{bot.current_depth});
+        // bot_stats_view.printAt(0, 2, .white, .black, "Tresh: {d}", .{bot.move_tresh});
+    }
 }

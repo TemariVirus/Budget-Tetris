@@ -10,12 +10,16 @@ pub fn build(b: *Build) void {
 
     // Dependencies
     const engine_pkg = engine.package(b, target, optimize);
+    const bot_module = b.dependency("bot", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("bot");
     const nterm_module = b.dependency("nterm", .{
         .target = target,
         .optimize = optimize,
     }).module("nterm");
 
-    _ = buildExe(b, target, optimize, engine_pkg, nterm_module);
+    _ = buildExe(b, target, optimize, engine_pkg, bot_module, nterm_module);
 }
 
 fn buildExe(
@@ -23,6 +27,7 @@ fn buildExe(
     target: Build.ResolvedTarget,
     optimize: builtin.OptimizeMode,
     engine_pkg: engine.Package,
+    bot_module: *Build.Module,
     nterm_module: *Build.Module,
 ) void {
     const exe = b.addExecutable(.{
@@ -33,12 +38,23 @@ fn buildExe(
     });
 
     // Add dependencies
-    engine_pkg.link(exe);
+    exe.step.dependOn(engine_pkg.install_xaudio2);
+    const engine_module = bot_module.import_table.get("engine").?;
+    exe.root_module.addImport("engine", engine_module);
+    exe.root_module.addImport("bot", bot_module);
     exe.root_module.addImport("nterm", nterm_module);
 
     if (exe.root_module.optimize == .ReleaseFast) {
         exe.root_module.strip = true;
     }
+
+    // Add NN files
+    const install_NNs = b.addInstallDirectory(.{
+        .source_dir = .{ .path = "NNs" },
+        .install_dir = .bin,
+        .install_subdir = "NNs",
+    });
+    exe.step.dependOn(&install_NNs.step);
 
     // Install sound assets
     const install_sounds = b.addInstallDirectory(.{
