@@ -4,3 +4,6 @@
 [submodule "assets"]
 	path = assets
 	url = https://github.com/TemariVirus/Budget-Tetris-Assets.git
+[submodule "engine"]
+	path = engine
+	url = https://github.com/TemariVirus/Budget-Tetris-Engine.git
