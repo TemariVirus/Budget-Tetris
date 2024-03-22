@@ -3,10 +3,11 @@
     .version = "0.0.0",
     .dependencies = .{
         .engine = .{
-            .path = "engine",
+            .url = "https://github.com/TemariVirus/Budget-Tetris-Engine/archive/913d9bebe4b09885b65f98fa2db72a0b33e7807f.tar.gz",
+            .hash = "12201a83b608c6cbd4736627ba867d32523d66292d4493fdfd8e5eadfbfb555d721d",
         },
         .nterm = .{
-            .url = "https://github.com/Zemogus/nterm/archive/02ac37cb26acdbd142d5628a19bd33e72d8899d2.tar.gz",
+            .url = "https://github.com/TemariVirus/nterm/archive/02ac37cb26acdbd142d5628a19bd33e72d8899d2.tar.gz",
             .hash = "12208dbf94efbe56a652827a3d319b90b894b257225877a3394c40190789e9d9068e",
         },
     },
