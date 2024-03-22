@@ -1,3 +1,6 @@
-[submodule "game/assets"]
-	path = game/assets
+[submodule "bot"]
+	path = bot
+	url = https://github.com/TemariVirus/Budget-Tetris-Bot.git
+[submodule "assets"]
+	path = assets
 	url = https://github.com/TemariVirus/Budget-Tetris-Assets.git
