@@ -2,7 +2,7 @@ const std = @import("std");
 const time = std.time;
 const windows = std.os.windows;
 
-const root = @import("root.zig");
+const root = @import("engine");
 const kicks = root.kicks;
 const sound = root.sound;
 const nterm = @import("nterm");
