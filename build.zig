@@ -2,33 +2,48 @@ const std = @import("std");
 const Build = std.Build;
 const builtin = std.builtin;
 
-const engine = @import("engine");
+const zwin32 = @import("zwin32");
+const zxaudio2 = @import("zxaudio2");
 
 pub fn build(b: *Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
     // Dependencies
-    const engine_pkg = engine.package(b, target, optimize);
-    const bot_module = b.dependency("bot", .{
-        .target = target,
-        .optimize = optimize,
-    }).module("bot");
     const nterm_module = b.dependency("nterm", .{
         .target = target,
         .optimize = optimize,
     }).module("nterm");
+    const bot_module = b.dependency("bot", .{
+        .target = target,
+        .optimize = optimize,
+    }).module("bot");
+    const zwin32_pkg = zwin32.package(b, target, optimize, .{});
+    const zxaudio2_pkg = zxaudio2.package(b, target, optimize, .{
+        .deps = .{ .zwin32 = zwin32_pkg.zwin32 },
+    });
 
-    _ = buildExe(b, target, optimize, engine_pkg, bot_module, nterm_module);
+    _ = buildExe(
+        b,
+        target,
+        optimize,
+        nterm_module,
+        bot_module,
+        zwin32_pkg.zwin32,
+        zxaudio2_pkg.zxaudio2,
+        zwin32_pkg.install_xaudio2,
+    );
 }
 
 fn buildExe(
     b: *Build,
     target: Build.ResolvedTarget,
     optimize: builtin.OptimizeMode,
-    engine_pkg: engine.Package,
-    bot_module: *Build.Module,
     nterm_module: *Build.Module,
+    bot_module: *Build.Module,
+    zwin32_module: *Build.Module,
+    zxaudio2_module: *Build.Module,
+    install_xaudio2: *Build.Step,
 ) void {
     const exe = b.addExecutable(.{
         .name = "Budget Tetris",
@@ -38,11 +53,13 @@ fn buildExe(
     });
 
     // Add dependencies
-    exe.step.dependOn(engine_pkg.install_xaudio2);
     const engine_module = bot_module.import_table.get("engine").?;
+    exe.root_module.addImport("nterm", nterm_module);
     exe.root_module.addImport("engine", engine_module);
     exe.root_module.addImport("bot", bot_module);
-    exe.root_module.addImport("nterm", nterm_module);
+    exe.root_module.addImport("zwin32", zwin32_module);
+    exe.root_module.addImport("zxaudio2", zxaudio2_module);
+    exe.step.dependOn(install_xaudio2);
 
     if (exe.root_module.optimize == .ReleaseFast) {
         exe.root_module.strip = true;

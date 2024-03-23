@@ -3,25 +3,27 @@ const Allocator = std.mem.Allocator;
 const time = std.time;
 const windows = std.os.windows;
 
-const root = @import("engine");
-const kicks = root.kicks;
-const sound = root.sound;
+const nterm = @import("nterm");
+const input = nterm.input;
+const View = nterm.View;
+
+const engine = @import("engine");
+const BoardMask = engine.bit_masks.BoardMask;
+const kicks = engine.kicks;
+const Match = engine.Match(SevenBag);
+const Player = Match.Player;
+const PeriodicTrigger = engine.PeriodicTrigger;
+const SevenBag = engine.bags.SevenBag;
+
 const bot = @import("bot");
 const Bot = bot.neat.Bot;
 const NN = bot.neat.NN;
 
-const nterm = @import("nterm");
-const input = nterm.input;
-
-const BoardMask = root.bit_masks.BoardMask;
-const Match = root.Match(SevenBag, kicks.srsPlus);
-const Player = Match.Player;
-const PeriodicTrigger = root.PeriodicTrigger;
-const SevenBag = root.bags.SevenBag;
-const View = nterm.View;
+const sound = @import("sound.zig");
 
 // TODO: Check that view is updated when current frame updates
 // TODO: Add title screen
+// TODO: Load settings from config file
 
 // 2 * 8 is close to 15.625, so other programs should be affacted minimally.
 // Also, 1000 / 8 = 125 is close to 120Hz
@@ -147,6 +149,7 @@ pub fn main() !void {
     const allocator = gpa.allocator();
     defer _ = gpa.deinit();
 
+    // TODO: Load default volume from config file
     sound.volume = 0.3;
 
     try sound.init(allocator);
@@ -169,8 +172,15 @@ pub fn main() !void {
     _ = try input.addKeyTrigger(.OemMinus, 0, null, volumeDown);
     _ = try input.addKeyTrigger(.Escape, 0, null, togglePause);
 
-    const settings = root.GameSettings{};
-    var match = try Match.init(allocator, 2, SevenBag.init(std.crypto.random.int(u64)), settings);
+    const settings = engine.GameSettings{};
+    var match = try Match.init(
+        kicks.srsPlus,
+        sound.playSfx,
+        allocator,
+        2,
+        SevenBag.init(std.crypto.random.int(u64)),
+        settings,
+    );
     try setupPlayerInput(&match);
 
     const bot_thread = try std.Thread.spawn(.{
