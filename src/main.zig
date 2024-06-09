@@ -161,7 +161,7 @@ pub fn main() !void {
     defer _ = timeEndPeriod(WIN_TIMER_PERIOD);
 
     // Add 2 to create a 1-wide empty boarder on the left and right.
-    try nterm.init(allocator, FPS_TIMING_WINDOW, Player.DISPLAY_W * 2 + 3, Player.DISPLAY_H);
+    try nterm.init(allocator, std.io.getStdOut(), FPS_TIMING_WINDOW, Player.DISPLAY_W * 2 + 3, Player.DISPLAY_H);
     defer nterm.deinit();
 
     try input.init(allocator);
@@ -181,6 +181,7 @@ pub fn main() !void {
         SevenBag.init(std.crypto.random.int(u64)),
         settings,
     );
+    defer match.deinit(allocator);
     try setupPlayerInput(&match);
 
     const bot_thread = try std.Thread.spawn(.{
@@ -277,8 +278,9 @@ fn botThread(allocator: Allocator, match: *Match, index: usize) !void {
     defer nn.deinit(allocator);
 
     const player = &match.players[index];
-    var b = Bot.init(nn, 1.0, player.settings.attack_table);
+    var b = Bot.init(nn, 1.0 / 3.0, player.settings.attack_table);
 
+    // TODO: Handle restarts properly
     while (true) {
         const placement = b.findMoves(player.state);
         if (placement.piece.kind != player.state.current.kind) {

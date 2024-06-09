@@ -25,14 +25,14 @@ pub fn package(
 
     install_xaudio2.dependOn(
         &b.addInstallFile(
-            .{ .path = thisDir() ++ "/bin/x64/xaudio2_9redist.dll" },
+            lazyPath(b, thisDir() ++ "/bin/x64/xaudio2_9redist.dll"),
             "bin/xaudio2_9redist.dll",
         ).step,
     );
 
     return .{
         .zwin32 = b.addModule("zwin32", .{
-            .root_source_file = .{ .path = thisDir() ++ "/src/zwin32.zig" },
+            .root_source_file = lazyPath(b, thisDir() ++ "/src/zwin32.zig"),
         }),
         .install_xaudio2 = install_xaudio2,
     };
@@ -46,4 +46,13 @@ pub fn build(b: *std.Build) void {
 
 inline fn thisDir() []const u8 {
     return comptime std.fs.path.dirname(@src().file) orelse ".";
+}
+
+fn lazyPath(b: *std.Build, path: []const u8) std.Build.LazyPath {
+    return .{
+        .src_path = .{
+            .owner = b,
+            .sub_path = path,
+        },
+    };
 }

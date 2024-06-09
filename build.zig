@@ -10,10 +10,6 @@ pub fn build(b: *Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Dependencies
-    const nterm_module = b.dependency("nterm", .{
-        .target = target,
-        .optimize = optimize,
-    }).module("nterm");
     const bot_module = b.dependency("bot", .{
         .target = target,
         .optimize = optimize,
@@ -27,7 +23,6 @@ pub fn build(b: *Build) void {
         b,
         target,
         optimize,
-        nterm_module,
         bot_module,
         zwin32_pkg.zwin32,
         zxaudio2_pkg.zxaudio2,
@@ -39,7 +34,6 @@ fn buildExe(
     b: *Build,
     target: Build.ResolvedTarget,
     optimize: builtin.OptimizeMode,
-    nterm_module: *Build.Module,
     bot_module: *Build.Module,
     zwin32_module: *Build.Module,
     zxaudio2_module: *Build.Module,
@@ -47,13 +41,14 @@ fn buildExe(
 ) void {
     const exe = b.addExecutable(.{
         .name = "Budget Tetris",
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = lazyPath(b, "src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
 
     // Add dependencies
     const engine_module = bot_module.import_table.get("engine").?;
+    const nterm_module = engine_module.import_table.get("nterm").?;
     exe.root_module.addImport("nterm", nterm_module);
     exe.root_module.addImport("engine", engine_module);
     exe.root_module.addImport("bot", bot_module);
@@ -67,7 +62,7 @@ fn buildExe(
 
     // Add NN files
     const install_NNs = b.addInstallDirectory(.{
-        .source_dir = .{ .path = "NNs" },
+        .source_dir = lazyPath(b, "NNs"),
         .install_dir = .bin,
         .install_subdir = "NNs",
     });
@@ -75,7 +70,7 @@ fn buildExe(
 
     // Install sound assets
     const install_sounds = b.addInstallDirectory(.{
-        .source_dir = .{ .path = "assets/sound" },
+        .source_dir = lazyPath(b, "assets/sound"),
         .install_dir = .bin,
         .install_subdir = "sound",
     });
@@ -91,4 +86,13 @@ fn buildExe(
     }
     const run_step = b.step("run", "Run the app");
     run_step.dependOn(&run_cmd.step);
+}
+
+fn lazyPath(b: *Build, path: []const u8) Build.LazyPath {
+    return .{
+        .src_path = .{
+            .owner = b,
+            .sub_path = path,
+        },
+    };
 }

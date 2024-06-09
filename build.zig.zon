@@ -2,15 +2,10 @@
     .name = "budget-tetris",
     .version = "0.0.0",
     .dependencies = .{
-        .nterm = .{
-            .url = "https://github.com/TemariVirus/nterm/archive/02ac37cb26acdbd142d5628a19bd33e72d8899d2.tar.gz",
-            .hash = "12208dbf94efbe56a652827a3d319b90b894b257225877a3394c40190789e9d9068e",
-        },
         .bot = .{
-            .url = "https://github.com/TemariVirus/Budget-Tetris-Bot/archive/bc43ff5a2fe9345ec65557f1cc9aa4607a91239d.tar.gz",
-            .hash = "1220b2b0f1ffd512492be1be2156267da6ecc0587e9c00d019113d94fb8419771cd6",
+            .url = "https://github.com/TemariVirus/Budget-Tetris-Bot/archive/b080082fe26338d3a8c28f760368943b9a13ed17.tar.gz",
+            .hash = "122058f802d5b6112867bfa3511d43978e7b099b48895df87adb84aae8df227544b2",
         },
-        // Courtesy of https://github.com/zig-gamedev/zig-gamedev
         .zwin32 = .{ .path = "libs/zwin32" },
         // Courtesy of https://github.com/zig-gamedev/zig-gamedev
         .zxaudio2 = .{ .path = "libs/zxaudio2" },

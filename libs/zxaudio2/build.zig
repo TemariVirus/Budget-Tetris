@@ -17,7 +17,12 @@ pub fn package(
     },
 ) Package {
     const zxaudio2 = b.addModule("zxaudio2", .{
-        .root_source_file = .{ .path = thisDir() ++ "/src/zxaudio2.zig" },
+        .root_source_file = .{
+            .src_path = .{
+                .owner = b,
+                .sub_path = thisDir() ++ "/src/zxaudio2.zig",
+            },
+        },
         .imports = &.{
             .{ .name = "zwin32", .module = args.deps.zwin32 },
         },
