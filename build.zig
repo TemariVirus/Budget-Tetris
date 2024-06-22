@@ -48,10 +48,12 @@ fn buildExe(
 
     // Add dependencies
     const engine_module = bot_module.import_table.get("engine").?;
+    const zmai_module = bot_module.import_table.get("zmai").?;
     const nterm_module = engine_module.import_table.get("nterm").?;
     exe.root_module.addImport("nterm", nterm_module);
     exe.root_module.addImport("engine", engine_module);
     exe.root_module.addImport("bot", bot_module);
+    exe.root_module.addImport("zmai", zmai_module);
     exe.root_module.addImport("zwin32", zwin32_module);
     exe.root_module.addImport("zxaudio2", zxaudio2_module);
     exe.step.dependOn(install_xaudio2);

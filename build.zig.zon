@@ -3,11 +3,11 @@
     .version = "0.0.0",
     .dependencies = .{
         .bot = .{
-            .url = "https://github.com/TemariVirus/Budget-Tetris-Bot/archive/b080082fe26338d3a8c28f760368943b9a13ed17.tar.gz",
-            .hash = "122058f802d5b6112867bfa3511d43978e7b099b48895df87adb84aae8df227544b2",
+            .url = "https://github.com/TemariVirus/Budget-Tetris-Bot/archive/9aa9306d8ff92afa1145a713cf0e616d238700b5.tar.gz",
+            .hash = "1220d820d9048e39c601c8948f7282c5fc146af8dcde7404dc1c8b122ae3491747c2",
         },
-        .zwin32 = .{ .path = "libs/zwin32" },
         // Courtesy of https://github.com/zig-gamedev/zig-gamedev
+        .zwin32 = .{ .path = "libs/zwin32" },
         .zxaudio2 = .{ .path = "libs/zxaudio2" },
     },
     .paths = .{""},

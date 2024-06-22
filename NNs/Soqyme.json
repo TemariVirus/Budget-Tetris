@@ -1,133 +1,120 @@
 {
-      "Name": "Soqyme",
-      "Played": true,
-      "Inputs": 8,
-      "Outputs": 2,
-      "Age": 1,
-      "Fitness": 682,
-      "Mu": 0,
-      "Delta": 0,
-      "Connections": [
-        {
-          "Enabled": false,
-          "Input": 0,
-          "Output": 9,
-          "Weight": 0.44240292012470783
-        },
-        {
-          "Enabled": true,
-          "Input": 0,
-          "Output": 10,
-          "Weight": -0.18565722975989057
-        },
-        {
-          "Enabled": true,
-          "Input": 1,
-          "Output": 9,
-          "Weight": -0.14256360164559073
-        },
-        {
-          "Enabled": true,
-          "Input": 1,
-          "Output": 10,
-          "Weight": 0.36907422211938057
-        },
-        {
-          "Enabled": false,
-          "Input": 2,
-          "Output": 9,
-          "Weight": 0.0194692862996171
-        },
-        {
-          "Enabled": true,
-          "Input": 2,
-          "Output": 10,
-          "Weight": -0.15182914377086573
-        },
-        {
-          "Enabled": true,
-          "Input": 3,
-          "Output": 9,
-          "Weight": -0.05500562128751232
-        },
-        {
-          "Enabled": false,
-          "Input": 3,
-          "Output": 10,
-          "Weight": -0.7576565392453446
-        },
-        {
-          "Enabled": true,
-          "Input": 4,
-          "Output": 9,
-          "Weight": 0.08562201552112425
-        },
-        {
-          "Enabled": true,
-          "Input": 4,
-          "Output": 10,
-          "Weight": -0.24148017669686397
-        },
-        {
-          "Enabled": true,
-          "Input": 5,
-          "Output": 9,
-          "Weight": 0.3365471710927861
-        },
-        {
-          "Enabled": false,
-          "Input": 5,
-          "Output": 10,
-          "Weight": 0.15418450376032114
-        },
-        {
-          "Enabled": true,
-          "Input": 6,
-          "Output": 9,
-          "Weight": -0.26637236346754284
-        },
-        {
-          "Enabled": true,
-          "Input": 6,
-          "Output": 10,
-          "Weight": -0.35401320100337486
-        },
-        {
-          "Enabled": true,
-          "Input": 7,
-          "Output": 9,
-          "Weight": -0.41710959589241464
-        },
-        {
-          "Enabled": false,
-          "Input": 7,
-          "Output": 10,
-          "Weight": -0.02751531924848773
-        },
-        {
-          "Enabled": true,
-          "Input": 8,
-          "Output": 9,
-          "Weight": 0.08735895304673696
-        },
-        {
-          "Enabled": false,
-          "Input": 8,
-          "Output": 10,
-          "Weight": -0.004317300715597777
-        }
-      ],
-      "Activations": [
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        2,
-        4,
-        4
-      ]
+    "options": {
+        "input_count": 8,
+        "output_count": 2,
+        "hidden_activation": "relu",
+        "output_activation": "isru"
+    },
+    "genome": {
+        "genes": [
+            {
+                "enabled": false,
+                "input": 0,
+                "output": 9,
+                "weight": 0.44240292012470783
+            },
+            {
+                "enabled": true,
+                "input": 0,
+                "output": 10,
+                "weight": -0.18565722975989057
+            },
+            {
+                "enabled": true,
+                "input": 1,
+                "output": 9,
+                "weight": -0.14256360164559073
+            },
+            {
+                "enabled": true,
+                "input": 1,
+                "output": 10,
+                "weight": 0.36907422211938057
+            },
+            {
+                "enabled": false,
+                "input": 2,
+                "output": 9,
+                "weight": 0.0194692862996171
+            },
+            {
+                "enabled": true,
+                "input": 2,
+                "output": 10,
+                "weight": -0.15182914377086573
+            },
+            {
+                "enabled": true,
+                "input": 3,
+                "output": 9,
+                "weight": -0.05500562128751232
+            },
+            {
+                "enabled": false,
+                "input": 3,
+                "output": 10,
+                "weight": -0.7576565392453446
+            },
+            {
+                "enabled": true,
+                "input": 4,
+                "output": 9,
+                "weight": 0.08562201552112425
+            },
+            {
+                "enabled": true,
+                "input": 4,
+                "output": 10,
+                "weight": -0.24148017669686397
+            },
+            {
+                "enabled": true,
+                "input": 5,
+                "output": 9,
+                "weight": 0.3365471710927861
+            },
+            {
+                "enabled": false,
+                "input": 5,
+                "output": 10,
+                "weight": 0.15418450376032114
+            },
+            {
+                "enabled": true,
+                "input": 6,
+                "output": 9,
+                "weight": -0.26637236346754284
+            },
+            {
+                "enabled": true,
+                "input": 6,
+                "output": 10,
+                "weight": -0.35401320100337486
+            },
+            {
+                "enabled": true,
+                "input": 7,
+                "output": 9,
+                "weight": -0.41710959589241464
+            },
+            {
+                "enabled": false,
+                "input": 7,
+                "output": 10,
+                "weight": -0.02751531924848773
+            },
+            {
+                "enabled": true,
+                "input": 8,
+                "output": 9,
+                "weight": 0.08735895304673696
+            },
+            {
+                "enabled": false,
+                "input": 8,
+                "output": 10,
+                "weight": -0.004317300715597777
+            }
+        ]
     }
+}

@@ -17,7 +17,7 @@ const SevenBag = engine.bags.SevenBag;
 
 const bot = @import("bot");
 const Bot = bot.neat.Bot;
-const NN = bot.neat.NN;
+const NN = bot.neat.NN(8, 2);
 
 const sound = @import("sound.zig");
 
@@ -203,7 +203,7 @@ pub fn main() !void {
             triggered = true;
         }
         if (render_timer.trigger()) |_| {
-            try match.draw();
+            match.draw();
             fps_view.printAt(0, 0, .white, .black, "{d:.2}FPS", .{nterm.fps()});
             if (paused) {
                 nterm.view().writeAligned(.center, nterm.canvasSize().height / 2, .white, .black, "Paused");
