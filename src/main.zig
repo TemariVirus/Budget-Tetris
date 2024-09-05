@@ -4,6 +4,7 @@ const time = std.time;
 const windows = std.os.windows;
 
 const nterm = @import("nterm");
+const Colors = nterm.Colors;
 const input = nterm.input;
 const View = nterm.View;
 
@@ -161,7 +162,15 @@ pub fn main() !void {
     defer _ = timeEndPeriod(WIN_TIMER_PERIOD);
 
     // Add 2 to create a 1-wide empty boarder on the left and right.
-    try nterm.init(allocator, std.io.getStdOut(), FPS_TIMING_WINDOW, Player.DISPLAY_W * 2 + 3, Player.DISPLAY_H);
+    try nterm.init(
+        allocator,
+        std.io.getStdOut(),
+        FPS_TIMING_WINDOW,
+        Player.DISPLAY_W * 2 + 3,
+        Player.DISPLAY_H,
+        null,
+        null,
+    );
     defer nterm.deinit();
 
     try input.init(allocator);
@@ -204,9 +213,9 @@ pub fn main() !void {
         }
         if (render_timer.trigger()) |_| {
             match.draw();
-            fps_view.printAt(0, 0, .white, .black, "{d:.2}FPS", .{nterm.fps()});
+            fps_view.printAt(0, 0, Colors.WHITE, null, "{d:.2}FPS", .{nterm.fps()});
             if (paused) {
-                nterm.view().writeAligned(.center, nterm.canvasSize().height / 2, .white, .black, "Paused");
+                nterm.view().writeAligned(.center, nterm.canvasSize().height / 2, Colors.WHITE, null, "Paused");
             }
             nterm.render() catch |err| {
                 if (err == error.NotInitialized) {
@@ -291,8 +300,8 @@ fn botThread(allocator: Allocator, match: *Match, index: usize) !void {
         player.hardDrop(index, match.players);
 
         // TODO: Print bot stats
-        // bot_stats_view.printAt(0, 0, .white, .black, "Nodes: {d}", .{bot.node_count});
-        // bot_stats_view.printAt(0, 1, .white, .black, "Depth: {d}", .{bot.current_depth});
-        // bot_stats_view.printAt(0, 2, .white, .black, "Tresh: {d}", .{bot.move_tresh});
+        // bot_stats_view.printAt(0, 0, Colors.WHITE, null, "Nodes: {d}", .{bot.node_count});
+        // bot_stats_view.printAt(0, 1, Colors.WHITE, null, "Depth: {d}", .{bot.current_depth});
+        // bot_stats_view.printAt(0, 2, Colors.WHITE, null, "Tresh: {d}", .{bot.move_tresh});
     }
 }
