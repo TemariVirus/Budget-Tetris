@@ -6,14 +6,15 @@ const windows = std.os.windows;
 const nterm = @import("nterm");
 const Colors = nterm.Colors;
 const input = nterm.input;
+const PeriodicTrigger = nterm.PeriodicTrigger;
 const View = nterm.View;
 
 const engine = @import("engine");
 const BoardMask = engine.bit_masks.BoardMask;
+const FPSQueue = engine.FPSQueue;
 const kicks = engine.kicks;
 const Match = engine.Match(SevenBag);
 const Player = Match.Player;
-const PeriodicTrigger = engine.PeriodicTrigger;
 const SevenBag = engine.bags.SevenBag;
 
 const bot = @import("bot");
@@ -165,7 +166,6 @@ pub fn main() !void {
     try nterm.init(
         allocator,
         std.io.getStdOut(),
-        FPS_TIMING_WINDOW,
         Player.DISPLAY_W * 2 + 3,
         Player.DISPLAY_H,
         null,
@@ -199,8 +199,11 @@ pub fn main() !void {
     defer bot_thread.join();
 
     const fps_view = View{ .left = 1, .top = 0, .width = 15, .height = 1 };
-    var input_timer = PeriodicTrigger.init(time.ns_per_s / INPUT_RATE);
-    var render_timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE);
+    var fps_buffer: [FPS_TIMING_WINDOW]i64 = undefined;
+    var fps_queue = FPSQueue{ .data = &fps_buffer };
+
+    var input_timer = PeriodicTrigger.init(time.ns_per_s / INPUT_RATE, true);
+    var render_timer = PeriodicTrigger.init(time.ns_per_s / FRAMERATE, true);
     while (true) {
         var triggered = false;
 
@@ -213,7 +216,9 @@ pub fn main() !void {
         }
         if (render_timer.trigger()) |_| {
             match.draw();
-            fps_view.printAt(0, 0, Colors.WHITE, null, "{d:.2}FPS", .{nterm.fps()});
+            fps_queue.nextFrame();
+            fps_view.printAt(0, 0, Colors.WHITE, null, "{d:.2}FPS", .{fps_queue.fps()});
+
             if (paused) {
                 nterm.view().writeAligned(.center, nterm.canvasSize().height / 2, Colors.WHITE, null, "Paused");
             }

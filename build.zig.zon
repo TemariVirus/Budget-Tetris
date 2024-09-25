@@ -3,8 +3,8 @@
     .version = "0.0.0",
     .dependencies = .{
         .bot = .{
-            .url = "https://github.com/TemariVirus/Budget-Tetris-Bot/archive/fb01ff1fa77ba51d268e622f10dcf5eea8d6a969.tar.gz",
-            .hash = "1220fc53cee9578b06e0e13227c7d4700690ed738c658afdfe0a3d552067d334fbc2",
+            .url = "https://github.com/TemariVirus/Budget-Tetris-Bot/archive/7ecc74234f291ec256264199fd4e5256c0355b2d.tar.gz",
+            .hash = "12204aed8bd949a8045b26ef34c386ad6948fa527110c427f4f66e9e7ab59e2c21e5",
         },
         // Courtesy of https://github.com/zig-gamedev/zig-gamedev
         .zwin32 = .{ .path = "libs/zwin32" },
