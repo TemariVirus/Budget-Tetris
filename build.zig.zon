@@ -6,9 +6,6 @@
             .url = "https://github.com/TemariVirus/Budget-Tetris-Bot/archive/7ecc74234f291ec256264199fd4e5256c0355b2d.tar.gz",
             .hash = "12204aed8bd949a8045b26ef34c386ad6948fa527110c427f4f66e9e7ab59e2c21e5",
         },
-        // Courtesy of https://github.com/zig-gamedev/zig-gamedev
-        .zwin32 = .{ .path = "libs/zwin32" },
-        .zxaudio2 = .{ .path = "libs/zxaudio2" },
     },
     .paths = .{""},
 }
